@@ -1,264 +1,215 @@
-/**
- * DK Kmen – Export jednotek
- * Vložit jako skript v Tribal Wars (Nastavení → Skripty)
- * Spouštět na stránce: /game.php?screen=ally&mode=members_troops
- *
- * Označení vesnic:
- *   1/2 off  = 3000–4500 seker  AND  1200–1800 LK  AND  150–200 beranů
- *   fullka   = sekery > 4500  OR  LK > 1800  OR  berany > 200
- *   ostatní  = vše ostatní
- */
+javascript:
+// ── DK Export jednotek ──────────────────────────────────────
+// Spustit na stránce: Kmen → Členové (nebo Vojenské jednotky)
+// Přesměruje na správnou stránku pokud je potřeba.
 
-(async function() {
-  'use strict';
+if (window.location.href.indexOf('screen=ally&mode=members_troops') > -1 ||
+    window.location.href.indexOf('screen=ally&mode=members') < 0) {
+    window.location.assign(game_data.link_base_pure + 'ally&mode=members');
+}
 
-  // ── THRESHOLDS ────────────────────────────────────────────
-  const THRESH = {
-    axe:  { half_min: 3000, half_max: 4500 },
-    lk:   { half_min: 1200, half_max: 1800 },
-    ram:  { half_min:  150, half_max:  200 },
-  };
+// ── THRESHOLDS ─────────────────────────────────────────────
+var THRESH = {
+    axe: { half_min: 3000, half_max: 4500 },
+    lk:  { half_min: 1200, half_max: 1800 },
+    ram: { half_min:  150, half_max:  200 }
+};
 
-  // Mapování názvů sloupců (TW cs) → klíče
-  // Pořadí sloupců se může lišit – skript čte header dynamicky
-  const COL_MAP = {
-    'Kopiník':    'spear',
-    'Mečník':     'sword',
-    'Sekerník':   'axe',
-    'Lučištník':  'archer',
-    'Zvěd':       'scout',
-    'LK':         'lk',
-    'TK':         'tk',
-    'Beran':      'ram',
-    'Katapult':   'catapult',
-    'Šlechtic':   'noble',
-    'Paladin':    'paladin',
-    // anglické varianty pro jistotu
-    'Spear Fighter': 'spear',
-    'Swordsman':     'sword',
-    'Axeman':        'axe',
-    'Archer':        'archer',
-    'Scout':         'scout',
-    'Light Cavalry': 'lk',
-    'Heavy Cavalry': 'tk',
-    'Ram':           'ram',
-    'Catapult':      'catapult',
-    'Nobleman':      'noble',
-    'Knight':        'paladin',
-  };
+// Mapování TW interních názvů → naše klíče
+var UNIT_MAP = {
+    spear: 'spear', sword: 'sword', axe: 'axe', archer: 'archer',
+    spy: 'scout', light: 'lk', marcher: 'archer2', heavy: 'tk',
+    ram: 'ram', catapult: 'catapult', snob: 'noble', knight: 'paladin'
+};
 
-  // ── HELPERS ───────────────────────────────────────────────
-  function classifyVillage(units) {
-    const axe = units.axe  || 0;
-    const lk  = units.lk   || 0;
-    const ram = units.ram  || 0;
+// ── UI ─────────────────────────────────────────────────────
+$('.dk-export-box').remove();
+var $box = $('<div class="dk-export-box"></div>').css({
+    position: 'fixed', top: '20px', right: '20px', zIndex: 99999,
+    background: '#2a1e0e', border: '2px solid #d4a84b', borderRadius: '8px',
+    padding: '16px 20px', fontFamily: 'monospace', fontSize: '13px',
+    color: '#e8d5a3', minWidth: '320px', maxWidth: '420px',
+    boxShadow: '0 4px 20px rgba(0,0,0,.6)'
+});
+$('body').append($box);
 
-    const isFullka =
-      axe > THRESH.axe.half_max ||
-      lk  > THRESH.lk.half_max  ||
-      ram > THRESH.ram.half_max;
+function showProgress(msg) {
+    $box.html('<b style="color:#f0c96a">⚔️ DK Export jednotek</b><br><br>' + msg);
+}
 
-    const isHalf =
-      axe >= THRESH.axe.half_min && axe <= THRESH.axe.half_max &&
-      lk  >= THRESH.lk.half_min  && lk  <= THRESH.lk.half_max  &&
-      ram >= THRESH.ram.half_min  && ram <= THRESH.ram.half_max;
+function classifyVillage(units) {
+    var axe = units.axe || 0;
+    var lk  = units.lk  || 0;
+    var ram = units.ram  || 0;
 
-    if (isFullka) return 'fullka';
-    if (isHalf)   return 'half_off';
+    if (axe > THRESH.axe.half_max || lk > THRESH.lk.half_max || ram > THRESH.ram.half_max)
+        return 'fullka';
+    if (axe >= THRESH.axe.half_min && axe <= THRESH.axe.half_max &&
+        lk  >= THRESH.lk.half_min  && lk  <= THRESH.lk.half_max  &&
+        ram >= THRESH.ram.half_min  && ram <= THRESH.ram.half_max)
+        return 'half_off';
     return 'ostatni';
-  }
+}
 
-  function parseNum(str) {
-    if (!str) return 0;
-    return parseInt(str.replace(/\D/g, ''), 10) || 0;
-  }
+// ── SBÍRÁNÍ HRÁČŮ ─────────────────────────────────────────
+var baseURL    = 'game.php?screen=ally&mode=members_troops&player_id=';
+var playerURLs = [];
+var players    = [];
 
-  function log(msg) {
-    console.log(`[DK Export] ${msg}`);
-  }
+$('input:radio[name=player]').each(function() {
+    var pid  = $(this).attr('value');
+    var name = $(this).parent().text().trim();
+    playerURLs.push(baseURL + pid);
+    players.push({ id: pid, name: name });
+});
 
-  function showProgress(msg) {
-    let box = document.getElementById('dk-export-box');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'dk-export-box';
-      box.style.cssText = `
-        position:fixed; top:20px; right:20px; z-index:99999;
-        background:#2a1e0e; border:2px solid #d4a84b; border-radius:8px;
-        padding:16px 20px; font-family:monospace; font-size:13px;
-        color:#e8d5a3; min-width:320px; max-width:420px;
-        box-shadow:0 4px 20px rgba(0,0,0,.6);
-      `;
-      document.body.appendChild(box);
+if (!players.length) {
+    showProgress('❌ Nenalezeni žádní hráči.<br>Spusť skript na stránce <b>Kmen → Členové</b>.');
+    return;
+}
+
+showProgress('✓ Nalezeno <b>' + players.length + ' hráčů</b><br>⌛ Načítám vesnice…');
+
+// ── PROGRESS BAR ───────────────────────────────────────────
+$('#dk-progressbar').remove();
+var $bar = $('<div id="dk-progressbar" style="width:100%;background:#1a1208;border-bottom:2px solid #6b4f2a;">' +
+    '<div id="dk-progress" style="width:0%;height:8px;background:#d4a84b;transition:width .3s;"></div></div>');
+$('body').prepend($bar);
+
+function setProgress(done, total) {
+    $('#dk-progress').css('width', (done / total * 100) + '%');
+}
+
+// ── GETALL (jQuery style, jako Shinko skript) ──────────────
+$.getAll = function(urls, onLoad, onDone, onError) {
+    var numDone = 0;
+    var lastReq = 0;
+    var minWait = 250;
+    loadNext();
+    function loadNext() {
+        if (numDone === urls.length) { onDone(); return; }
+        var now = Date.now();
+        var elapsed = now - lastReq;
+        if (elapsed < minWait) { setTimeout(loadNext, minWait - elapsed); return; }
+        lastReq = now;
+        $.get(urls[numDone])
+            .done(function(data) {
+                try { onLoad(numDone, data); numDone++; loadNext(); }
+                catch(e) { onError(e); }
+            })
+            .fail(function(xhr) { onError(xhr); });
     }
-    box.innerHTML = `<b style="color:#f0c96a">⚔️ DK Export jednotek</b><br><br>${msg}`;
-  }
+};
 
-  function removeProgress() {
-    const box = document.getElementById('dk-export-box');
-    if (box) box.remove();
-  }
+// ── HLAVNÍ LOGIKA ─────────────────────────────────────────
+var allVillages = [];
 
-  // ── STEP 1: získat seznam hráčů ───────────────────────────
-  showProgress('⌛ Načítám seznam hráčů kmene…');
+$.getAll(
+    playerURLs,
+    function(i, data) {
+        setProgress(i + 1, players.length);
+        var playerName = players[i].name;
 
-  const villageId = game_data?.village?.id || location.href.match(/village=(\d+)/)?.[1] || '';
-  const baseUrl   = `${location.origin}/game.php?village=${villageId}&screen=ally&mode=members_troops`;
-
-  let mainDoc;
-  try {
-    const r = await fetch(baseUrl, { credentials: 'include' });
-    mainDoc  = new DOMParser().parseFromString(await r.text(), 'text/html');
-  } catch(e) {
-    showProgress(`❌ Chyba při načítání kmene:<br>${e.message}`);
-    return;
-  }
-
-  // Hledáme odkazy na player_id v tabulce
-  const playerLinks = [...mainDoc.querySelectorAll('a[href*="player_id"]')];
-  const playerIds   = [...new Set(
-    playerLinks
-      .map(a => a.href.match(/player_id=(\d+)/)?.[1])
-      .filter(Boolean)
-  )];
-
-  if (!playerIds.length) {
-    showProgress('❌ Nenalezeni žádní hráči. Spusť skript na stránce Aliance → Přehled vojsk.');
-    return;
-  }
-
-  log(`Nalezeno ${playerIds.length} hráčů`);
-  showProgress(`✓ Nalezeno <b>${playerIds.length} hráčů</b><br>⌛ Načítám detaily vesnic…`);
-
-  // ── STEP 2: pro každého hráče načíst detail vesnic ────────
-  const allVillages = [];
-  let done = 0;
-
-  for (const pid of playerIds) {
-    const url = `${location.origin}/game.php?village=${villageId}&screen=ally&mode=members_troops&player_id=${pid}`;
-    try {
-      const r    = await fetch(url, { credentials: 'include' });
-      const html = await r.text();
-      const doc  = new DOMParser().parseFromString(html, 'text/html');
-
-      // Jméno hráče
-      const playerName = doc.querySelector('.player-name, #ally_content b, h2')?.textContent?.trim()
-        || doc.querySelector(`a[href*="player_id=${pid}"]`)?.textContent?.trim()
-        || `Hráč ${pid}`;
-
-      // Najít tabulku s jednotkami
-      const tables = [...doc.querySelectorAll('table')];
-      const troopTable = tables.find(t =>
-        t.innerText?.includes('Sekerník') ||
-        t.innerText?.includes('Axeman') ||
-        t.innerText?.includes('Beran') ||
-        t.innerText?.includes('Ram')
-      );
-
-      if (!troopTable) {
-        log(`Hráč ${pid}: tabulka jednotek nenalezena`);
-        done++;
-        showProgress(`✓ <b>${playerIds.length} hráčů</b> | Načteno: <b>${done}/${playerIds.length}</b><br>⌛ Zpracovávám…`);
-        continue;
-      }
-
-      // Parsovat header → mapování sloupce → klíč
-      const headers = [...troopTable.querySelectorAll('thead th, thead td')]
-        .map(th => th.textContent.trim());
-
-      // Sloupec 0 = název vesnice, 1 = souřadnice nebo opačně – najdeme dynamicky
-      // Sloupec s koordináty poznáme jako "xxx|yyy"
-      const colKeys = headers.map(h => COL_MAP[h] || null);
-
-      // Řádky těla tabulky
-      const rows = [...troopTable.querySelectorAll('tbody tr')];
-      for (const row of rows) {
-        const cells = [...row.querySelectorAll('td')].map(td => td.textContent.trim());
-        if (cells.length < 3) continue;
-
-        // Najít souřadnice (formát 000|000)
-        let coords = null, coordIdx = -1;
-        for (let i = 0; i < cells.length; i++) {
-          const m = cells[i].match(/(\d+)\|(\d+)/);
-          if (m) { coords = { x: +m[1], y: +m[2] }; coordIdx = i; break; }
+        // Řádky vesnic – stejný selektor jako Shinko skript
+        var rows;
+        if ($(data).find('.paged-nav-item').length === 0) {
+            rows = $(data).find('.vis.w100 tr').not(':first');
+        } else {
+            rows = $(data).find('.vis.w100 tr').not(':first').not(':first').not(':last');
         }
-        if (!coords) continue;
 
-        // Název vesnice – buňka před souřadnicemi nebo ta samá
-        const villageName = coordIdx > 0
-          ? cells[coordIdx - 1].replace(/\(.*?\)/g,'').trim() || `${coords.x}|${coords.y}`
-          : `${coords.x}|${coords.y}`;
+        // Extra stránky pokud jich má hráč víc
+        var extraPages = [];
+        for (var p = 0; p < $(data).find('.paged-nav-item').length / 2; p++) {
+            extraPages.push($(data).find('.paged-nav-item').eq(p).attr('href'));
+        }
 
-        // Parsovat jednotky podle headeru
-        const units = {};
-        colKeys.forEach((key, i) => {
-          if (key && cells[i] !== undefined) {
-            units[key] = parseNum(cells[i]);
-          }
-        });
+        $.getAll(extraPages,
+            function(p, moreData) {
+                if ($(moreData).find('.paged-nav-item').length === 0) {
+                    rows = $.merge(rows, $(moreData).find('.vis.w100 tr').not(':first'));
+                } else {
+                    rows = $.merge(rows, $(moreData).find('.vis.w100 tr').not(':first').not(':first').not(':last'));
+                }
+            },
+            function() {
+                // Zpracovat řádky vesnic
+                $.each(rows, function(rowNr) {
+                    var $row = rows.eq(rowNr);
+                    var link = $row.find('a').first();
+                    if (!link.length) return;
 
-        const category = classifyVillage(units);
-        allVillages.push({
-          player_id:   pid,
-          player_name: playerName,
-          village_name: villageName,
-          x: coords.x,
-          y: coords.y,
-          units,
-          category,   // 'half_off' | 'fullka' | 'ostatni'
-        });
-      }
+                    // Souřadnice z textu odkazu (formát "NázevVesnice (xxx|yyy)")
+                    var linkText = link.text().trim();
+                    var coordMatch = linkText.match(/\((\d+)\|(\d+)\)/) || link.attr('href').match(/x=(\d+).*y=(\d+)/);
+                    if (!coordMatch) return;
+                    var x = +coordMatch[1], y = +coordMatch[2];
+                    var villageName = linkText.replace(/\s*\(\d+\|\d+\)/, '').trim() || (x + '|' + y);
 
-    } catch(e) {
-      log(`Hráč ${pid}: chyba – ${e.message}`);
+                    // Jednotky – stejné pořadí jako game_data.units
+                    var units = {};
+                    $.each(game_data.units, function(idx) {
+                        var twName  = game_data.units[idx];
+                        var ourKey  = UNIT_MAP[twName] || twName;
+                        var cellTxt = $row.children().not(':first').eq(idx).text().trim();
+                        units[ourKey] = cellTxt === '?' ? 0 : (parseInt(cellTxt) || 0);
+                    });
+
+                    allVillages.push({
+                        player_name:  playerName,
+                        village_name: villageName,
+                        x: x, y: y,
+                        units: units,
+                        category: classifyVillage(units)
+                    });
+                });
+
+                showProgress(
+                    '✓ <b>' + players.length + ' hráčů</b> | Načteno: <b>' + (i+1) + '/' + players.length + '</b><br>' +
+                    'Vesnic zatím: <b>' + allVillages.length + '</b><br>⌛ Zpracovávám…'
+                );
+            },
+            function(e) { console.error('Stránka hráče chyba:', e); }
+        );
+    },
+    function() {
+        // ── VÝSTUP ────────────────────────────────────────
+        $('#dk-progressbar').remove();
+
+        var summary = {
+            exported_at: new Date().toISOString(),
+            world:       location.hostname.split('.')[0],
+            total:       allVillages.length,
+            half_off:    allVillages.filter(function(v){ return v.category==='half_off'; }).length,
+            fullka:      allVillages.filter(function(v){ return v.category==='fullka'; }).length,
+            ostatni:     allVillages.filter(function(v){ return v.category==='ostatni'; }).length,
+            thresholds:  THRESH,
+            villages:    allVillages
+        };
+
+        var json = JSON.stringify(summary, null, 2);
+
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(json).then(function() {
+                showProgress(
+                    '✅ <b>Hotovo!</b><br>' +
+                    'Celkem vesnic: <b>' + summary.total + '</b><br>' +
+                    '• 1/2 off: <b>' + summary.half_off + '</b><br>' +
+                    '• Fullka: <b>' + summary.fullka + '</b><br>' +
+                    '• Ostatní: <b>' + summary.ostatni + '</b><br><br>' +
+                    '<span style="color:#7ec87e">✓ JSON zkopírován do schránky</span><br>' +
+                    '<button onclick="$(\'.dk-export-box\').remove()" ' +
+                    'style="margin-top:10px;padding:4px 12px;background:#3d2a0a;border:1px solid #d4a84b;color:#e8d5a3;cursor:pointer;border-radius:4px;">Zavřít</button>'
+                );
+            });
+        } else {
+            var w = window.open('', '_blank');
+            w.document.write('<pre style="font-family:monospace;font-size:12px;white-space:pre-wrap;">' + json + '</pre>');
+            showProgress('✅ <b>Hotovo!</b> JSON otevřen v novém okně.<br>Celkem: <b>' + summary.total + '</b>');
+        }
+    },
+    function(e) {
+        console.error('Chyba:', e);
+        showProgress('❌ Chyba při načítání: ' + e.statusText);
     }
-
-    done++;
-    showProgress(
-      `✓ <b>${playerIds.length} hráčů</b> | Načteno: <b>${done}/${playerIds.length}</b><br>` +
-      `Vesnic zatím: <b>${allVillages.length}</b><br>⌛ Zpracovávám…`
-    );
-
-    // Krátká pauza – nechceme spamovat server
-    await new Promise(r => setTimeout(r, 300));
-  }
-
-  // ── STEP 3: výstup ────────────────────────────────────────
-  const summary = {
-    exported_at:  new Date().toISOString(),
-    world:        location.hostname.split('.')[0],
-    total:        allVillages.length,
-    half_off:     allVillages.filter(v => v.category === 'half_off').length,
-    fullka:       allVillages.filter(v => v.category === 'fullka').length,
-    ostatni:      allVillages.filter(v => v.category === 'ostatni').length,
-    thresholds:   THRESH,
-    villages:     allVillages,
-  };
-
-  const json = JSON.stringify(summary, null, 2);
-
-  try {
-    await navigator.clipboard.writeText(json);
-    showProgress(
-      `✅ <b>Hotovo!</b><br>` +
-      `Celkem vesnic: <b>${summary.total}</b><br>` +
-      `• 1/2 off: <b>${summary.half_off}</b><br>` +
-      `• Fullka: <b>${summary.fullka}</b><br>` +
-      `• Ostatní: <b>${summary.ostatni}</b><br><br>` +
-      `<span style="color:#7ec87e">✓ JSON zkopírován do schránky</span><br>` +
-      `<button onclick="document.getElementById('dk-export-box').remove()" ` +
-      `style="margin-top:10px;padding:4px 12px;background:#3d2a0a;border:1px solid #d4a84b;` +
-      `color:#e8d5a3;cursor:pointer;border-radius:4px;">Zavřít</button>`
-    );
-  } catch(e) {
-    // Fallback – otevřít v novém okně
-    const w = window.open('', '_blank');
-    w.document.write(`<pre style="font-family:monospace;font-size:12px;white-space:pre-wrap;">${json}</pre>`);
-    showProgress(
-      `✅ <b>Hotovo!</b> (schránka nedostupná – otevřeno v novém okně)<br>` +
-      `Celkem: <b>${summary.total}</b> | 1/2 off: <b>${summary.half_off}</b> | Fullka: <b>${summary.fullka}</b>`
-    );
-  }
-
-  log(`Export dokončen. ${summary.total} vesnic.`);
-})();
+);
