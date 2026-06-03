@@ -11,10 +11,13 @@ if (window.location.href.indexOf('screen=ally&mode=members_troops') > -1 ||
 }
 
 // ── THRESHOLDS ─────────────────────────────────────────────
+// Klasifikace podle seker:
+//   minioff  = < 3000
+//   half_off = 3000–4499
+//   triq_off = 4500–4999
+//   fullka   = 5000+
 var THRESH = {
-    axe: { half_min: 3000, half_max: 4500 },
-    lk:  { half_min: 1200, half_max: 1800 },
-    ram: { half_min:  150, half_max:  200 }
+    axe: { mini: 3000, half: 4500, triq: 5000 }
 };
 
 var UNIT_MAP = {
@@ -39,14 +42,11 @@ function showProgress(msg) {
 }
 
 function classifyVillage(units) {
-    var axe = units.axe || 0, lk = units.lk || 0, ram = units.ram || 0;
-    if (axe > THRESH.axe.half_max || lk > THRESH.lk.half_max || ram > THRESH.ram.half_max)
-        return 'fullka';
-    if (axe >= THRESH.axe.half_min && axe <= THRESH.axe.half_max &&
-        lk  >= THRESH.lk.half_min  && lk  <= THRESH.lk.half_max  &&
-        ram >= THRESH.ram.half_min  && ram <= THRESH.ram.half_max)
-        return 'half_off';
-    return 'ostatni';
+    var axe = units.axe || 0;
+    if (axe >= THRESH.axe.triq) return 'fullka';
+    if (axe >= THRESH.axe.half) return 'triq_off';
+    if (axe >= THRESH.axe.mini) return 'half_off';
+    return 'minioff';
 }
 
 // ── SBÍRÁNÍ HRÁČŮ ─────────────────────────────────────────
@@ -172,9 +172,10 @@ $.getAll(
             exported_at: new Date().toISOString(),
             world:       location.hostname.split('.')[0],
             total:       allVillages.length,
+            minioff:     allVillages.filter(function(v){ return v.category==='minioff'; }).length,
             half_off:    allVillages.filter(function(v){ return v.category==='half_off'; }).length,
+            triq_off:    allVillages.filter(function(v){ return v.category==='triq_off'; }).length,
             fullka:      allVillages.filter(function(v){ return v.category==='fullka'; }).length,
-            ostatni:     allVillages.filter(function(v){ return v.category==='ostatni'; }).length,
             thresholds:  THRESH,
             villages:    allVillages
         };
@@ -186,9 +187,10 @@ $.getAll(
                 showProgress(
                     '✅ <b>Hotovo!</b><br>' +
                     'Celkem vesnic: <b>' + summary.total + '</b><br>' +
+                    '• Mini off: <b>' + summary.minioff + '</b><br>' +
                     '• 1/2 off: <b>' + summary.half_off + '</b><br>' +
-                    '• Fullka: <b>' + summary.fullka + '</b><br>' +
-                    '• Ostatní: <b>' + summary.ostatni + '</b><br><br>' +
+                    '• 3/4 off: <b>' + summary.triq_off + '</b><br>' +
+                    '• Fullka: <b>' + summary.fullka + '</b><br><br>' +
                     '<span style="color:#7ec87e">✓ JSON zkopírován do schránky</span><br>' +
                     '<button onclick="$(\'.dk-export-box,#dk-progressbar\').remove()" ' +
                     'style="margin-top:10px;padding:4px 12px;background:#3d2a0a;border:1px solid #d4a84b;color:#e8d5a3;cursor:pointer;border-radius:4px;">Zavřít</button>'

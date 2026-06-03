@@ -207,9 +207,10 @@
           <div id="src-filter-wrap" style="display:none;margin-top:8px;">
             <div style="font-size:12px;color:var(--gold);margin-bottom:4px;">Filtr vesnic:</div>
             <div class="src-filter">
+              <label><input type="checkbox" id="filter-full" checked onchange="applyJsonFilter()"> <span class="chip chip-full">fullka ≥5000</span></label>
+              <label><input type="checkbox" id="filter-triq" checked onchange="applyJsonFilter()"> <span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050">3/4 off</span></label>
               <label><input type="checkbox" id="filter-half" checked onchange="applyJsonFilter()"> <span class="chip chip-half">1/2 off</span></label>
-              <label><input type="checkbox" id="filter-full" checked onchange="applyJsonFilter()"> <span class="chip chip-full">fullka</span></label>
-              <label><input type="checkbox" id="filter-other" onchange="applyJsonFilter()"> ostatní</label>
+              <label><input type="checkbox" id="filter-mini" onchange="applyJsonFilter()"> <span class="chip" style="background:#1a1a1a;color:#808080;border:1px solid #404040">mini off</span></label>
             </div>
             <div class="village-list" id="json-village-list" style="margin-top:8px;"></div>
             <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="json-village-count"></div>
@@ -468,28 +469,33 @@ function importJson() {
 }
 
 function applyJsonFilter() {
-  const wantHalf  = document.getElementById('filter-half').checked;
   const wantFull  = document.getElementById('filter-full').checked;
-  const wantOther = document.getElementById('filter-other').checked;
+  const wantTriq  = document.getElementById('filter-triq').checked;
+  const wantHalf  = document.getElementById('filter-half').checked;
+  const wantMini  = document.getElementById('filter-mini').checked;
 
   srcVillages = jsonVillages.filter(v => {
-    if (v.category === 'half_off') return wantHalf;
     if (v.category === 'fullka')   return wantFull;
-    return wantOther;
+    if (v.category === 'triq_off') return wantTriq;
+    if (v.category === 'half_off') return wantHalf;
+    if (v.category === 'minioff')  return wantMini;
+    return false;
   });
 
+  const catChipHtml = (v) => {
+    if (v.category === 'fullka')   return '<span class="vi-cat vi-cat-full">fullka</span>';
+    if (v.category === 'triq_off') return '<span class="vi-cat" style="background:#001a1a;color:#50d0d0;border:1px solid #205050">3/4</span>';
+    if (v.category === 'half_off') return '<span class="vi-cat vi-cat-half">1/2</span>';
+    return '<span class="vi-cat" style="background:#1a1a1a;color:#808080;border:1px solid #404040">mini</span>';
+  };
+
   const listEl = document.getElementById('json-village-list');
-  listEl.innerHTML = srcVillages.slice(0, 100).map(v => {
-    const catChip = v.category === 'half_off'
-      ? '<span class="vi-cat vi-cat-half">1/2 off</span>'
-      : v.category === 'fullka'
-        ? '<span class="vi-cat vi-cat-full">fullka</span>'
-        : '';
-    return `<div class="village-item">
-      <span style="font-size:12px">${v.village_name} ${catChip}</span>
+  listEl.innerHTML = srcVillages.slice(0, 100).map(v =>
+    `<div class="village-item">
+      <span style="font-size:12px">${v.village_name} ${catChipHtml(v)}</span>
       <span class="village-coords">${v.x}|${v.y}</span>
-    </div>`;
-  }).join('') + (srcVillages.length > 100 ? `<div class="village-item" style="color:var(--dim)">… a ${srcVillages.length-100} dalších</div>` : '');
+    </div>`
+  ).join('') + (srcVillages.length > 100 ? `<div class="village-item" style="color:var(--dim)">… a ${srcVillages.length-100} dalších</div>` : '');
   document.getElementById('json-village-count').textContent = `Zobrazeno: ${srcVillages.length} vesnic`;
 }
 
@@ -749,11 +755,15 @@ function renderResults() {
     const rowClass  = past ? 'past-row' : row.night ? 'night-row' : '';
     const sendClass = row.night ? 'send-time night' : 'send-time';
     const rowIdx    = attackRows.indexOf(row);
-    const catHtml   = row.srcCategory === 'half_off'
-      ? '<span class="chip chip-half">½ off</span>'
-      : row.srcCategory === 'fullka'
-        ? '<span class="chip chip-full">full</span>'
-        : '';
+    const catHtml   = row.srcCategory === 'fullka'
+      ? '<span class="chip chip-full">full</span>'
+      : row.srcCategory === 'triq_off'
+        ? '<span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050">3/4</span>'
+        : row.srcCategory === 'half_off'
+          ? '<span class="chip chip-half">½</span>'
+          : row.srcCategory === 'minioff'
+            ? '<span class="chip" style="background:#1a1a1a;color:#808080;border:1px solid #404040">mini</span>'
+            : '';
 
     html += `<tr class="${rowClass}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
