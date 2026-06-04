@@ -11,13 +11,24 @@ if (window.location.href.indexOf('screen=ally&mode=members_troops') > -1 ||
 }
 
 // ── THRESHOLDS ─────────────────────────────────────────────
-// Klasifikace podle seker:
-//   minioff  = < 3000
-//   half_off = 3000–4499
-//   triq_off = 4500–4999
-//   fullka   = 5000+
+// Klasifikace podle populace offových jednotek:
+//   minioff  = méně než 10k pop NEBO méně než 1000 seker
+//   half_off = 10 000–14 999 pop (a ≥1000 seker)
+//   triq_off = 15 000–17 999 pop (a ≥1000 seker)
+//   fullka   = 18 000+ pop      (a ≥1000 seker)
+//
+// Populace jednotek (farming units):
+var UNIT_POP = {
+    spear: 1, sword: 1, axe: 1, archer: 1,
+    scout: 2, lk: 4, archer2: 5, tk: 6,
+    ram: 5, catapult: 8, noble: 100, paladin: 10
+};
+
 var THRESH = {
-    axe: { mini: 3000, half: 4500, triq: 5000 }
+    axe_min: 1000,   // min seker pro jakoukoli off
+    half: 10000,     // 1/2 off
+    triq: 15000,     // 3/4 off
+    full: 18000      // fullka
 };
 
 var UNIT_MAP = {
@@ -41,11 +52,20 @@ function showProgress(msg) {
     $box.html('<b style="color:#f0c96a">⚔️ DK Export jednotek</b><br><br>' + msg);
 }
 
+function calcOffPop(units) {
+    var pop = 0;
+    var offKeys = ['axe', 'lk', 'tk', 'ram', 'catapult', 'archer2'];
+    offKeys.forEach(function(k) { pop += (units[k] || 0) * (UNIT_POP[k] || 0); });
+    return pop;
+}
+
 function classifyVillage(units) {
     var axe = units.axe || 0;
-    if (axe >= THRESH.axe.triq) return 'fullka';
-    if (axe >= THRESH.axe.half) return 'triq_off';
-    if (axe >= THRESH.axe.mini) return 'half_off';
+    if (axe < THRESH.axe_min) return 'minioff';
+    var pop = calcOffPop(units);
+    if (pop >= THRESH.full) return 'fullka';
+    if (pop >= THRESH.triq) return 'triq_off';
+    if (pop >= THRESH.half) return 'half_off';
     return 'minioff';
 }
 
