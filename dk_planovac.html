@@ -415,7 +415,7 @@
     <div class="alarm-info" id="alarm-info-tgt" style="font-weight:bold;color:var(--text);"></div>
     <div class="big-count" id="alarm-count">--:--:--</div>
     <div style="display:flex;gap:10px;justify-content:center;margin-bottom:12px;">
-      <a id="alarm-link" href="#" target="_blank" class="btn btn-green" style="text-decoration:none;font-size:15px;padding:9px 20px;">▶ Otevřít hru</a>
+      <a id="alarm-link" href="#" target="tw_game" class="btn btn-green" style="text-decoration:none;font-size:15px;padding:9px 20px;">▶ Otevřít hru</a>
       <button class="btn btn-red" onclick="closeAlarm()">✕ Zavřít</button>
     </div>
     <div style="font-size:11px;color:var(--dim);">Klikni "Otevřít hru" přesně ve správný čas</div>
@@ -783,7 +783,7 @@ function clearFakeCoords() {
 function travelMs(x1,y1,x2,y2,unit) {
   const ws   = parseFloat(document.getElementById('world-speed').value) || worldSpeed || 1;
   const um   = parseFloat(document.getElementById('unit-speed').value)  || unitSpeedMult || 1;
-  const dist = Math.round(Math.sqrt((x2-x1)**2+(y2-y1)**2) * 100) / 100;
+  const dist = Math.sqrt((x2-x1)**2+(y2-y1)**2); // plná přesnost, bez zaokrouhlení
   const speedS = UNIT_SPEEDS_S[unit] || 1800;
   if (apiSpeedsLoaded) return dist * speedS * 1000;
   return dist * speedS / (ws * um) * 1000;
@@ -1262,7 +1262,7 @@ function updateAlarm() {
   const el   = document.getElementById('alarm-count');
   if (diff <= 0) {
     el.textContent='▶ ODESLAT!'; el.style.color='#ff3333';
-    if (!alarmOpened) { alarmOpened=true; window.open(alarmLink,'_blank'); }
+    if (!alarmOpened) { alarmOpened=true; window.open(alarmLink,'tw_game'); }
     if (diff < -8000) closeAlarm(); return;
   }
   alarmOpened = false;
