@@ -1354,7 +1354,8 @@ function playerDataToUrl(playerName, rows) {
   };
   const json = JSON.stringify(data);
   const b64  = btoa(unescape(encodeURIComponent(json)));
-  return `${location.href.split('#')[0]}#player=${b64}`;
+  const base = location.href.replace(/\/[^/]*$/, '/');
+  return `${base}dk_hrac.html#${b64}`;
 }
 
 function openExport() {
@@ -1502,88 +1503,6 @@ function fmtDur(ms)   { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%360
 function fmtHMS(ms)   { const s=Math.floor(ms/1000); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`; }
 function fmtHMScs(ms) { const s=Math.floor(ms/1000),cs=Math.floor((ms%1000)/10); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}.${pad(cs)}`; }
 
-// ── PLAYER VIEW (otevření z osobního odkazu) ────────────────
-function initPlayerView() {
-  const hash = location.hash;
-  if (!hash.startsWith('#player=')) return;
-  try {
-    const b64  = hash.slice('#player='.length);
-    const json = decodeURIComponent(escape(atob(b64)));
-    const data = JSON.parse(json);
-    showPlayerView(data);
-  } catch(e) {
-    console.error('Chyba při načítání hráčského plánu:', e);
-  }
-}
-
-function showPlayerView(data) {
-  // Skryj master rozhraní, zobraz hráčský view
-  document.querySelector('.layout').style.display = 'none';
-
-  const now = Date.now();
-  const rows = data.rows.sort((a,b) => a.sendTime - b.sendTime);
-  const sharpCnt = rows.filter(r=>!r.isFake).length;
-  const fakeCnt  = rows.filter(r=> r.isFake).length;
-
-  const div = document.createElement('div');
-  div.style.cssText = 'max-width:900px;margin:0 auto;padding:20px;';
-
-  let html = `
-    <div style="background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:16px 20px;margin-bottom:16px;">
-      <div style="font-size:18px;font-weight:bold;color:var(--gold2);margin-bottom:4px;">⚔️ Plán útoků – ${data.player}</div>
-      <div style="font-size:12px;color:var(--dim);">Svět: ${data.world} &nbsp;|&nbsp; Exportováno: ${fmtDT(new Date(data.exported))}</div>
-      <div style="margin-top:8px;font-size:13px;">
-        Ostrých: <strong>${sharpCnt}</strong> &nbsp;|&nbsp;
-        Fejků: <strong>${fakeCnt}</strong> &nbsp;|&nbsp;
-        Celkem: <strong>${rows.length}</strong>
-      </div>
-    </div>
-    <table class="attacks"><thead><tr>
-      <th>#</th><th>Zdroj</th><th>Typ</th><th>Cíl</th><th>Jednotka</th>
-      <th>Čas odeslání</th><th>Čas příchodu</th><th>Cesta</th><th>Odpočet</th><th>▶</th>
-    </tr></thead><tbody>`;
-
-  rows.forEach((r, i) => {
-    const past      = r.sendTime < now;
-    const rowClass  = past ? 'past-row' : r.night ? 'night-row' : '';
-    const sendClass = r.night ? 'send-time night' : 'send-time';
-    const gameLink  = r.tgtId
-      ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`
-      : `${API_BASE}/game.php?village=${r.srcId}&screen=place`;
-    const typeHtml  = r.isFake
-      ? '<span class="chip" style="background:#1a0a00;color:#cc6600;border:1px solid #663300">💨 fejk</span>'
-      : (r.srcCategory === 'fullka'   ? '<span class="chip chip-full">fullka</span>'
-       : r.srcCategory === 'triq_off' ? '<span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050">3/4 off</span>'
-       : r.srcCategory === 'half_off' ? '<span class="chip chip-half">1/2 off</span>'
-       : '<span class="chip" style="background:#1a1a1a;color:#808080;border:1px solid #404040">mini</span>');
-
-    html += `<tr class="${rowClass}">
-      <td style="color:var(--dim);font-size:11px;">${i+1}</td>
-      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span></td>
-      <td>${typeHtml}</td>
-      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName && r.tgtName!==`${r.tgtX}|${r.tgtY}` ? ` <span style="color:var(--dim)">${r.tgtName}</span>` : ''}</td>
-      <td><span class="chip ${UNIT_CHIPS[r.unit]||''}">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
-      <td class="${sendClass}">${fmtDT(new Date(r.sendTime))}</td>
-      <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
-      <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
-      <td><span class="countdown" data-send="${r.sendTime}"></span></td>
-      <td><a class="play-btn" href="#" onclick="startAlarm(event,${i},'${gameLink.replace(/'/g,"\\'")}')">
-        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a></td>
-    </tr>`;
-  });
-
-  html += '</tbody></table>';
-  div.innerHTML = html;
-  document.body.appendChild(div);
-
-  // Nastav attackRows pro alarm
-  attackRows = rows.map(r => ({...r, srcPlayer: data.player}));
-
-  // Spusť odpočty
-  startCountdowns();
-}
-
-window.addEventListener('DOMContentLoaded', initPlayerView);
 </script>
 </body>
 </html>

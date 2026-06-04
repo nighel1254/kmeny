@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DK – Plán útoků</title>
+<style>
+  :root {
+    --bg:#0d0a05;--panel:#1a1208;--border:#3a2a10;--gold:#d4a84b;--gold2:#f0c96a;
+    --text:#e8d5a3;--dim:#8a7a5a;--green:#4a9a4a;--urgent:#cc3333;--night:#1a0a2a;
+    --gold-night:#8a6aaa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:13px;padding:16px;}
+  .header{background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:14px 18px;margin-bottom:14px;}
+  .header h1{color:var(--gold2);font-size:17px;margin-bottom:4px;}
+  .header .meta{font-size:11px;color:var(--dim);}
+  .summary{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:13px;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{background:#1a1208;color:var(--gold);font-weight:600;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:6px 10px;border-bottom:1px solid #1e1608;vertical-align:middle;}
+  tr:hover td{background:#1e1a0e}
+  .past-row td{opacity:.45}
+  .night-row td{background:var(--night)!important}
+  .coords{font-family:monospace;color:var(--gold2);font-weight:bold}
+  .chip{display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600;white-space:nowrap}
+  .chip-full{background:#002a00;color:#60e060;border:1px solid #206020}
+  .chip-half{background:#1a1a00;color:#c0b040;border:1px solid #605010}
+  .chip-ram{background:#1a001a;color:#c060c0;border:1px solid #602060}
+  .chip-night{background:#1a0a2a;color:#9a6aaa;border:1px solid #4a2a6a;margin-left:4px}
+  .send-time{font-family:monospace;white-space:nowrap}
+  .send-time.night{color:var(--gold-night)}
+  .arrival-time{font-family:monospace;white-space:nowrap;color:var(--dim)}
+  .countdown{font-family:monospace;font-weight:bold;font-size:13px}
+  .countdown.ok{color:var(--green)}
+  .countdown.soon{color:#c08020}
+  .countdown.urgent{color:var(--urgent)}
+  .countdown.past{color:var(--dim)}
+  .play-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#1a1208;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--green);text-decoration:none}
+  .play-btn svg{width:14px;height:14px;fill:currentColor}
+  .play-btn:hover{background:#2a2010;border-color:var(--gold)}
+  .play-btn.alarm-active{background:linear-gradient(180deg,#c44a00,#8b2200);border-color:#cc3333;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .error{background:#2a0a0a;border:1px solid #8b2020;border-radius:8px;padding:20px;text-align:center;color:#ff8080;margin:40px auto;max-width:500px}
+
+  /* Alarm modal */
+  .alarm-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center}
+  .alarm-modal.show{display:flex}
+  .alarm-box{background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:28px;text-align:center;min-width:320px}
+  .alarm-box h2{color:var(--gold2);margin-bottom:8px;font-size:18px}
+  .big-count{font-size:52px;font-family:monospace;font-weight:bold;margin:16px 0;letter-spacing:2px}
+  .alarm-info{font-size:13px;color:var(--dim);margin-bottom:4px}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:4px;border:1px solid var(--border);cursor:pointer;font-size:13px;font-weight:600;text-decoration:none}
+  .btn-green{background:#0a2a0a;color:#60e060;border-color:#206020}
+  .btn-red{background:#2a0a0a;color:#e06060;border-color:#602020}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<div class="alarm-modal" id="alarm-modal">
+  <div class="alarm-box">
+    <h2>⚔️ ODESLAT ÚTOK!</h2>
+    <div class="alarm-info" id="alarm-info-src"></div>
+    <div class="alarm-info" id="alarm-info-tgt" style="font-weight:bold;color:var(--text);"></div>
+    <div class="big-count" id="alarm-count">--:--:--</div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:12px;">
+      <a id="alarm-link" href="#" target="tw_game" class="btn btn-green" style="font-size:15px;padding:9px 20px;">▶ Otevřít hru</a>
+      <button class="btn btn-red" onclick="closeAlarm()">✕ Zavřít</button>
+    </div>
+    <div style="font-size:11px;color:var(--dim);">Klikni "Otevřít hru" přesně ve správný čas</div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://cs112.divokekmeny.cz';
+const UNIT_LABELS = { ram:'🪨 Beran', noble:'👑 Šlechtic', lk:'⚡ LK', scout:'🔍 Špeh', axe:'🪓 Sekera' };
+const UNIT_CHIPS  = { ram:'chip-ram', noble:'chip-noble' };
+const NIGHT_START = 0, NIGHT_END = 6;
+
+let attackRows = [], alarmInterval = null, alarmTargetTime = null, alarmLink = '', alarmOpened = false;
+let cdInterval = null;
+
+const pad = n => String(Math.floor(n)).padStart(2,'0');
+function fmtDT(dt)    { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`; }
+function fmtDur(ms)   { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; }
+function fmtHMScs(ms) { const s=Math.floor(ms/1000),cs=Math.floor((ms%1000)/10); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}.${pad(cs)}`; }
+function isNight(ts)  { const h=new Date(ts).getHours(); return h>=NIGHT_START&&h<NIGHT_END; }
+
+function startAlarm(evt, rowIdx, link) {
+  evt.preventDefault();
+  const row = attackRows[rowIdx]; if (!row) return;
+  alarmLink = link; alarmTargetTime = row.sendTime; alarmOpened = false;
+  document.getElementById('alarm-info-src').textContent = `Z: ${row.srcX}|${row.srcY} ${row.srcName}`;
+  document.getElementById('alarm-info-tgt').textContent = `→ ${row.tgtX}|${row.tgtY} ${row.tgtName}  |  ${UNIT_LABELS[row.unit]||row.unit}  |  Příchod: ${fmtDT(new Date(row.arrivalTime))}`;
+  document.getElementById('alarm-link').href = link;
+  document.getElementById('alarm-modal').classList.add('show');
+  clearInterval(alarmInterval); updateAlarm();
+  alarmInterval = setInterval(updateAlarm, 100);
+}
+function updateAlarm() {
+  const diff = alarmTargetTime - Date.now();
+  const el = document.getElementById('alarm-count');
+  if (diff <= 0) {
+    el.textContent='▶ ODESLAT!'; el.style.color='#ff3333';
+    if (!alarmOpened) { alarmOpened=true; window.open(alarmLink,'tw_game'); }
+    if (diff < -8000) closeAlarm(); return;
+  }
+  alarmOpened = false;
+  el.textContent = fmtHMScs(diff);
+  el.style.color = diff<10000?'var(--urgent)':'var(--green)';
+}
+function closeAlarm() {
+  clearInterval(alarmInterval); alarmInterval=null; alarmTargetTime=null; alarmOpened=false;
+  document.getElementById('alarm-modal').classList.remove('show');
+}
+
+function updateCountdowns() {
+  const now = Date.now();
+  document.querySelectorAll('.countdown[data-send]').forEach(el => {
+    const diff = +el.dataset.send - now;
+    if (diff < 0) { el.textContent='Odešlo'; el.className='countdown past'; return; }
+    const s=Math.floor(diff/1000);
+    el.textContent = `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`;
+    el.className = 'countdown '+(diff<60000?'urgent':diff<600000?'soon':'ok');
+  });
+}
+
+function render(data) {
+  const now = Date.now();
+  const rows = data.rows.sort((a,b) => a.sendTime - b.sendTime);
+  attackRows = rows;
+  const sharpCnt = rows.filter(r=>!r.isFake).length;
+  const fakeCnt  = rows.filter(r=> r.isFake).length;
+
+  let html = `
+    <div class="header">
+      <h1>⚔️ Plán útoků – ${data.player}</h1>
+      <div class="meta">Svět: ${data.world} &nbsp;|&nbsp; Exportováno: ${fmtDT(new Date(data.exported))}</div>
+      <div class="summary">
+        <span>⚔️ Ostrých: <strong>${sharpCnt}</strong></span>
+        <span>💨 Fejků: <strong>${fakeCnt}</strong></span>
+        <span>Celkem: <strong>${rows.length}</strong></span>
+      </div>
+    </div>
+    <table><thead><tr>
+      <th>#</th><th>Zdroj</th><th>Typ</th><th>Cíl</th><th>Jednotka</th>
+      <th>Čas odeslání</th><th>Čas příchodu</th><th>Cesta</th><th>Odpočet</th><th>▶</th>
+    </tr></thead><tbody>`;
+
+  rows.forEach((r, i) => {
+    const past      = r.sendTime < now;
+    const rowClass  = past ? 'past-row' : r.night ? 'night-row' : '';
+    const sendClass = r.night ? 'send-time night' : 'send-time';
+    const gameLink  = r.tgtId
+      ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`
+      : `${API_BASE}/game.php?village=${r.srcId}&screen=place`;
+    const typeHtml  = r.isFake
+      ? '<span class="chip" style="background:#1a0a00;color:#cc6600;border:1px solid #663300">💨 fejk</span>'
+      : (r.srcCategory === 'fullka'   ? '<span class="chip chip-full">fullka</span>'
+       : r.srcCategory === 'triq_off' ? '<span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050">3/4 off</span>'
+       : r.srcCategory === 'half_off' ? '<span class="chip chip-half">1/2 off</span>'
+       : '<span class="chip" style="background:#1a1a1a;color:#808080;border:1px solid #404040">mini</span>');
+
+    html += `<tr class="${rowClass}">
+      <td style="color:var(--dim)">${i+1}</td>
+      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span></td>
+      <td>${typeHtml}</td>
+      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''}</td>
+      <td>
+        <span class="chip ${UNIT_CHIPS[r.unit]||''}">${UNIT_LABELS[r.unit]||r.unit}</span>
+        ${r.night?'<span class="chip chip-night">🌙</span>':''}
+      </td>
+      <td class="${sendClass}">${fmtDT(new Date(r.sendTime))}</td>
+      <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
+      <td style="color:var(--dim)">${fmtDur(r.travel)}</td>
+      <td><span class="countdown" data-send="${r.sendTime}"></span></td>
+      <td><a class="play-btn" href="#" onclick="startAlarm(event,${i},'${gameLink.replace(/'/g,"\\'")}')">
+        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('app').innerHTML = html;
+  clearInterval(cdInterval);
+  updateCountdowns();
+  cdInterval = setInterval(updateCountdowns, 500);
+}
+
+function init() {
+  const hash = location.hash.slice(1);
+  if (!hash) {
+    document.getElementById('app').innerHTML = '<div class="error">⚠️ Neplatný odkaz – chybí data plánu.</div>';
+    return;
+  }
+  try {
+    const json = decodeURIComponent(escape(atob(hash)));
+    const data = JSON.parse(json);
+    render(data);
+  } catch(e) {
+    document.getElementById('app').innerHTML = '<div class="error">⚠️ Nepodařilo se načíst plán útoků. Odkaz je poškozený nebo neplatný.</div>';
+    console.error(e);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
