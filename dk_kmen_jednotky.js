@@ -98,11 +98,47 @@ $.getAll = function(urls, onLoad, onDone, onError) {
 var allVillages = [];
 var processed   = 0;
 
+// Mapování názvu obrázku jednotky → náš klíč
+var IMG_TO_KEY = {
+    'unit_spear':    'spear',
+    'unit_sword':    'sword',
+    'unit_axe':      'axe',
+    'unit_archer':   'archer',
+    'unit_spy':      'scout',
+    'unit_light':    'lk',
+    'unit_marcher':  'archer2',
+    'unit_heavy':    'tk',
+    'unit_ram':      'ram',
+    'unit_catapult': 'catapult',
+    'unit_snob':     'noble',
+    'unit_knight':   'paladin',
+    'unit_militia':  'militia'
+};
+
+// Přečti pořadí sloupců z hlavičky tabulky (platí pro celou stránku)
+function parseColMap(data) {
+    var colMap = []; // [{key, colIdx}]
+    var $headerRow = $(data).find('.vis.w100 tr').first();
+    $headerRow.children().each(function(i) {
+        var src = $(this).find('img').attr('src') || '';
+        // Vyber název jednotky z cesty obrázku
+        var m = src.match(/unit_(spear|sword|axe|archer|spy|light|marcher|heavy|ram|catapult|snob|knight|militia)/);
+        if (m) {
+            var key = IMG_TO_KEY['unit_' + m[1]] || m[1];
+            colMap.push({ key: key, colIdx: i });
+        }
+    });
+    return colMap;
+}
+
 $.getAll(
     playerURLs,
     function(i, data) {
         setProgress(i + 1, players.length);
         var playerName = players[i].name;
+
+        // Přečti mapování sloupců z hlavičky
+        var colMap = parseColMap(data);
 
         var rows;
         if ($(data).find('.paged-nav-item').length === 0) {
@@ -132,7 +168,6 @@ $.getAll(
                     var linkText   = $link.text().trim();
                     var coordMatch = linkText.match(/\((\d+)\|(\d+)\)/);
                     if (!coordMatch) {
-                        // zkus href
                         var href = $link.attr('href') || '';
                         coordMatch = href.match(/x=(\d+).*?y=(\d+)/) || href.match(/y=(\d+).*?x=(\d+)/);
                         if (!coordMatch) return;
@@ -141,11 +176,12 @@ $.getAll(
                     var villageName = linkText.replace(/\s*\(\d+\|\d+\)/, '').trim() || (x + '|' + y);
 
                     var units = {};
-                    $.each(game_data.units, function(idx) {
-                        var twName = game_data.units[idx];
-                        var ourKey = UNIT_MAP[twName] || twName;
-                        var txt    = $row.children().not(':first').eq(idx).text().trim();
-                        units[ourKey] = (txt === '?' || txt === '') ? 0 : (parseInt(txt) || 0);
+                    var $cells = $row.children();
+
+                    // Čti hodnoty podle namapovaných sloupců z hlavičky
+                    $.each(colMap, function(_, col) {
+                        var txt = $cells.eq(col.colIdx).text().trim();
+                        units[col.key] = (txt === '?' || txt === '') ? 0 : (parseInt(txt) || 0);
                     });
 
                     allVillages.push({
