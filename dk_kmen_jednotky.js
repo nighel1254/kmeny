@@ -61,12 +61,12 @@ function calcOffPop(units) {
 
 function classifyVillage(units) {
     var axe = units.axe || 0;
-    if (axe < THRESH.axe_min) return 'minioff';
+    if (axe < THRESH.axe_min) return null; // pod limitem – vůbec nezahrnovat
     var pop = calcOffPop(units);
     if (pop >= THRESH.full) return 'fullka';
     if (pop >= THRESH.triq) return 'triq_off';
     if (pop >= THRESH.half) return 'half_off';
-    return 'minioff';
+    return null; // pod 10k pop – nezahrnovat
 }
 
 // ── SBÍRÁNÍ HRÁČŮ ─────────────────────────────────────────
@@ -204,12 +204,15 @@ $.getAll(
                         units[col.key] = (txt === '?' || txt === '') ? 0 : (parseInt(txt) || 0);
                     });
 
+                    var category = classifyVillage(units);
+                    if (!category) return; // pod prahem – přeskočit
+
                     allVillages.push({
                         player_name:  playerName,
                         village_name: villageName,
                         x: x, y: y,
                         units:    units,
-                        category: classifyVillage(units)
+                        category: category
                     });
                 });
 

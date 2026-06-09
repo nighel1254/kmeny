@@ -210,7 +210,6 @@
               <label><input type="checkbox" id="filter-full" checked onchange="applyJsonFilter()"> <span class="chip chip-full" title="≥18 000 off populace">fullka ≥18k pop</span></label>
               <label><input type="checkbox" id="filter-triq" checked onchange="applyJsonFilter()"> <span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off ≥15k</span></label>
               <label><input type="checkbox" id="filter-half" checked onchange="applyJsonFilter()"> <span class="chip chip-half" title="10 000–14 999 off populace">1/2 off ≥10k</span></label>
-              <label><input type="checkbox" id="filter-mini" onchange="applyJsonFilter()"> <span class="chip" style="background:#1a1a1a;color:#808080;border:1px solid #404040" title="méně než 10 000 off populace">mini off</span></label>
             </div>
             <div class="village-list" id="json-village-list" style="margin-top:8px;"></div>
             <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="json-village-count"></div>
@@ -387,9 +386,16 @@
             🌙 Skrýt noční (0–6h)
           </label>
           <span id="attack-count" style="font-size:11px;color:var(--dim);font-weight:normal;"></span>
+          <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;font-weight:normal;" onclick="saveAction()" title="Uloží aktuální akci a odebere použité offky ze zdrojů">💾 Přidat do plánu</button>
           <button class="btn btn-sm btn-blue" onclick="openExport()" style="font-weight:normal;">📤 Export</button>
           <button class="btn btn-sm btn-red" onclick="clearResults()" style="font-weight:normal;">✕ Smazat</button>
         </div>
+      </div>
+      <!-- Uložené akce -->
+      <div id="saved-actions-bar" style="display:none;padding:6px 14px;border-bottom:1px solid var(--border);background:#0a1008;font-size:12px;color:var(--dim);">
+        📋 Uložené akce: <span id="saved-actions-list"></span>
+        <button onclick="clearSavedActions()" style="margin-left:10px;background:none;border:none;color:#e06060;cursor:pointer;font-size:11px;">✕ Smazat vše</button>
+      </div>
       </div>
       <!-- Souhrn -->
       <div id="attack-summary" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:#1a1208;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;">
@@ -472,6 +478,7 @@ let coordTargets   = [];   // [{x,y,name,id,arrivalTime?,unit?}]
 let fakeTargets    = [];   // fejk cíle [{x,y,name}]
 let jsonVillages   = [];   // všechny z importu
 let attackRows     = [];
+let savedActions   = [];   // [{label, rows}] – uložené akce pro multi-plán
 let lastNightWarnings = [];
 let currentTargetTab = 'coords';
 let currentSrcTab    = 'player';
@@ -561,13 +568,11 @@ function applyJsonFilter() {
   const wantFull  = document.getElementById('filter-full').checked;
   const wantTriq  = document.getElementById('filter-triq').checked;
   const wantHalf  = document.getElementById('filter-half').checked;
-  const wantMini  = document.getElementById('filter-mini').checked;
 
   srcVillages = jsonVillages.filter(v => {
     if (v.category === 'fullka')   return wantFull;
     if (v.category === 'triq_off') return wantTriq;
     if (v.category === 'half_off') return wantHalf;
-    if (v.category === 'minioff')  return wantMini;
     return false;
   });
 
@@ -575,8 +580,7 @@ function applyJsonFilter() {
     if (v.category === 'fullka')   return '<span class="vi-cat vi-cat-full" title="≥18 000 off populace">fullka</span>';
     if (v.category === 'triq_off') return '<span class="vi-cat" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4</span>';
     if (v.category === 'half_off') return '<span class="vi-cat vi-cat-half" title="10 000–14 999 off populace">1/2</span>';
-    return '<span class="vi-cat" style="background:#1a1a1a;color:#808080;border:1px solid #404040" title="méně než 10 000 off populace">mini</span>';
-    return '<span class="vi-cat" style="background:#1a1a1a;color:#808080;border:1px solid #404040">mini</span>';
+    return '';
   };
 
   const listEl = document.getElementById('json-village-list');
@@ -905,8 +909,8 @@ async function calculate() {
   // a preferuj přiřazení kde odeslání NEVYCHÁZÍ na noc (0–6h).
   // Zároveň preferuj silnější offky na výše bodované cíle.
 
-  const ORDER = { fullka:0, triq_off:1, half_off:2, minioff:3 };
-  const CAT_RANK = { fullka:3, triq_off:2, half_off:1, minioff:0 };
+  const ORDER = { fullka:0, triq_off:1, half_off:2 };
+  const CAT_RANK = { fullka:3, triq_off:2, half_off:1 };
 
   const maxTargets     = Math.floor(srcVillages.length / sharpCount);
   const coveredTargets = Math.min(maxTargets, targets.length);
@@ -1223,7 +1227,6 @@ function renderResults(nightWarnings) {
       typeHtml = row.srcCategory === 'fullka'   ? '<span class="chip chip-full" title="≥18 000 off populace">fullka</span>'
                : row.srcCategory === 'triq_off' ? '<span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off</span>'
                : row.srcCategory === 'half_off' ? '<span class="chip chip-half" title="10 000–14 999 off populace">1/2 off</span>'
-               : row.srcCategory === 'minioff'  ? '<span class="chip" style="background:#1a1a1a;color:#808080;border:1px solid #404040" title="méně než 10 000 off populace">mini</span>'
                : '';
     }
 
@@ -1339,6 +1342,48 @@ function clearResults() {
 }
 
 // ── EXPORT ─────────────────────────────────────────────────
+function saveAction() {
+  if (!attackRows.length) { alert('Nejprve vypočítej plán!'); return; }
+
+  // Zjisti čas příchodu pro label
+  const times = attackRows.map(r => r.arrivalTime);
+  const minT  = Math.min(...times), maxT = Math.max(...times);
+  const label = minT === maxT
+    ? `Akce ${savedActions.length+1} (příchod ${fmtDT(new Date(minT))})`
+    : `Akce ${savedActions.length+1} (příchod ${fmtDT(new Date(minT))}–${fmtDT(new Date(maxT))})`;
+
+  savedActions.push({ label, rows: [...attackRows] });
+
+  // Odeber použité offky ze srcVillages a jsonVillages
+  const usedSrcIds = new Set(attackRows.map(r => `${r.srcX}|${r.srcY}`));
+  srcVillages  = srcVillages.filter(v  => !usedSrcIds.has(`${v.x}|${v.y}`));
+  jsonVillages = jsonVillages.filter(v => !usedSrcIds.has(`${v.x}|${v.y}`));
+
+  // Aktualizuj seznam uložených akcí
+  const bar  = document.getElementById('saved-actions-bar');
+  const list = document.getElementById('saved-actions-list');
+  bar.style.display = 'block';
+  list.innerHTML = savedActions.map((a,i) =>
+    `<span style="background:#1a2a1a;border:1px solid #305030;border-radius:3px;padding:2px 7px;margin-right:6px;color:#80d080;">${a.label} (${a.rows.length} útoků)</span>`
+  ).join('');
+
+  // Refresh zobrazení zbývajících offek
+  applyJsonFilter();
+
+  // Reset výsledků pro novou akci
+  attackRows = [];
+  document.getElementById('results-area').innerHTML = '';
+  document.getElementById('attack-summary').style.display = 'none';
+  document.getElementById('uncovered-wrap').style.display = 'none';
+
+  alert(`✓ Akce uložena: ${label}\nZbývá ${srcVillages.length} offek pro další akci.`);
+}
+
+function clearSavedActions() {
+  savedActions = [];
+  document.getElementById('saved-actions-bar').style.display = 'none';
+}
+
 function playerDataToUrl(playerName, rows) {
   const data = {
     player: playerName,
@@ -1359,15 +1404,14 @@ function playerDataToUrl(playerName, rows) {
 }
 
 function openExport() {
-  if (!attackRows.length) { alert('Nejprve vypočítej plán!'); return; }
+  const allRows = [...savedActions.flatMap(a => a.rows), ...attackRows];
+  if (!allRows.length) { alert('Nejprve vypočítej plán nebo ulož akci!'); return; }
 
   const hideNight = document.getElementById('hide-night').checked;
   const now = Date.now();
 
-  // Vezmi viditelné řádky (stejná logika jako tabulka)
-  const visible = attackRows.filter(r => !(hideNight && r.night && !r.isPast));
+  const visible = allRows.filter(r => !(hideNight && r.night && !r.isPast));
 
-  // Seskup podle hráče zdrojové vesnice
   const byPlayer = new Map();
   for (const r of visible) {
     const player = r.srcPlayer || '(neznámý hráč)';
@@ -1408,7 +1452,7 @@ function openExport() {
         : (r.srcCategory === 'fullka'   ? '⚔️  FULLKA'
           : r.srcCategory === 'triq_off' ? '⚔️  3/4 OFF'
           : r.srcCategory === 'half_off' ? '⚔️  1/2 OFF'
-          : '⚔️  MINIOFF');
+          : '⚔️  OFF');
       const src    = `${r.srcX}|${r.srcY}`;
       const tgt    = `${r.tgtX}|${r.tgtY}`;
       const unit   = r.unit === 'lk' ? 'LK' : r.unit === 'scout' ? 'špeh' : r.unit === 'axe' ? 'sekera' : r.unit === 'noble' ? 'šlechtic' : 'beran';
