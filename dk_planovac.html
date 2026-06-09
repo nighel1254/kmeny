@@ -260,7 +260,7 @@
             <div class="arrival-row">
               <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
               <select id="global-unit">
-                <option value="ram" selected>🪨 Beran</option>
+                <option value="ram" selected>🪨 Beranidlo</option>
                 <option value="noble">👑 Šlechtic</option>
               </select>
             </div>
@@ -295,7 +295,7 @@
             <div class="arrival-row">
               <input type="datetime-local" id="global-arrival-player" step="1">
               <select id="global-unit-player">
-                <option value="ram" selected>🪨 Beran</option>
+                <option value="ram" selected>🪨 Beranidlo</option>
                 <option value="noble">👑 Šlechtic</option>
               </select>
             </div>
@@ -354,7 +354,7 @@
           <label>⏰ Čas příchodu fejků</label>
           <div class="arrival-row">
             <input type="datetime-local" id="fake-arrival" step="1">
-            <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:4px;font-size:13px;white-space:nowrap;">🪨 Beran</span>
+            <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:4px;font-size:13px;white-space:nowrap;">🪨 Beranidlo</span>
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
             <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
@@ -467,7 +467,7 @@ const PROXIES  = [
 let UNIT_SPEEDS_S   = { spear:1080, sword:1320, axe:1080, scout:540, lk:600, tk:660, ram:1800, catapult:1800, noble:2100, paladin:600 };
 let apiSpeedsLoaded = false;
 
-const UNIT_LABELS = { ram:'🪨 Beran', noble:'👑 Šlechtic' };
+const UNIT_LABELS = { ram:'🪨 Beranidlo', noble:'👑 Šlechtic' };
 const UNIT_CHIPS  = { ram:'chip-ram', noble:'chip-noble' };
 const NIGHT_START = 0, NIGHT_END = 6;
 
@@ -610,11 +610,22 @@ function setArrivalMode(mode) {
   if (mode==='per') renderCoordList();
 }
 
-// ── VILLAGES ──────────────────────────────────────────────
+// ── VILLAGES + PLAYERS ────────────────────────────────────
+let allPlayers = new Map(); // id → name
+
 async function ensureVillages() {
   if (allVillages.length) return;
-  const r = await fetchWithFallback(`${API_BASE}/map/village.txt`);
-  allVillages = (await r.text()).trim().split('\n').map(line => {
+  const [vr, pr] = await Promise.all([
+    fetchWithFallback(`${API_BASE}/map/village.txt`),
+    fetchWithFallback(`${API_BASE}/map/player.txt`)
+  ]);
+  // Players
+  (await pr.text()).trim().split('\n').forEach(line => {
+    const [id, pname] = line.split(',');
+    allPlayers.set(id, decodeURIComponent((pname||'').replace(/\+/g,' ')));
+  });
+  // Villages
+  allVillages = (await vr.text()).trim().split('\n').map(line => {
     const [id, vname, x, y, pid, points] = line.split(',');
     return { id, name: decodeURIComponent(vname.replace(/\+/g,' ')), x:+x, y:+y, playerId:pid, points:+points };
   });
@@ -719,6 +730,7 @@ async function parseCoords() {
       name: tv?.name||key,
       id: tv?.id||null,
       points: tv?.points||0,
+      owner: tv ? (allPlayers.get(tv.playerId) || '') : '',
       arrivalTime: existing[key]?.arrivalTime || null,
       unit: existing[key]?.unit || 'ram',
     };
@@ -1034,7 +1046,7 @@ async function calculate() {
         byTgtKey[k].push({
           srcId:sv.id, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
-          tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id,
+          tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id, tgtOwner:tgt.owner||(allPlayers.get((allVillages.find(v=>v.x===tgt.x&&v.y===tgt.y)||{}).playerId)||''),
           unit:tgt.unit, arrivalTime:tgt.arrivalTime, sendTime, travel,
           night:isNight(sendTime), isPast:sendTime<now,
           isFake:false, forced_night:false
@@ -1078,7 +1090,7 @@ async function calculate() {
         rows.push({
           srcId:sv.id, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
-          tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id,
+          tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id, tgtOwner:tgt.owner||(allPlayers.get((allVillages.find(v=>v.x===tgt.x&&v.y===tgt.y)||{}).playerId)||''),
           unit:tgt.unit, arrivalTime:tgt.arrivalTime, sendTime, travel,
           night:isNight(sendTime), isPast:sendTime<now,
           isFake:false, forced_night:false
@@ -1235,7 +1247,7 @@ function renderResults(nightWarnings) {
       <td style="color:var(--dim);font-size:11px;white-space:nowrap">${row.srcPlayer||'—'}</td>
       <td><span class="coords">${row.srcX}|${row.srcY}</span> <span style="color:var(--dim)">${row.srcName}</span></td>
       <td>${typeHtml}</td>
-      <td><span class="coords">${row.tgtX}|${row.tgtY}</span>${row.tgtName && row.tgtName !== `${row.tgtX}|${row.tgtY}` ? ` <span style="color:var(--dim)">${row.tgtName}</span>` : ''}</td>
+      <td><span class="coords">${row.tgtX}|${row.tgtY}</span>${row.tgtName && row.tgtName !== `${row.tgtX}|${row.tgtY}` ? ` <span style="color:var(--dim)">${row.tgtName}</span>` : ''}${row.tgtOwner ? ` <span style="color:#8a6aaa;font-size:11px;">(${row.tgtOwner})</span>` : ''}</td>
       <td>
         <span class="chip ${UNIT_CHIPS[row.unit]||''}">${UNIT_LABELS[row.unit]||row.unit}</span>
         ${row.night ? '<span class="chip chip-night">🌙</span>' : ''}
@@ -1455,14 +1467,14 @@ function openExport() {
           : '⚔️  OFF');
       const src    = `${r.srcX}|${r.srcY}`;
       const tgt    = `${r.tgtX}|${r.tgtY}`;
-      const unit   = r.unit === 'lk' ? 'LK' : r.unit === 'scout' ? 'špeh' : r.unit === 'axe' ? 'sekera' : r.unit === 'noble' ? 'šlechtic' : 'beran';
+      const unit   = r.unit === 'lk' ? 'LK' : r.unit === 'scout' ? 'špeh' : r.unit === 'axe' ? 'sekera' : r.unit === 'noble' ? 'šlechtic' : 'Beranidlo';
       const send   = fmtDT(new Date(r.sendTime));
       const arrive = fmtDT(new Date(r.arrivalTime));
       const dur    = fmtDur(r.travel);
 
       lines.push(`  ${String(i+1).padStart(2)}.  ${typ}`);
       lines.push(`       Ze:      ${src}  ${r.srcName}`);
-      lines.push(`       Na:      ${tgt}  ${r.tgtName}`);
+      lines.push(`       Na:      ${tgt}${r.tgtName && r.tgtName !== tgt ? '  ' + r.tgtName : ''}${r.tgtOwner ? '  ('+r.tgtOwner+')' : ''}`);
       lines.push(`       Jednotka: ${unit}`);
       lines.push(`       Odeslat:  ${send}   (cesta: ${dur})`);
       lines.push(`       Příchod:  ${arrive}`);

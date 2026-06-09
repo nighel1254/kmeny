@@ -231,6 +231,7 @@ $.getAll(
             exported_at: new Date().toISOString(),
             world:       location.hostname.split('.')[0],
             total:       allVillages.length,
+            minioff:     allVillages.filter(function(v){ return v.category==='minioff'; }).length,
             half_off:    allVillages.filter(function(v){ return v.category==='half_off'; }).length,
             triq_off:    allVillages.filter(function(v){ return v.category==='triq_off'; }).length,
             fullka:      allVillages.filter(function(v){ return v.category==='fullka'; }).length,
@@ -245,6 +246,7 @@ $.getAll(
                 showProgress(
                     '✅ <b>Hotovo!</b><br>' +
                     'Celkem vesnic: <b>' + summary.total + '</b><br>' +
+                    '• Mini off: <b>' + summary.minioff + '</b><br>' +
                     '• 1/2 off: <b>' + summary.half_off + '</b><br>' +
                     '• 3/4 off: <b>' + summary.triq_off + '</b><br>' +
                     '• Fullka: <b>' + summary.fullka + '</b><br><br>' +
