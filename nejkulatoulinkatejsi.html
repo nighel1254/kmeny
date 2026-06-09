@@ -792,7 +792,7 @@ function parseFakeCoords() {
     const m = l.match(/^(\d+)\|(\d+)/);
     const x = +m[1], y = +m[2];
     const tv = allVillages.find(v=>v.x===x&&v.y===y);
-    return { x, y, name: tv?.name || `${x}|${y}`, id: tv?.id || null };
+    return { x, y, name: tv?.name || `${x}|${y}`, id: tv?.id || null, owner: tv ? (allPlayers.get(tv.playerId) || '') : '' };
   });
   document.getElementById('fake-coord-count').textContent = `${fakeTargets.length} fejk vesnic`;
   const fakeCount = parseInt(document.getElementById('fake-count').value) || 0;
@@ -1123,7 +1123,7 @@ async function calculate() {
       rows.push({
         srcId:sv.id, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
         srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
-        tgtX:fakeTgt.x, tgtY:fakeTgt.y, tgtName:fakeTgt.name, tgtId:fakeTgt.id,
+        tgtX:fakeTgt.x, tgtY:fakeTgt.y, tgtName:fakeTgt.name, tgtId:fakeTgt.id, tgtOwner:fakeTgt.owner||(allPlayers.get((allVillages.find(v=>v.x===fakeTgt.x&&v.y===fakeTgt.y)||{}).playerId)||''),
         unit:fakeUnit, arrivalTime, sendTime, travel,
         night:isNight(sendTime), isPast:sendTime<now,
         isFake:true, forced_night:false
