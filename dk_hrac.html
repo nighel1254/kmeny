@@ -54,6 +54,7 @@
   .btn-green{background:#0a2a0a;color:#60e060;border-color:#206020}
   .btn-red{background:#2a0a0a;color:#e06060;border-color:#602020}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 </head>
 <body>
 
@@ -195,7 +196,9 @@ function init() {
     return;
   }
   try {
-    const json = decodeURIComponent(escape(atob(hash)));
+    // Zkus LZString, fallback na plain base64
+    let json = LZString.decompressFromEncodedURIComponent(hash);
+    if (!json) json = decodeURIComponent(escape(atob(hash)));
     const data = JSON.parse(json);
     render(data);
   } catch(e) {

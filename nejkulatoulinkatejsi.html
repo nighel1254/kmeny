@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<title>Plánovač útoků – Divoké kmeny cs112</title>
+<style>
+  :root {
+    --bg:#1a1208; --panel:#2a1e0e; --border:#6b4f2a;
+    --gold:#d4a84b; --gold2:#f0c96a; --text:#e8d5a3; --dim:#9e8560;
+    --red:#e05555; --green:#7ec87e; --blue:#6ab0d4; --urgent:#ff6b35;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;font-size:14px;min-height:100vh}
+  .header{background:linear-gradient(180deg,#3d2a0a,#2a1e0e);border-bottom:2px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:16px}
+  .header h1{color:var(--gold2);font-size:20px;font-weight:bold;text-shadow:0 0 10px #d4a84b66}
+  .world-badge{background:var(--border);color:var(--gold);padding:3px 10px;border-radius:12px;font-size:12px;font-weight:bold}
+  .main{display:flex;gap:16px;padding:16px;flex-wrap:wrap;align-items:flex-start}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  .panel-header{background:linear-gradient(90deg,#3d2a0a,#2a1e0e);border-bottom:1px solid var(--border);padding:8px 14px;font-weight:bold;color:var(--gold);font-size:13px;letter-spacing:.5px}
+  .panel-body{padding:14px}
+  .left-col{width:380px;min-width:300px;display:flex;flex-direction:column;gap:14px}
+  .right-col{flex:1;min-width:600px}
+  label{display:block;color:var(--dim);font-size:12px;margin-bottom:4px;margin-top:10px}
+  label:first-child{margin-top:0}
+  input,select,textarea{width:100%;background:#140e04;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:4px;font-size:13px;outline:none;transition:border-color .2s}
+  input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+  textarea{resize:vertical;font-family:monospace;line-height:1.6}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:4px;border:none;font-size:13px;font-weight:bold;cursor:pointer;transition:all .15s;white-space:nowrap}
+  .btn-primary{background:linear-gradient(180deg,#c4922a,#8b5e10);color:#fff3d0;border:1px solid #d4a84b}
+  .btn-primary:hover{background:linear-gradient(180deg,#d4a030,#9b6e20)}
+  .btn-sm{padding:4px 10px;font-size:12px}
+  .btn-red{background:linear-gradient(180deg,#a03030,#6b1515);color:#ffd0d0;border:1px solid #c04040}
+  .btn-green{background:linear-gradient(180deg,#2a8a2a,#185018);color:#d0ffd0;border:1px solid #4aaa4a}
+  .btn-blue{background:linear-gradient(180deg,#1a5a8a,#0e3a5a);color:#d0eeff;border:1px solid #4a8aaa}
+  .btn-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .status-bar{margin-top:8px;padding:6px 10px;border-radius:4px;font-size:12px;display:none}
+  .status-bar.ok  {background:#1a3a1a;border:1px solid #4a7a4a;color:var(--green);display:block}
+  .status-bar.err {background:#3a1a1a;border:1px solid #7a4a4a;color:var(--red);display:block}
+  .status-bar.info{background:#1a2a3a;border:1px solid #4a6a8a;color:var(--blue);display:block}
+  .village-list{max-height:130px;overflow-y:auto;margin-top:8px;border:1px solid var(--border);border-radius:4px}
+  .village-item{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;font-size:12px;border-bottom:1px solid #1a1208}
+  .village-item:last-child{border-bottom:none}
+  .village-item .vi-cat{font-size:10px;padding:1px 5px;border-radius:8px;font-weight:bold;margin-left:4px}
+  .vi-cat-half{background:#1a1a00;color:#c0b040;border:1px solid #605010}
+  .vi-cat-full{background:#001a00;color:#50c050;border:1px solid #205020}
+  .village-coords{color:var(--dim);font-family:monospace;font-size:11px}
+  .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:12px}
+  .tab{padding:6px 14px;cursor:pointer;font-size:12px;color:var(--dim);border-bottom:2px solid transparent;margin-bottom:-1px;user-select:none}
+  .tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:bold}
+  .tab-pane{display:none}
+  .tab-pane.active{display:block}
+
+  /* koordinátový seznam */
+  .coord-list{max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;margin-top:6px}
+  .coord-item{display:flex;justify-content:space-between;align-items:center;padding:4px 10px;border-bottom:1px solid #1a1208;font-size:12px;gap:6px}
+  .coord-item:last-child{border-bottom:none}
+  .coord-item .ci-coords{font-family:monospace;color:var(--blue);font-weight:bold;min-width:70px}
+  .coord-item .ci-time{flex:1}
+  .coord-item .ci-time input{padding:3px 6px;font-size:11px}
+  .coord-item .ci-unit select{padding:3px 6px;font-size:11px;width:auto}
+  .coord-item .ci-remove{background:none;border:none;color:#8a4040;cursor:pointer;font-size:14px;padding:0 4px}
+  .coord-item .ci-remove:hover{color:var(--red)}
+
+  /* přepínač módu příchodu */
+  .arrival-mode-toggle{display:flex;gap:0;margin-bottom:10px;border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+  .arrival-mode-btn{flex:1;padding:5px 10px;font-size:12px;font-weight:bold;cursor:pointer;border:none;background:#140e04;color:var(--dim);transition:all .15s;text-align:center}
+  .arrival-mode-btn.active{background:linear-gradient(180deg,#3d2a0a,#2a1e0e);color:var(--gold)}
+
+  /* globální nastavení příchodu */
+  .global-arrival{background:#1a1208;border:1px solid var(--border);border-radius:4px;padding:10px;margin-top:10px}
+  .global-arrival label{margin-top:0;font-size:12px;font-weight:bold;color:var(--gold)}
+  .arrival-row{display:flex;gap:8px;margin-top:6px}
+  .arrival-row input{flex:1}
+  .arrival-row select{width:110px;flex-shrink:0}
+
+  /* tabulka výsledků */
+  .attack-table-wrap{overflow-x:auto}
+  table.attacks{width:100%;border-collapse:collapse;font-size:12px}
+  table.attacks th{background:#3d2a0a;color:var(--gold);padding:7px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;font-size:11px}
+  table.attacks td{padding:6px 10px;border-bottom:1px solid #2a1e0e;vertical-align:middle;white-space:nowrap}
+  table.attacks tr:hover td{background:#221608}
+  table.attacks tr.night-row{opacity:.55}
+  table.attacks tr.night-row td{background:#1c1025}
+  table.attacks tr.past-row{opacity:.3}
+  .coords{font-family:monospace;color:var(--blue)}
+  .send-time{font-family:monospace;color:var(--green);font-weight:bold}
+  .send-time.night{color:#c080e0}
+  .arrival-time{font-family:monospace;color:var(--dim)}
+  .countdown{font-family:monospace;font-weight:bold;font-size:13px;min-width:80px;display:inline-block}
+  .countdown.urgent{color:var(--urgent);animation:pulse 1s infinite}
+  .countdown.soon{color:var(--gold)}
+  .countdown.ok{color:var(--green)}
+  .countdown.past{color:var(--dim)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .play-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(180deg,#2a8a2a,#185018);border:1px solid #4aaa4a;cursor:pointer;color:#d0ffd0;text-decoration:none;transition:all .15s}
+  .play-btn:hover{background:linear-gradient(180deg,#3aaa3a,#287028);transform:scale(1.1)}
+  .play-btn.alarm-active{background:linear-gradient(180deg,#c44a00,#8b2200);border-color:var(--urgent);animation:pulse 1s infinite}
+  .play-btn svg{width:12px;height:12px;fill:currentColor}
+  .chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold}
+  .chip-ram  {background:#1a001a;color:#c060c0;border:1px solid #602060}
+  .chip-noble{background:#001a00;color:#50c050;border:1px solid #205020}
+  .chip-night{background:#2a0a3a;color:#c090e0;border:1px solid #602080;font-size:10px;padding:1px 6px}
+  .chip-half{background:#1a1a00;color:#c0b040;border:1px solid #605010}
+  .chip-full{background:#002a00;color:#60e060;border:1px solid #206020}
+  .sort-btn{cursor:pointer;user-select:none}
+  .sort-btn:hover{color:var(--gold2)}
+  .empty-state{text-align:center;padding:40px;color:var(--dim)}
+  .empty-state .icon{font-size:36px;margin-bottom:8px}
+  .world-row{display:flex;gap:8px}
+  .world-row>*{flex:1}
+  .night-toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none}
+  .night-toggle input[type=checkbox]{width:auto;cursor:pointer;accent-color:var(--gold)}
+
+  /* filtr zdrojů */
+  .src-filter{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .src-filter label{margin:0;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;color:var(--text)}
+  .src-filter input[type=checkbox]{width:auto;accent-color:var(--gold)}
+
+  /* JSON import */
+  .json-import{margin-top:8px}
+  .json-import textarea{font-size:11px;font-family:monospace}
+
+  /* filtr tabulky */
+  .table-filter{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .table-filter input{width:160px;padding:4px 8px;font-size:12px}
+
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  .alarm-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center}
+  .alarm-modal.show{display:flex}
+  .alarm-box{background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:28px;text-align:center;min-width:320px}
+  .alarm-box h2{color:var(--gold2);margin-bottom:8px;font-size:18px}
+  .alarm-box .big-count{font-size:52px;font-family:monospace;font-weight:bold;margin:16px 0;letter-spacing:2px}
+  .alarm-box .alarm-info{font-size:13px;color:var(--dim);margin-bottom:4px}
+  .speed-debug{font-size:10px;color:var(--dim);margin-top:4px;font-family:monospace}
+
+  /* export modal */
+  .export-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center}
+  .export-modal.show{display:flex}
+  .export-box{background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:24px;min-width:420px;max-width:600px;max-height:80vh;display:flex;flex-direction:column;gap:12px}
+  .export-box h2{color:var(--gold2);font-size:16px}
+  .export-box textarea{flex:1;min-height:300px;font-size:11px;font-family:monospace;line-height:1.5;resize:none}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+</head>
+<body>
+
+<div class="header">
+  <div>⚔️</div>
+  <h1>Plánovač útoků</h1>
+  <div class="world-badge">cs112 – Divoké kmeny</div>
+  <div style="margin-left:auto;font-size:12px;color:var(--dim);" id="world-speed-display"></div>
+</div>
+
+<div class="main">
+  <div class="left-col">
+
+    <!-- Nastavení světa -->
+    <div class="panel">
+      <div class="panel-header">⚙️ Nastavení světa</div>
+      <div class="panel-body">
+        <div class="world-row">
+          <div><label>Rychlost světa</label><input type="number" id="world-speed" value="1" step="0.5" min="0.5" max="10"></div>
+          <div><label>Rychlost jednotek</label><input type="number" id="unit-speed" value="1" step="0.5" min="0.5" max="5"></div>
+        </div>
+        <div style="font-size:11px;color:var(--dim);margin-top:6px;" id="speed-info">Načítám…</div>
+        <div class="speed-debug" id="speed-debug"></div>
+        <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="loadWorldConfig()">🔄 Načíst z hry</button></div>
+      </div>
+    </div>
+
+    <!-- Zdroj útoků -->
+    <div class="panel">
+      <div class="panel-header">🏘️ Zdroj útoků</div>
+      <div class="panel-body">
+
+        <!-- tabs: hráč / JSON import -->
+        <div class="tabs">
+          <div class="tab active" onclick="switchSrcTab('player')">👤 Hráč</div>
+          <div class="tab"       onclick="switchSrcTab('json')">📦 Import kmene</div>
+        </div>
+
+        <!-- TAB: hráč -->
+        <div class="tab-pane active" id="src-tab-player">
+          <label>Jméno hráče</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="player-name" placeholder="např. Ragnar123" style="flex:1" onkeydown="if(event.key==='Enter')loadPlayer('src')">
+            <button class="btn btn-primary btn-sm" onclick="loadPlayer('src')">Hledat</button>
+          </div>
+          <div class="status-bar" id="player-status"></div>
+          <div class="village-list" id="village-list"></div>
+          <div style="font-size:11px;color:var(--dim);margin-top:6px;" id="village-count"></div>
+        </div>
+
+        <!-- TAB: JSON import -->
+        <div class="tab-pane" id="src-tab-json">
+          <label>Vlož JSON z kmenového skriptu</label>
+          <div class="json-import">
+            <textarea id="json-paste" rows="5" placeholder='{"villages":[...]}'></textarea>
+            <div class="btn-row">
+              <button class="btn btn-primary btn-sm" onclick="importJson()">▶ Načíst JSON</button>
+              <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearJson()">✕ Smazat</button>
+            </div>
+          </div>
+          <div class="status-bar" id="json-status"></div>
+          <!-- filtr kategorií -->
+          <div id="src-filter-wrap" style="display:none;margin-top:8px;">
+            <div style="font-size:12px;color:var(--gold);margin-bottom:4px;">Filtr vesnic:</div>
+            <div class="src-filter">
+              <label><input type="checkbox" id="filter-full" checked onchange="applyJsonFilter()"> <span class="chip chip-full" title="≥18 000 off populace">fullka ≥18k pop</span></label>
+              <label><input type="checkbox" id="filter-triq" checked onchange="applyJsonFilter()"> <span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off ≥15k</span></label>
+              <label><input type="checkbox" id="filter-half" checked onchange="applyJsonFilter()"> <span class="chip chip-half" title="10 000–14 999 off populace">1/2 off ≥10k</span></label>
+            </div>
+            <div class="village-list" id="json-village-list" style="margin-top:8px;"></div>
+            <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="json-village-count"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Cílové vesnice -->
+    <div class="panel">
+      <div class="panel-header">🎯 Cílové vesnice</div>
+      <div class="panel-body">
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <label style="white-space:nowrap;font-size:13px;margin:0;">Počet ostrých na vesnici:</label>
+          <input type="number" id="sharp-count" min="1" max="50" value="1" style="width:70px;text-align:center;">
+          <span style="font-size:11px;color:var(--dim);">(1 = každá offka pošle 1 ostrý)</span>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" onclick="switchTargetTab('coords')">📋 Souřadnice</div>
+          <div class="tab"       onclick="switchTargetTab('player')">👤 Hráč</div>
+        </div>
+
+        <!-- TAB: souřadnice -->
+        <div class="tab-pane active" id="tab-coords">
+          <label>Vlož souřadnice (každá na novém řádku)</label>
+          <textarea id="coords-paste" rows="4" placeholder="500|500&#10;501|502&#10;523|488"></textarea>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="parseCoords()">▶ Načíst</button>
+            <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearCoords()">✕ Smazat</button>
+          </div>
+          <div id="coord-count-global" style="font-size:11px;color:var(--gold);margin-top:6px;font-weight:bold;"></div>
+
+          <!-- PŘEPÍNAČ: globální / per-cíl -->
+          <div style="margin-top:12px;">
+            <div style="font-size:12px;color:var(--gold);margin-bottom:6px;">⏰ Čas příchodu</div>
+            <div class="arrival-mode-toggle">
+              <div class="arrival-mode-btn active" id="mode-btn-global" onclick="setArrivalMode('global')">🌍 Globální</div>
+              <div class="arrival-mode-btn"        id="mode-btn-per"    onclick="setArrivalMode('per')">🎯 Per-cíl</div>
+            </div>
+          </div>
+
+          <!-- Globální čas -->
+          <div id="global-arrival-wrap" class="global-arrival">
+            <label>Čas příchodu (pro všechny cíle)</label>
+            <div class="arrival-row">
+              <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
+              <select id="global-unit">
+                <option value="ram" selected>🪨 Beranidlo</option>
+                <option value="noble">👑 Šlechtic</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+              <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
+              <input type="datetime-local" id="global-arrival-to" step="1" style="flex:1;">
+            </div>
+          </div>
+
+          <!-- Per-cíl seznam -->
+          <div id="per-arrival-wrap" style="display:none;margin-top:8px;">
+            <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">Nastav čas a jednotku pro každý cíl:</div>
+            <div class="coord-list" id="coord-list" style="display:none;"></div>
+            <div id="coord-count" style="font-size:11px;color:var(--dim);margin-top:4px;"></div>
+          </div>
+        </div>
+
+        <!-- TAB: hráč -->
+        <div class="tab-pane" id="tab-player">
+          <label>Jméno hráče (cíl)</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="target-player-name" placeholder="např. Obránce99" style="flex:1" onkeydown="if(event.key==='Enter')loadPlayer('tgt')">
+            <button class="btn btn-primary btn-sm" onclick="loadPlayer('tgt')">Hledat</button>
+          </div>
+          <div class="status-bar" id="target-player-status"></div>
+          <div class="village-list" id="target-village-list"></div>
+          <div style="font-size:11px;color:var(--dim);margin-top:6px;" id="target-village-count"></div>
+
+          <!-- globální příchod pro hráč-tab -->
+          <div class="global-arrival" style="margin-top:10px;">
+            <label>⏰ Čas příchodu (pro všechny cíle)</label>
+            <div class="arrival-row">
+              <input type="datetime-local" id="global-arrival-player" step="1">
+              <select id="global-unit-player">
+                <option value="ram" selected>🪨 Beranidlo</option>
+                <option value="noble">👑 Šlechtic</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+              <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
+              <input type="datetime-local" id="global-arrival-player-to" step="1" style="flex:1;">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Fejk nastavení -->
+    <div class="panel">
+      <div class="panel-header">💨 Fejky</div>
+      <div class="panel-body">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <label style="white-space:nowrap;font-size:13px;">Počet fejků na cíl:</label>
+          <input type="number" id="fake-count" min="0" max="50" value="0" style="width:70px;text-align:center;">
+          <span style="font-size:11px;color:var(--dim);">(0 = bez fejků)</span>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" onclick="switchFakeTab('coords')">📋 Souřadnice</div>
+          <div class="tab"       onclick="switchFakeTab('player')">👤 Hráč</div>
+        </div>
+
+        <!-- TAB: souřadnice -->
+        <div class="tab-pane active" id="fake-tab-coords">
+          <label>Fejk cíle – vesnice (každá na novém řádku)</label>
+          <textarea id="fake-coords-paste" rows="4" placeholder="500|500&#10;501|502&#10;523|488"></textarea>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="parseFakeCoords()">▶ Načíst</button>
+            <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearFakeCoords()">✕ Smazat</button>
+          </div>
+        </div>
+
+        <!-- TAB: hráč -->
+        <div class="tab-pane" id="fake-tab-player">
+          <label>Jméno hráče (fejk cíle)</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="fake-player-name" placeholder="např. Obránce99" style="flex:1"
+              onkeydown="if(event.key==='Enter')loadPlayer('fake')">
+            <button class="btn btn-primary btn-sm" onclick="loadPlayer('fake')">Hledat</button>
+          </div>
+          <div class="status-bar" id="fake-player-status"></div>
+          <div class="village-list" id="fake-village-list"></div>
+          <div style="font-size:11px;color:var(--dim);margin-top:6px;" id="fake-village-count"></div>
+        </div>
+
+        <div class="status-bar" id="fake-status"></div>
+        <div id="fake-coord-count" style="font-size:11px;color:var(--dim);margin-top:4px;"></div>
+
+        <div class="global-arrival" style="margin-top:10px;">
+          <label>⏰ Čas příchodu fejků</label>
+          <div class="arrival-row">
+            <input type="datetime-local" id="fake-arrival" step="1">
+            <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:4px;font-size:13px;white-space:nowrap;">🪨 Beranidlo</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+            <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
+            <input type="datetime-local" id="fake-arrival-to" step="1" style="flex:1;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;">
+      <button class="btn btn-primary" style="font-size:15px;padding:10px 28px;" onclick="calculate()">
+        ⚔️ Vypočítat plán
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Výsledky -->
+  <div class="right-col">
+    <div class="panel">
+      <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <span>📋 Plán útoku</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <div class="table-filter">
+            <input type="text" id="table-search" placeholder="🔍 Filtr (vesnice, hráč…)" oninput="renderResults()">
+          </div>
+          <label class="night-toggle">
+            <input type="checkbox" id="hide-night" checked onchange="renderResults()">
+            🌙 Skrýt noční (0–6h)
+          </label>
+          <span id="attack-count" style="font-size:11px;color:var(--dim);font-weight:normal;"></span>
+          <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;font-weight:normal;" onclick="saveAction()" title="Uloží aktuální akci a odebere použité offky ze zdrojů">💾 Přidat do plánu</button>
+          <button class="btn btn-sm btn-blue" onclick="openExport()" style="font-weight:normal;">📤 Export</button>
+          <button class="btn btn-sm btn-red" onclick="clearResults()" style="font-weight:normal;">✕ Smazat</button>
+        </div>
+      </div>
+      <!-- Uložené akce -->
+      <div id="saved-actions-bar" style="display:none;padding:6px 14px;border-bottom:1px solid var(--border);background:#0a1008;font-size:12px;color:var(--dim);">
+        📋 Uložené akce: <span id="saved-actions-list"></span>
+        <button onclick="clearSavedActions()" style="margin-left:10px;background:none;border:none;color:#e06060;cursor:pointer;font-size:11px;">✕ Smazat vše</button>
+      </div>
+      </div>
+      <!-- Souhrn -->
+      <div id="attack-summary" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:#1a1208;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;">
+        <span>⚔️ Ostrých: <strong id="sum-sharp">0</strong></span>
+        <span style="color:#f5c842">🟡 Fullek: <strong id="sum-full">0</strong></span>
+        <span style="color:#50d0d0">🔵 3/4 off: <strong id="sum-triq">0</strong></span>
+        <span style="color:#a0c8ff">🔷 1/2 off: <strong id="sum-half">0</strong></span>
+        <span style="color:#cc6600">💨 Fejků: <strong id="sum-fake">0</strong></span>
+        <span style="color:var(--dim)">Celkem: <strong id="sum-total">0</strong></span>
+        <span id="sum-coverage" style="color:var(--green);margin-left:8px;"></span>
+      </div>
+      <!-- Nepokryté vesnice spoiler -->
+      <div id="uncovered-wrap" style="display:none;padding:6px 14px;border-bottom:1px solid var(--border);background:#1a1208;">
+        <details>
+          <summary style="cursor:pointer;font-size:12px;color:var(--dim);user-select:none;">⚠️ Nepokryté cíle – <span id="uncovered-count">0</span> vesnic bez ostrého útoku</summary>
+          <div id="uncovered-list" style="margin-top:6px;font-family:monospace;font-size:12px;color:#ff9955;line-height:1.8;padding:4px 0;"></div>
+        </details>
+      </div>
+      <div class="panel-body attack-table-wrap" id="results-area">
+        <div class="empty-state">
+          <div class="icon">⚔️</div>
+          <div>Zadej zdroj + cíle + čas příchodu, pak klikni <strong>Vypočítat plán</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Alarm modal -->
+<div class="alarm-modal" id="alarm-modal">
+  <div class="alarm-box">
+    <h2>⚔️ ODESLAT ÚTOK!</h2>
+    <div class="alarm-info" id="alarm-info-src"></div>
+    <div class="alarm-info" id="alarm-info-tgt" style="font-weight:bold;color:var(--text);"></div>
+    <div class="big-count" id="alarm-count">--:--:--</div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:12px;">
+      <a id="alarm-link" href="#" target="tw_game" class="btn btn-green" style="text-decoration:none;font-size:15px;padding:9px 20px;">▶ Otevřít hru</a>
+      <button class="btn btn-red" onclick="closeAlarm()">✕ Zavřít</button>
+    </div>
+    <div style="font-size:11px;color:var(--dim);">Klikni "Otevřít hru" přesně ve správný čas</div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="export-modal" id="export-modal">
+  <div class="export-box">
+    <h2>📤 Export plánu</h2>
+    <div style="font-size:12px;color:var(--dim);">4 náhodné útočné vesnice (mimo noční dobu) na každý cíl</div>
+    <textarea id="export-text" readonly></textarea>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" onclick="copyExport()">📋 Kopírovat</button>
+      <button class="btn btn-red" onclick="closeExport()">✕ Zavřít</button>
+    </div>
+    <div id="export-copy-status" style="font-size:12px;color:var(--green);display:none;">✓ Zkopírováno!</div>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ──────────────────────────────────────────────
+const WORLD    = 'cs112';
+const API_BASE = `https://${WORLD}.divokekmeny.cz`;
+const PROXIES  = [
+  u => u,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+];
+
+let UNIT_SPEEDS_S   = { spear:1080, sword:1320, axe:1080, scout:540, lk:600, tk:660, ram:1800, catapult:1800, noble:2100, paladin:600 };
+let apiSpeedsLoaded = false;
+
+const UNIT_LABELS = { ram:'🪨 Beranidlo', noble:'👑 Šlechtic' };
+const UNIT_CHIPS  = { ram:'chip-ram', noble:'chip-noble' };
+const NIGHT_START = 0, NIGHT_END = 6;
+
+// ── STATE ──────────────────────────────────────────────────
+let worldSpeed = 1.0, unitSpeedMult = 1.0;
+let allVillages = [], srcVillages = [], tgtVillages = [];
+let coordTargets   = [];   // [{x,y,name,id,arrivalTime?,unit?}]
+let fakeTargets    = [];   // fejk cíle [{x,y,name}]
+let jsonVillages   = [];   // všechny z importu
+let attackRows     = [];
+let savedActions   = [];   // [{label, rows}] – uložené akce pro multi-plán
+let lastNightWarnings = [];
+let currentTargetTab = 'coords';
+let currentSrcTab    = 'player';
+let currentFakeTab   = 'coords';
+let arrivalMode      = 'global';   // 'global' | 'per'
+let alarmInterval = null, alarmTargetTime = null, alarmLink = '', alarmOpened = false;
+let cdInterval = null;
+
+// ── INIT ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadWorldConfig);
+
+// ── FETCH ──────────────────────────────────────────────────
+async function fetchWithFallback(url) {
+  let lastErr;
+  for (const proxify of PROXIES) {
+    try {
+      const r = await fetch(proxify(url), { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r;
+    } catch(e) { lastErr = e; }
+  }
+  throw new Error(`Nelze načíst (${lastErr?.message})`);
+}
+
+// ── WORLD CONFIG ───────────────────────────────────────────
+async function loadWorldConfig() {
+  setSpeedInfo('Načítám nastavení…');
+  try {
+    const rc  = await fetchWithFallback(`${API_BASE}/interface.php?func=get_config`);
+    const cfg = new DOMParser().parseFromString(await rc.text(), 'text/xml');
+    worldSpeed    = parseFloat(cfg.querySelector('speed')?.textContent      || '1');
+    unitSpeedMult = parseFloat(cfg.querySelector('unit_speed')?.textContent || '1');
+    document.getElementById('world-speed').value = worldSpeed;
+    document.getElementById('unit-speed').value  = unitSpeedMult;
+
+    const ru  = await fetchWithFallback(`${API_BASE}/interface.php?func=get_unit_info`);
+    const uid = new DOMParser().parseFromString(await ru.text(), 'text/xml');
+    const unitMap = { spear:'spear', sword:'sword', axe:'axe', spy:'scout',
+                      light:'lk', heavy:'tk', ram:'ram', catapult:'catapult',
+                      snob:'noble', knight:'paladin' };
+    for (const [xmlName, key] of Object.entries(unitMap)) {
+      const s = parseFloat(uid.querySelector(`${xmlName} > speed`)?.textContent);
+      if (!isNaN(s) && s > 0) UNIT_SPEEDS_S[key] = s * 60;
+    }
+    apiSpeedsLoaded = true;
+    const wDisp = `světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}×`;
+    document.getElementById('world-speed-display').textContent = wDisp;
+    document.getElementById('speed-debug').textContent =
+      `beran: ${UNIT_SPEEDS_S.ram}s/pole | šlechtic: ${UNIT_SPEEDS_S.noble}s/pole`;
+    setSpeedInfo(`✓ Načteno – rychlost ${wDisp}`);
+  } catch(e) {
+    worldSpeed    = parseFloat(document.getElementById('world-speed').value) || 1;
+    unitSpeedMult = parseFloat(document.getElementById('unit-speed').value)  || 1;
+    setSpeedInfo(`⚠ Nelze načíst ze serveru – ruční hodnoty`);
+  }
+}
+function setSpeedInfo(m) { document.getElementById('speed-info').textContent = m; }
+
+// ── SRC TABS ───────────────────────────────────────────────
+function switchSrcTab(tab) {
+  currentSrcTab = tab;
+  document.querySelectorAll('#src-tab-player, #src-tab-json').forEach(p => p.classList.remove('active'));
+  document.getElementById(`src-tab-${tab}`).classList.add('active');
+  // sync tab buttons
+  document.querySelectorAll('.left-col .panel:nth-child(2) .tab').forEach((t,i) => {
+    t.classList.toggle('active', (tab==='player'&&i===0)||(tab==='json'&&i===1));
+  });
+}
+
+// ── JSON IMPORT ────────────────────────────────────────────
+function importJson() {
+  const raw = document.getElementById('json-paste').value.trim();
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    jsonVillages = data.villages || [];
+    if (!jsonVillages.length) throw new Error('Žádné vesnice v JSON');
+    setStatus('json-status', 'ok', `✓ Načteno ${jsonVillages.length} vesnic z kmene`);
+    document.getElementById('src-filter-wrap').style.display = 'block';
+    applyJsonFilter();
+  } catch(e) {
+    setStatus('json-status', 'err', `❌ Chyba: ${e.message}`);
+  }
+}
+
+function applyJsonFilter() {
+  const wantFull  = document.getElementById('filter-full').checked;
+  const wantTriq  = document.getElementById('filter-triq').checked;
+  const wantHalf  = document.getElementById('filter-half').checked;
+
+  srcVillages = jsonVillages.filter(v => {
+    if (v.category === 'fullka')   return wantFull;
+    if (v.category === 'triq_off') return wantTriq;
+    if (v.category === 'half_off') return wantHalf;
+    return false;
+  });
+
+  const catChipHtml = (v) => {
+    if (v.category === 'fullka')   return '<span class="vi-cat vi-cat-full" title="≥18 000 off populace">fullka</span>';
+    if (v.category === 'triq_off') return '<span class="vi-cat" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4</span>';
+    if (v.category === 'half_off') return '<span class="vi-cat vi-cat-half" title="10 000–14 999 off populace">1/2</span>';
+    return '';
+  };
+
+  const listEl = document.getElementById('json-village-list');
+  listEl.innerHTML = srcVillages.slice(0, 100).map(v =>
+    `<div class="village-item">
+      <span style="font-size:12px">${v.village_name} ${catChipHtml(v)}</span>
+      <span class="village-coords">${v.x}|${v.y}</span>
+    </div>`
+  ).join('') + (srcVillages.length > 100 ? `<div class="village-item" style="color:var(--dim)">… a ${srcVillages.length-100} dalších</div>` : '');
+  document.getElementById('json-village-count').textContent = `Zobrazeno: ${srcVillages.length} vesnic`;
+}
+
+function clearJson() {
+  document.getElementById('json-paste').value = '';
+  jsonVillages = []; srcVillages = [];
+  document.getElementById('src-filter-wrap').style.display = 'none';
+  document.getElementById('json-status').className = 'status-bar';
+}
+
+// ── ARRIVAL MODE ───────────────────────────────────────────
+function setArrivalMode(mode) {
+  arrivalMode = mode;
+  document.getElementById('mode-btn-global').classList.toggle('active', mode==='global');
+  document.getElementById('mode-btn-per').classList.toggle('active', mode==='per');
+  document.getElementById('global-arrival-wrap').style.display  = mode==='global' ? 'block' : 'none';
+  document.getElementById('per-arrival-wrap').style.display     = mode==='per'    ? 'block' : 'none';
+  if (mode==='per') renderCoordList();
+}
+
+// ── VILLAGES + PLAYERS ────────────────────────────────────
+let allPlayers = new Map(); // id → name
+
+async function ensureVillages() {
+  if (allVillages.length) return;
+  const [vr, pr] = await Promise.all([
+    fetchWithFallback(`${API_BASE}/map/village.txt`),
+    fetchWithFallback(`${API_BASE}/map/player.txt`)
+  ]);
+  // Players
+  (await pr.text()).trim().split('\n').forEach(line => {
+    const [id, pname] = line.split(',');
+    allPlayers.set(id, decodeURIComponent((pname||'').replace(/\+/g,' ')));
+  });
+  // Villages
+  allVillages = (await vr.text()).trim().split('\n').map(line => {
+    const [id, vname, x, y, pid, points] = line.split(',');
+    return { id, name: decodeURIComponent(vname.replace(/\+/g,' ')), x:+x, y:+y, playerId:pid, points:+points };
+  });
+}
+
+async function findPlayer(name) {
+  const r = await fetchWithFallback(`${API_BASE}/map/player.txt`);
+  const players = (await r.text()).trim().split('\n').map(line => {
+    const [id, pname] = line.split(',');
+    return { id, name: decodeURIComponent(pname.replace(/\+/g,' ')) };
+  });
+  const exact = players.find(p => p.name.toLowerCase() === name.toLowerCase());
+  if (exact) return exact;
+  const partial = players.filter(p => p.name.toLowerCase().includes(name.toLowerCase()));
+  if (partial.length === 1) return partial[0];
+  if (partial.length  >  1) throw new Error(`${partial.length} shod – upřesni: ${partial.slice(0,5).map(p=>p.name).join(', ')}`);
+  throw new Error(`Hráč "${name}" nenalezen`);
+}
+
+async function loadPlayer(role) {
+  const inputId  = role === 'src'  ? 'player-name'        : role === 'tgt' ? 'target-player-name' : 'fake-player-name';
+  const statusId = role === 'src'  ? 'player-status'      : role === 'tgt' ? 'target-player-status' : 'fake-player-status';
+  const listId   = role === 'src'  ? 'village-list'       : role === 'tgt' ? 'target-village-list' : 'fake-village-list';
+  const countId  = role === 'src'  ? 'village-count'      : role === 'tgt' ? 'target-village-count' : 'fake-village-count';
+
+  const name = document.getElementById(inputId).value.trim();
+  if (!name) return;
+  setStatus(statusId, 'info', '⌛ Načítám…');
+  document.getElementById(listId).innerHTML = '';
+
+  try {
+    const player   = await findPlayer(name);
+    document.getElementById(inputId).value = player.name;
+    await ensureVillages();
+    const villages = allVillages.filter(v => v.playerId === player.id);
+
+    document.getElementById(listId).innerHTML = villages.map(v =>
+      `<div class="village-item"><span style="font-size:12px">${v.name}</span><span class="village-coords">${v.x}|${v.y}</span></div>`
+    ).join('');
+    setStatus(statusId, 'ok', `✓ ${player.name}: ${villages.length} vesnic`);
+    document.getElementById(countId).textContent = `Celkem: ${villages.length} vesnic`;
+
+    if      (role === 'src')  srcVillages  = villages;
+    else if (role === 'tgt')  tgtVillages  = villages;
+    else                      fakeTargets  = villages.map(v => ({ x:v.x, y:v.y, name:v.name, id:v.id }));
+  } catch(e) {
+    setStatus(statusId, 'err', `❌ ${e.message}`);
+  }
+}
+
+function setStatus(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = `status-bar ${type}`;
+  el.textContent = msg;
+}
+
+// ── TARGET TABS ────────────────────────────────────────────
+function switchTargetTab(tab) {
+  currentTargetTab = tab;
+  document.querySelectorAll('#tab-coords, #tab-player').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  document.querySelectorAll('.right-col ~ * .tab, .panel:nth-child(3) .tab').forEach((t,i) => {
+    t.classList.toggle('active', (tab==='coords'&&i===0)||(tab==='player'&&i===1));
+  });
+}
+
+// ── FAKE TABS ──────────────────────────────────────────────
+function switchFakeTab(tab) {
+  currentFakeTab = tab;
+  document.querySelectorAll('#fake-tab-coords, #fake-tab-player').forEach(p => p.classList.remove('active'));
+  document.getElementById(`fake-tab-${tab}`).classList.add('active');
+  // Přepni taby v fake panelu
+  const fakePanelTabs = document.querySelectorAll('#fake-tab-coords, #fake-tab-player');
+  const fakeTabBtns = fakePanelTabs[0]?.closest('.panel-body')?.querySelectorAll('.tab');
+  if (fakeTabBtns) fakeTabBtns.forEach((t,i) => {
+    t.classList.toggle('active', (tab==='coords'&&i===0)||(tab==='player'&&i===1));
+  });
+}
+
+// ── SOUŘADNICE ─────────────────────────────────────────────
+async function parseCoords() {
+  const raw = document.getElementById('coords-paste').value.trim();
+  if (!raw) return;
+  // Načti allVillages pokud ještě nemáme (body cílů)
+  if (!allVillages.length) {
+    try { await ensureVillages(); } catch(e) { console.warn('Nepodařilo se načíst village.txt', e); }
+  }
+
+  const lines = raw.split(/[\n\s]+/).map(l=>l.trim()).filter(l=>/^\d+\|\d+/.test(l));
+
+  // zachovat existující per-cíl časy pokud existují
+  const existing = {};
+  coordTargets.forEach(c => { existing[`${c.x}|${c.y}`] = c; });
+
+  coordTargets = lines.map(l => {
+    const m = l.match(/^(\d+)\|(\d+)/);
+    const x = +m[1], y = +m[2];
+    const tv = allVillages.find(v=>v.x===x&&v.y===y);
+    const key = `${x}|${y}`;
+    return {
+      x, y,
+      name: tv?.name||key,
+      id: tv?.id||null,
+      points: tv?.points||0,
+      owner: tv ? (allPlayers.get(tv.playerId) || '') : '',
+      arrivalTime: existing[key]?.arrivalTime || null,
+      unit: existing[key]?.unit || 'ram',
+    };
+  });
+  renderCoordList();
+}
+
+function renderCoordList() {
+  const el = document.getElementById('coord-list');
+  if (!coordTargets.length) { el.style.display='none'; document.getElementById('coord-count').textContent=''; return; }
+  el.style.display = 'block';
+
+  if (arrivalMode === 'global') {
+    // Jednoduchý seznam bez inputů
+    el.innerHTML = coordTargets.map((c,i) =>
+      `<div class="coord-item">
+         <span class="ci-coords">${c.x}|${c.y}</span>
+         <span style="color:var(--dim);font-size:11px;flex:1">${c.name !== `${c.x}|${c.y}` ? c.name : ''}</span>
+         <button class="ci-remove" onclick="removeCoord(${i})">✕</button>
+       </div>`
+    ).join('');
+  } else {
+    // Per-cíl: datum + jednotka
+    el.innerHTML = coordTargets.map((c,i) => {
+      const dtVal = c.arrivalTime ? new Date(c.arrivalTime).toISOString().slice(0,19) : '';
+      return `<div class="coord-item">
+         <span class="ci-coords">${c.x}|${c.y}</span>
+         <span class="ci-time"><input type="datetime-local" step="1" value="${dtVal}"
+           onchange="coordTargets[${i}].arrivalTime=this.value?new Date(this.value).getTime():null"></span>
+         <span class="ci-unit"><select onchange="coordTargets[${i}].unit=this.value">
+           <option value="ram" ${c.unit==='ram'?'selected':''}>🪨</option>
+           <option value="noble" ${c.unit==='noble'?'selected':''}>👑</option>
+         </select></span>
+         <button class="ci-remove" onclick="removeCoord(${i})">✕</button>
+       </div>`;
+    }).join('');
+  }
+  document.getElementById('coord-count').textContent = `${coordTargets.length} cílů`;
+  document.getElementById('coord-count-global').textContent = coordTargets.length ? `✓ Načteno ${coordTargets.length} cílů` : '';
+}
+
+function removeCoord(i) { coordTargets.splice(i,1); renderCoordList(); }
+
+function clearCoords() {
+  document.getElementById('coords-paste').value = '';
+  coordTargets = [];
+  document.getElementById('coord-list').style.display = 'none';
+  document.getElementById('coord-count').textContent = '';
+  document.getElementById('coord-count-global').textContent = '';
+}
+
+// ── FEJK CÍLE ─────────────────────────────────────────────
+function parseFakeCoords() {
+  const raw = document.getElementById('fake-coords-paste').value.trim();
+  if (!raw) return;
+  const lines = raw.split(/[\n\s]+/).map(l=>l.trim()).filter(l=>/^\d+\|\d+/.test(l));
+  fakeTargets = lines.map(l => {
+    const m = l.match(/^(\d+)\|(\d+)/);
+    const x = +m[1], y = +m[2];
+    const tv = allVillages.find(v=>v.x===x&&v.y===y);
+    return { x, y, name: tv?.name || `${x}|${y}`, id: tv?.id || null };
+  });
+  document.getElementById('fake-coord-count').textContent = `${fakeTargets.length} fejk vesnic`;
+  const fakeCount = parseInt(document.getElementById('fake-count').value) || 0;
+  const srcCount = srcVillages.length || '?';
+  if (fakeCount > 0) {
+    const needed = fakeCount * (typeof srcCount === 'number' ? srcCount : 0);
+    const st = document.getElementById('fake-status');
+    if (needed > 0 && fakeTargets.length < needed)
+      st.textContent = `⚠ Málo fejk vesnic: máš ${fakeTargets.length}, potřebuješ ${needed} (${srcCount} zdrojů × ${fakeCount})`;
+    else
+      st.textContent = '';
+  }
+}
+
+function clearFakeCoords() {
+  document.getElementById('fake-coords-paste').value = '';
+  fakeTargets = [];
+  document.getElementById('fake-coord-count').textContent = '';
+  document.getElementById('fake-status').textContent = '';
+}
+
+// ── CESTOVNÍ ČAS ───────────────────────────────────────────
+function travelMs(x1,y1,x2,y2,unit) {
+  const ws   = parseFloat(document.getElementById('world-speed').value) || worldSpeed || 1;
+  const um   = parseFloat(document.getElementById('unit-speed').value)  || unitSpeedMult || 1;
+  const dist = Math.sqrt((x2-x1)**2+(y2-y1)**2); // plná přesnost, bez zaokrouhlení
+  const speedS = UNIT_SPEEDS_S[unit] || 1800;
+  if (apiSpeedsLoaded) return dist * speedS * 1000;
+  return dist * speedS / (ws * um) * 1000;
+}
+
+function isNight(ts) { const h = new Date(ts).getHours(); return h>=NIGHT_START && h<NIGHT_END; }
+
+// Najdi nejlepší čas příchodu v rozmezí [from, to] pro skupinu offek→cíl
+// "Nejlepší" = co nejvíce offek odesílá ve dne, a výsledný interval je co nejmenší
+function bestArrivalTime(from, to, srcList, tgt, unit) {
+  if (!to || to <= from) return from;
+  const range = to - from;
+  // Zkus N kandidátů rovnoměrně rozložených v rozmezí
+  const SAMPLES = 60;
+  let bestTime = from, bestDayCount = -1;
+  for (let i = 0; i < SAMPLES; i++) {
+    const t = from + Math.floor((i / (SAMPLES - 1)) * range);
+    let dayCount = 0;
+    for (const sv of srcList) {
+      const travel = travelMs(sv.x, sv.y, tgt.x, tgt.y, unit);
+      const sendTime = t - travel;
+      if (!isNight(sendTime) && sendTime >= Date.now()) dayCount++;
+    }
+    if (dayCount > bestDayCount) { bestDayCount = dayCount; bestTime = t; }
+    if (bestDayCount === srcList.length) break; // perfektní – stop
+  }
+  return bestTime;
+}
+
+// ── CALCULATE ──────────────────────────────────────────────
+async function calculate() {
+  if (!srcVillages.length) { alert('Nejprve načti zdrojového hráče nebo importuj JSON!'); return; }
+
+  // Načti allVillages pokud ještě nemáme (potřeba pro body cílů)
+  if (!allVillages.length) {
+    try { await ensureVillages(); } catch(e) { console.warn('Nepodařilo se načíst village.txt', e); }
+  }
+
+  // Sbírání ostrých cílů – volitelné (pokud prázdné, jen fejky)
+  let targets = [];
+  const arrivalFrom_sharp = null, arrivalTo_sharp = null; // placeholder, přiřadíme po přiřazení
+  if (currentTargetTab === 'coords') {
+    if (coordTargets.length) {
+      if (arrivalMode === 'global') {
+        const arrStr = document.getElementById('global-arrival').value;
+        if (!arrStr) { alert('Nastav čas příchodu!'); return; }
+        const af = new Date(arrStr).getTime();
+        if (isNaN(af)) { alert('Neplatný čas příchodu!'); return; }
+        const arrToStr = document.getElementById('global-arrival-to').value;
+        const at = arrToStr ? new Date(arrToStr).getTime() : null;
+        const unit = document.getElementById('global-unit').value;
+        // Uložíme rozmezí, čas přiřadíme po výběru offek
+        targets = coordTargets.map(c => ({ ...c, unit, _arrFrom: af, _arrTo: at, arrivalTime: af }));
+      } else {
+        const missing = coordTargets.filter(c => !c.arrivalTime);
+        if (missing.length) { alert(`${missing.length} cílů nemá nastaven čas příchodu!`); return; }
+        targets = coordTargets.map(c => ({ ...c }));
+      }
+    }
+  } else {
+    if (tgtVillages.length) {
+      const arrStr = document.getElementById('global-arrival-player').value;
+      if (!arrStr) { alert('Nastav čas příchodu!'); return; }
+      const af = new Date(arrStr).getTime();
+      const arrToStr = document.getElementById('global-arrival-player-to').value;
+      const at = arrToStr ? new Date(arrToStr).getTime() : null;
+      const unit = document.getElementById('global-unit-player').value;
+      targets = tgtVillages.map(v => ({
+        x:v.x, y:v.y, name:v.name, id:v.id, unit,
+        _arrFrom: af, _arrTo: at, arrivalTime: af
+      }));
+    }
+  }
+
+  const fakeCount = parseInt(document.getElementById('fake-count').value) || 0;
+
+  // Pokud nejsou ani cíle ani fejky, nemá co počítat
+  if (!targets.length && fakeCount === 0) {
+    alert('Zadej cílové vesnice nebo nastav fejky!');
+    return;
+  }
+  const sharpCount = parseInt(document.getElementById('sharp-count').value) || 1;
+  const fakeArrStr = document.getElementById('fake-arrival').value;
+  const fakeArrToStr = document.getElementById('fake-arrival-to').value;
+  const fakeUnit   = 'ram';
+  const fakeArrivalFrom = fakeArrStr ? new Date(fakeArrStr).getTime() : null;
+  const fakeArrivalTo   = fakeArrToStr ? new Date(fakeArrToStr).getTime() : null;
+
+  if (fakeCount > 0 && !fakeTargets.length) {
+    alert(currentFakeTab === 'player' ? 'Načti hráče pro fejk cíle!' : 'Zadej fejk vesnice!');
+    return;
+  }
+  if (fakeCount > 0 && !fakeArrivalFrom) { alert('Nastav čas příchodu fejků!'); return; }
+
+  const rows = [];
+  const now  = Date.now();
+
+  // ── Společná logika přiřazení ostrých ──────────────────────
+  // Alfa omega: čas příchodu je pevný.
+  // Optimalizace: pro každou dvojici (src, tgt) spočítej čas odeslání
+  // a preferuj přiřazení kde odeslání NEVYCHÁZÍ na noc (0–6h).
+  // Zároveň preferuj silnější offky na výše bodované cíle.
+
+  const ORDER = { fullka:0, triq_off:1, half_off:2 };
+  const CAT_RANK = { fullka:3, triq_off:2, half_off:1 };
+
+  const maxTargets     = Math.floor(srcVillages.length / sharpCount);
+  const coveredTargets = Math.min(maxTargets, targets.length);
+  const extraWarnings  = [];
+
+  // Cíle seřazené podle bodů sestupně
+  const sortedTargets = [...targets]
+    .slice(0, coveredTargets)
+    .map(t => ({ ...t, points: t.points || (allVillages.find(v=>v.x===t.x&&v.y===t.y)?.points || 0) }))
+    .sort((a, b) => b.points - a.points);
+
+  if (targets.length > maxTargets) {
+    extraWarnings.push(`⚔️ Více cílů (${targets.length}) než kapacita offek (${srcVillages.length}÷${sharpCount}=${maxTargets}) – ${targets.length - maxTargets} cílů nedostane ostrý útok!`);
+  }
+
+  // Pro každou src spočítej sendTime pro každý cíl
+  // srcInfo: { sv, category, catRank, perTgt: Map(tgt→{sendTime, isDay}) }
+  const srcInfos = srcVillages.map(sv => {
+    const perTgt = new Map();
+    for (const tgt of sortedTargets) {
+      const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
+      const sendTime = tgt.arrivalTime - travel;
+      perTgt.set(tgt, { sendTime, isDay: !isNight(sendTime) && sendTime >= now });
+    }
+    return { sv, catRank: CAT_RANK[sv.category] ?? -1, perTgt };
+  });
+
+  // ── Dvouprůchodové přiřazení ──────────────────────────────
+  // Průchod 1: Rovnoměrně distribuuj fullky na cíle (od nejvýše bodovaných)
+  // Každý cíl dostane floor(fullky/coveredTargets) fullků + zbytek prvním cílům
+  // V rámci alokovaných fullků pro daný cíl preferuj denní odeslání
+
+  const fullkyInfos  = srcInfos.filter(si => si.sv.category === 'fullka');
+  const restInfos    = srcInfos.filter(si => si.sv.category !== 'fullka');
+
+  const fullkyPerTgt = coveredTargets > 0 ? Math.floor(fullkyInfos.length / coveredTargets) : 0;
+  const fullkyRem    = coveredTargets > 0 ? fullkyInfos.length % coveredTargets : 0;
+
+  const sharpAssign  = new Map();
+  const usedSrc      = new Set();
+
+  // Průchod 1: Přiřaď fullky na cíle podle bodů (absolutní priorita)
+  // Každý cíl dostane svůj podíl fullků. V rámci přidělených fullků
+  // preferuj denní odeslání, ale NEvyměňuj cíle kvůli tomu.
+  for (let ti = 0; ti < sortedTargets.length; ti++) {
+    const tgt    = sortedTargets[ti];
+    const myFull = Math.min(fullkyPerTgt + (ti < fullkyRem ? 1 : 0), sharpCount);
+    if (myFull === 0) continue;
+
+    // Vyber fullky preferující denní odeslání na tento cíl
+    const candidates = fullkyInfos
+      .filter(si => !usedSrc.has(si.sv))
+      .sort((a, b) => {
+        const aDay = a.perTgt.get(tgt)?.isDay ? 1 : 0;
+        const bDay = b.perTgt.get(tgt)?.isDay ? 1 : 0;
+        return bDay - aDay; // denní první, ale jen pro výběr fullky
+      });
+
+    for (let k = 0; k < myFull && k < candidates.length; k++) {
+      const si = candidates[k];
+      usedSrc.add(si.sv);
+      if (!sharpAssign.has(si.sv)) sharpAssign.set(si.sv, []);
+      sharpAssign.get(si.sv).push(tgt);
+    }
+  }
+
+  // Průchod 2: Doplň zbývající sloty
+  // Pořadí cílů: znovu od nejvýše bodovaných
+  // Pro každý cíl: kolik slotů zbývá? Doplň z (nepřiřazené fullky > 3/4 > 1/2 > mini)
+  // V rámci stejné kategorie preferuj denní odeslání
+  for (const tgt of sortedTargets) {
+    const alreadyAssigned = [...sharpAssign.values()].flat().filter(t => t === tgt).length;
+    const needed = sharpCount - alreadyAssigned;
+    if (needed <= 0) continue;
+
+    const candidates = srcInfos
+      .filter(si => !usedSrc.has(si.sv))
+      .sort((a, b) => {
+        // 1. silnější kategorie
+        if (b.catRank !== a.catRank) return b.catRank - a.catRank;
+        // 2. denní odeslání
+        const aDay = a.perTgt.get(tgt)?.isDay ? 1 : 0;
+        const bDay = b.perTgt.get(tgt)?.isDay ? 1 : 0;
+        return bDay - aDay;
+      });
+
+    for (let k = 0; k < needed && k < candidates.length; k++) {
+      const si = candidates[k];
+      usedSrc.add(si.sv);
+      if (!sharpAssign.has(si.sv)) sharpAssign.set(si.sv, []);
+      sharpAssign.get(si.sv).push(tgt);
+    }
+  }
+
+  // Varování pokud fullky nestačí (pro info)
+  const fullky  = srcVillages.filter(v => v.category === 'fullka');
+  const needed  = coveredTargets * sharpCount;
+  if (fullky.length > 0 && fullky.length < needed) {
+    extraWarnings.push(`⚠️ Fullků (${fullky.length}) nestačí na ${sharpCount}× ${coveredTargets} cílů – doplňuje se 3/4 a 1/2 off`);
+  }
+
+  // ── Optimalizuj čas příchodu pro každý cíl ──────────────────
+  // Pro každý cíl vezmi skupinu přiřazených offek a najdi nejlepší čas v rozmezí
+  for (const tgt of sortedTargets) {
+    if (!tgt._arrTo || tgt._arrTo <= tgt._arrFrom) continue; // fixní čas, nic neoptimalizuj
+    const assignedSrcs = [...sharpAssign.entries()]
+      .filter(([, tgts]) => tgts.includes(tgt))
+      .map(([sv]) => sv);
+    tgt.arrivalTime = bestArrivalTime(tgt._arrFrom, tgt._arrTo, assignedSrcs, tgt, tgt.unit);
+  }
+
+  // ── BEZ FEJKŮ ──
+  if (fakeCount === 0) {
+    const byTgtKey = {};
+    for (const sv of srcVillages) {
+      for (const tgt of (sharpAssign.get(sv) || [])) {
+        const k = `${tgt.x}|${tgt.y}`;
+        if (!byTgtKey[k]) byTgtKey[k] = [];
+        const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
+        const sendTime = tgt.arrivalTime - travel;
+        byTgtKey[k].push({
+          srcId:sv.id, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
+          tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id, tgtOwner:tgt.owner||(allPlayers.get((allVillages.find(v=>v.x===tgt.x&&v.y===tgt.y)||{}).playerId)||''),
+          unit:tgt.unit, arrivalTime:tgt.arrivalTime, sendTime, travel,
+          night:isNight(sendTime), isPast:sendTime<now,
+          isFake:false, forced_night:false
+        });
+      }
+    }
+    for (const combos of Object.values(byTgtKey)) {
+      const hasDay = combos.some(c => !c.night && !c.isPast);
+      combos.forEach(c => { c.forced_night = c.night && hasDay; rows.push(c); });
+    }
+
+  // ── S FEJKY ──
+  } else {
+
+    const maxFakeTargets = Math.floor(srcVillages.length / fakeCount);
+    const coveredFakes   = Math.min(maxFakeTargets, fakeTargets.length);
+
+    // fakeAssign: src → fejk cíl
+    const fakeAssign = new Map();
+    const sortedSrcForFake = [...srcVillages].sort((a,b) => (ORDER[a.category]??9)-(ORDER[b.category]??9));
+    for (let fi = 0; fi < coveredFakes; fi++) {
+      const ft = fakeTargets[fi];
+      for (let k = 0; k < fakeCount; k++) {
+        const sv = sortedSrcForFake[fi * fakeCount + k];
+        if (!sv) break;
+        fakeAssign.set(sv, ft);
+      }
+    }
+
+    if (fakeTargets.length < maxFakeTargets) {
+      const uncoveredOffky = srcVillages.length - coveredFakes * fakeCount;
+      extraWarnings.push(`💨 Méně fejk vesnic (${fakeTargets.length}) než kapacita offek (${srcVillages.length}÷${fakeCount}=${maxFakeTargets}) – ${uncoveredOffky} offek nepošle fejk`);
+    }
+
+    // Generuj řádky – ostrý útok
+    for (const sv of srcVillages) {
+      const tgts = sharpAssign.get(sv) || [];
+      for (const tgt of tgts) {
+        const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
+        const sendTime = tgt.arrivalTime - travel;
+        rows.push({
+          srcId:sv.id, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
+          tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id, tgtOwner:tgt.owner||(allPlayers.get((allVillages.find(v=>v.x===tgt.x&&v.y===tgt.y)||{}).playerId)||''),
+          unit:tgt.unit, arrivalTime:tgt.arrivalTime, sendTime, travel,
+          night:isNight(sendTime), isPast:sendTime<now,
+          isFake:false, forced_night:false
+        });
+      }
+    }
+
+    // Generuj řádky – fejky (s optimalizovaným časem příchodu per fejk cíl)
+    // Pro každou fejk vesnici najdi nejlepší čas v rozmezí
+    const fakeTgtArrival = new Map();
+    for (let fi = 0; fi < coveredFakes; fi++) {
+      const ft = fakeTargets[fi];
+      const key = `${ft.x}|${ft.y}`;
+      if (!fakeTgtArrival.has(key)) {
+        const srcsForThis = sortedSrcForFake.filter(sv => fakeAssign.get(sv) === ft);
+        const arrTime = (fakeArrivalTo && fakeArrivalTo > fakeArrivalFrom)
+          ? bestArrivalTime(fakeArrivalFrom, fakeArrivalTo, srcsForThis, ft, fakeUnit)
+          : fakeArrivalFrom;
+        fakeTgtArrival.set(key, arrTime);
+      }
+    }
+
+    for (const sv of sortedSrcForFake) {
+      const fakeTgt = fakeAssign.get(sv);
+      if (!fakeTgt) continue;
+      const arrivalTime = fakeTgtArrival.get(`${fakeTgt.x}|${fakeTgt.y}`) || fakeArrivalFrom;
+      const travel   = travelMs(sv.x, sv.y, fakeTgt.x, fakeTgt.y, fakeUnit);
+      const sendTime = arrivalTime - travel;
+      rows.push({
+        srcId:sv.id, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+        srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
+        tgtX:fakeTgt.x, tgtY:fakeTgt.y, tgtName:fakeTgt.name, tgtId:fakeTgt.id,
+        unit:fakeUnit, arrivalTime, sendTime, travel,
+        night:isNight(sendTime), isPast:sendTime<now,
+        isFake:true, forced_night:false
+      });
+    }
+  }
+
+  rows.sort((a,b)=>a.sendTime-b.sendTime);
+  attackRows = rows;
+
+  // ── VAROVÁNÍ – noční útoky bez denní alternativy ──────────
+  const nightWarnings = [...extraWarnings];
+
+  if (fakeCount === 0) {
+    const byTgt = {};
+    rows.forEach(r => {
+      const k = `${r.tgtX}|${r.tgtY}`;
+      if (!byTgt[k]) byTgt[k] = { name: r.tgtName, allNight: true };
+      if (!r.night && !r.isPast) byTgt[k].allNight = false;
+    });
+    for (const [coords, d] of Object.entries(byTgt)) {
+      if (d.allNight) nightWarnings.push(`Cíl ${coords} (${d.name}) – všechna odesílání jsou v noci`);
+    }
+  } else {
+    const nightRows = rows.filter(r => r.night && !r.isPast);
+    if (nightRows.length > 0) {
+      const nightSharp = nightRows.filter(r => !r.isFake).length;
+      const nightFake  = nightRows.filter(r =>  r.isFake).length;
+      if (nightSharp > 0) nightWarnings.push(`${nightSharp} ostrých útoků musí být odesláno v noci (kombinaci nelze změnit bez jiného času příchodu)`);
+      if (nightFake  > 0) nightWarnings.push(`${nightFake} fejků musí být odesláno v noci (kombinaci nelze změnit bez jiného času příchodu fejků)`);
+    }
+  }
+
+  renderResults(nightWarnings);
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+function renderResults(nightWarnings) {
+  if (nightWarnings !== undefined) lastNightWarnings = nightWarnings;
+  const warnings = lastNightWarnings || [];
+
+  const area      = document.getElementById('results-area');
+  const hideNight = document.getElementById('hide-night').checked;
+  const search    = (document.getElementById('table-search').value || '').toLowerCase();
+  const now       = Date.now();
+
+  let visible = attackRows.filter(r => {
+    if (!search && hideNight && r.night && !r.isPast) return false;
+    return true;
+  });
+  if (search) {
+    visible = visible.filter(r =>
+      `${r.srcX}|${r.srcY} ${r.srcName} ${r.srcPlayer} ${r.tgtX}|${r.tgtY} ${r.tgtName}`.toLowerCase().includes(search)
+    );
+  }
+
+  let warningHtml = '';
+  if (warnings.length > 0) {
+    // Rozděl extra varování (začínají ⚔️ nebo 💨) od nočních
+    const extra = warnings.filter(w => w.startsWith('⚔️') || w.startsWith('💨'));
+    const night = warnings.filter(w => !w.startsWith('⚔️') && !w.startsWith('💨'));
+
+    if (extra.length > 0) {
+      warningHtml += `<div style="background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:13px;font-weight:bold;color:#ff9955;">
+        ${extra.map(w => `• ${w}`).join('<br>')}
+      </div>`;
+    }
+    if (night.length > 0) {
+      // Shrň noční do počtů
+      const nightSharpMatch = night.find(w => w.match(/^\d+ ostrých/));
+      const nightFakeMatch  = night.find(w => w.match(/^\d+ fejků/));
+      const nightCilMatch   = night.filter(w => w.includes('všechna odesílání'));
+      let nightLines = [];
+      if (nightSharpMatch) nightLines.push(nightSharpMatch);
+      if (nightFakeMatch)  nightLines.push(nightFakeMatch);
+      if (nightCilMatch.length > 0) nightLines.push(`${nightCilMatch.length} cílů lze odeslat pouze v noci (změn čas příchodu)`);
+      if (nightLines.length > 0) {
+        warningHtml += `<div style="background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#ff9955;">
+          🌙 <strong>Upozornění – noční odesílání:</strong><br>
+          ${nightLines.map(w => `• ${w}`).join('<br>')}
+        </div>`;
+      }
+    }
+  }
+
+  let html = `<table class="attacks"><thead><tr>
+    <th onclick="setSort('idx')"   style="cursor:pointer;user-select:none;"># ${sortIndicator('idx')}</th>
+    <th onclick="setSort('player')" style="cursor:pointer;user-select:none;">Hráč ${sortIndicator('player')}</th>
+    <th onclick="setSort('src')"   style="cursor:pointer;user-select:none;">Zdroj ${sortIndicator('src')}</th>
+    <th onclick="setSort('type')"  style="cursor:pointer;user-select:none;">Typ ${sortIndicator('type')}</th>
+    <th onclick="setSort('tgt')"   style="cursor:pointer;user-select:none;">Cíl ${sortIndicator('tgt')}</th>
+    <th>Jednotka</th>
+    <th onclick="setSort('send')"  style="cursor:pointer;user-select:none;">Čas odeslání ${sortIndicator('send')}</th>
+    <th onclick="setSort('arrive')" style="cursor:pointer;user-select:none;">Čas příchodu ${sortIndicator('arrive')}</th>
+    <th onclick="setSort('travel')" style="cursor:pointer;user-select:none;">Cesta ${sortIndicator('travel')}</th>
+    <th>Odpočet</th><th>▶</th>
+  </tr></thead><tbody>`;
+
+  const sorted = applySortToVisible(visible);
+  sorted.forEach((row, i) => {
+    const past     = row.sendTime < now;
+    const gameLink = row.tgtId
+      ? `${API_BASE}/game.php?village=${row.srcId}&screen=place&target=${row.tgtId}`
+      : `${API_BASE}/game.php?village=${row.srcId}&screen=place`;
+    const rowClass  = past ? 'past-row' : row.night ? 'night-row' : '';
+    const sendClass = row.night ? 'send-time night' : 'send-time';
+    const rowIdx    = attackRows.indexOf(row);
+
+    // Fejk = jen fejk chip, ostrý = jen kategorie chip
+    let typeHtml;
+    if (row.isFake) {
+      typeHtml = '<span class="chip" style="background:#1a0a00;color:#cc6600;border:1px solid #663300">💨 fejk</span>';
+    } else {
+      typeHtml = row.srcCategory === 'fullka'   ? '<span class="chip chip-full" title="≥18 000 off populace">fullka</span>'
+               : row.srcCategory === 'triq_off' ? '<span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off</span>'
+               : row.srcCategory === 'half_off' ? '<span class="chip chip-half" title="10 000–14 999 off populace">1/2 off</span>'
+               : '';
+    }
+
+    html += `<tr class="${rowClass}">
+      <td style="color:var(--dim);font-size:11px;">${i+1}</td>
+      <td style="color:var(--dim);font-size:11px;white-space:nowrap">${row.srcPlayer||'—'}</td>
+      <td><span class="coords">${row.srcX}|${row.srcY}</span> <span style="color:var(--dim)">${row.srcName}</span></td>
+      <td>${typeHtml}</td>
+      <td><span class="coords">${row.tgtX}|${row.tgtY}</span>${row.tgtName && row.tgtName !== `${row.tgtX}|${row.tgtY}` ? ` <span style="color:var(--dim)">${row.tgtName}</span>` : ''}${row.tgtOwner ? ` <span style="color:#8a6aaa;font-size:11px;">(${row.tgtOwner})</span>` : ''}</td>
+      <td>
+        <span class="chip ${UNIT_CHIPS[row.unit]||''}">${UNIT_LABELS[row.unit]||row.unit}</span>
+        ${row.night ? '<span class="chip chip-night">🌙</span>' : ''}
+      </td>
+      <td class="${sendClass}">${fmtDT(new Date(row.sendTime))}</td>
+      <td class="arrival-time">${fmtDT(new Date(row.arrivalTime))}</td>
+      <td style="color:var(--dim);font-size:11px;">${fmtDur(row.travel)}</td>
+      <td><span class="countdown" id="cd-${i}" data-send="${row.sendTime}"></span></td>
+      <td>
+        <a class="play-btn" id="play-${i}" href="#" title="Spustit odpočet"
+           onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')">
+          <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+        </a>
+      </td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  area.innerHTML = warningHtml + html;
+  updateCount(visible);
+  startCountdowns();
+}
+
+function updateCount(visible) {
+  const hideNight   = document.getElementById('hide-night').checked;
+  const now         = Date.now();
+  const v           = visible || attackRows.filter(r => !(hideNight && r.night && !r.isPast));
+  const active      = v.filter(r => !r.isPast && r.sendTime > now).length;
+  const nightHidden = hideNight ? attackRows.filter(r => r.night && !r.isPast).length : 0;
+  let txt = `${active} aktivních / ${v.length} celkem`;
+  if (nightHidden) txt += ` | 🌙 ${nightHidden} skryto`;
+  document.getElementById('attack-count').textContent = txt;
+
+  // Souhrn – počítáme z viditelných řádků
+  const sumEl = document.getElementById('attack-summary');
+  if (!attackRows.length) { sumEl.style.display = 'none'; return; }
+  sumEl.style.display = 'flex';
+  const sharpVisible = v.filter(r => !r.isFake);
+  document.getElementById('sum-sharp').textContent = sharpVisible.length;
+  document.getElementById('sum-full').textContent  = sharpVisible.filter(r => r.srcCategory === 'fullka').length;
+  document.getElementById('sum-triq').textContent  = sharpVisible.filter(r => r.srcCategory === 'triq_off').length;
+  document.getElementById('sum-half').textContent  = sharpVisible.filter(r => r.srcCategory === 'half_off').length;
+  document.getElementById('sum-fake').textContent  = v.filter(r => r.isFake).length;
+  document.getElementById('sum-total').textContent = v.length;
+
+  // Počítadlo pokrytých vesnic + nepokryté spoiler
+  const coveredSet = new Set(attackRows.filter(r => !r.isFake).map(r => `${r.tgtX}|${r.tgtY}`));
+  const allTargetCoords = (coordTargets.length ? coordTargets : tgtVillages).map(t => `${t.x}|${t.y}`);
+  const uncoveredCoords = allTargetCoords.filter(c => !coveredSet.has(c));
+  const totalTargets = allTargetCoords.length;
+  const covEl = document.getElementById('sum-coverage');
+  if (totalTargets > 0) {
+    covEl.textContent = `🎯 Pokryto: ${coveredSet.size} / ${totalTargets} vesnic`;
+    covEl.style.color = coveredSet.size < totalTargets ? '#ff9955' : 'var(--green)';
+  } else {
+    covEl.textContent = '';
+  }
+  const uncWrap = document.getElementById('uncovered-wrap');
+  if (uncoveredCoords.length > 0) {
+    document.getElementById('uncovered-count').textContent = uncoveredCoords.length;
+    document.getElementById('uncovered-list').textContent = uncoveredCoords.join('  ');
+    uncWrap.style.display = 'block';
+  } else {
+    uncWrap.style.display = 'none';
+  }
+}
+
+let currentSort = 'send', sortAsc = true;
+
+function setSort(col) {
+  if (currentSort === col) sortAsc = !sortAsc;
+  else { currentSort = col; sortAsc = true; }
+  renderResults();
+}
+
+function sortIndicator(col) {
+  if (currentSort !== col) return '<span style="opacity:.3">↕</span>';
+  return sortAsc ? '↑' : '↓';
+}
+
+function applySortToVisible(arr) {
+  const dir = sortAsc ? 1 : -1;
+  return [...arr].sort((a, b) => {
+    switch (currentSort) {
+      case 'idx':    return dir * (attackRows.indexOf(a) - attackRows.indexOf(b));
+      case 'player': return dir * (a.srcPlayer||'').localeCompare(b.srcPlayer||'');
+      case 'src':    return dir * (`${a.srcX}|${a.srcY}`).localeCompare(`${b.srcX}|${b.srcY}`);
+      case 'type':   return dir * (a.srcCategory||'').localeCompare(b.srcCategory||'');
+      case 'tgt':    return dir * (`${a.tgtX}|${a.tgtY}`).localeCompare(`${b.tgtX}|${b.tgtY}`);
+      case 'send':   return dir * (a.sendTime - b.sendTime);
+      case 'arrive': return dir * (a.arrivalTime - b.arrivalTime);
+      case 'travel': return dir * (a.travel - b.travel);
+      default:       return 0;
+    }
+  });
+}
+function clearResults() {
+  attackRows = [];
+  lastNightWarnings = [];
+  document.getElementById('results-area').innerHTML = '<div class="empty-state"><div class="icon">⚔️</div><div>Smazáno</div></div>';
+  document.getElementById('attack-count').textContent = '';
+  document.getElementById('attack-summary').style.display = 'none';
+  document.getElementById('uncovered-wrap').style.display = 'none';
+}
+
+// ── EXPORT ─────────────────────────────────────────────────
+function refreshSavedActionsBar() {
+  const bar  = document.getElementById('saved-actions-bar');
+  const list = document.getElementById('saved-actions-list');
+  if (!savedActions.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'block';
+  list.innerHTML = savedActions.map((a,i) =>
+    `<span style="background:#1a2a1a;border:1px solid #305030;border-radius:3px;padding:2px 7px;margin-right:4px;color:#80d080;">${a.label} (${a.rows.length} útoků)</span><button onclick="editAction(${i})" style="background:#2a1a00;border:1px solid #604020;border-radius:3px;padding:1px 7px;color:#d4a84b;cursor:pointer;font-size:11px;margin-right:8px;">✏️ Upravit</button>`
+  ).join('');
+}
+
+function editAction(idx) {
+  const action = savedActions[idx];
+  if (!action) return;
+
+  // Obnov attackRows z dané akce
+  attackRows = [...action.rows];
+
+  // Vrať použité offky zpět do srcVillages
+  const usedCoords = new Set(action.rows.map(r => `${r.srcX}|${r.srcY}`));
+  const restored = jsonVillages.filter(v => usedCoords.has(`${v.x}|${v.y}`) && !srcVillages.find(s => s.x===v.x && s.y===v.y));
+  srcVillages = [...srcVillages, ...restored];
+
+  // Odstraň akci ze savedActions
+  savedActions.splice(idx, 1);
+  refreshSavedActionsBar();
+
+  // Zobraz výsledky
+  renderResults();
+  alert(`✏️ Akce "${action.label}" obnovena k úpravě.\nPo změnách znovu klikni "💾 Přidat do plánu".`);
+}
+
+function saveAction() {
+  if (!attackRows.length) { alert('Nejprve vypočítej plán!'); return; }
+
+  // Zjisti čas příchodu pro label
+  const times = attackRows.map(r => r.arrivalTime);
+  const minT  = Math.min(...times), maxT = Math.max(...times);
+  const label = minT === maxT
+    ? `Akce ${savedActions.length+1} (příchod ${fmtDT(new Date(minT))})`
+    : `Akce ${savedActions.length+1} (příchod ${fmtDT(new Date(minT))}–${fmtDT(new Date(maxT))})`;
+
+  savedActions.push({ label, rows: [...attackRows] });
+
+  // Odeber použité offky ze srcVillages a jsonVillages
+  const usedSrcIds = new Set(attackRows.map(r => `${r.srcX}|${r.srcY}`));
+  srcVillages  = srcVillages.filter(v  => !usedSrcIds.has(`${v.x}|${v.y}`));
+  jsonVillages = jsonVillages.filter(v => !usedSrcIds.has(`${v.x}|${v.y}`));
+
+  // Aktualizuj seznam uložených akcí
+  refreshSavedActionsBar();
+
+  // Refresh zobrazení zbývajících offek
+  applyJsonFilter();
+
+  // Reset výsledků pro novou akci
+  attackRows = [];
+  document.getElementById('results-area').innerHTML = '';
+  document.getElementById('attack-summary').style.display = 'none';
+  document.getElementById('uncovered-wrap').style.display = 'none';
+
+  alert(`✓ Akce uložena: ${label}\nZbývá ${srcVillages.length} offek pro další akci.`);
+}
+
+function clearSavedActions() {
+  savedActions = [];
+  document.getElementById('saved-actions-bar').style.display = 'none';
+}
+
+function playerDataToUrl(playerName, rows) {
+  const data = {
+    player: playerName,
+    world: WORLD,
+    exported: Date.now(),
+    rows: rows.map(r => ({
+      srcId: r.srcId, srcName: r.srcName, srcX: r.srcX, srcY: r.srcY,
+      srcCategory: r.srcCategory,
+      tgtX: r.tgtX, tgtY: r.tgtY, tgtName: r.tgtName, tgtId: r.tgtId,
+      tgtOwner: r.tgtOwner||'',
+      unit: r.unit, sendTime: r.sendTime, arrivalTime: r.arrivalTime,
+      travel: r.travel, isFake: r.isFake, night: r.night
+    }))
+  };
+  const json = JSON.stringify(data);
+  const compressed = LZString.compressToEncodedURIComponent(json);
+  const base = location.href.replace(/\/[^/]*$/, '/');
+  return `${base}dk_hrac.html#${compressed}`;
+}
+
+function openExport() {
+  const allRows = [...savedActions.flatMap(a => a.rows), ...attackRows];
+  if (!allRows.length) { alert('Nejprve vypočítej plán nebo ulož akci!'); return; }
+
+  const hideNight = document.getElementById('hide-night').checked;
+  const now = Date.now();
+
+  const visible = allRows.filter(r => !(hideNight && r.night && !r.isPast));
+
+  const byPlayer = new Map();
+  for (const r of visible) {
+    const player = r.srcPlayer || '(neznámý hráč)';
+    if (!byPlayer.has(player)) byPlayer.set(player, []);
+    byPlayer.get(player).push(r);
+  }
+
+  const lines = [];
+  lines.push(`╔══════════════════════════════════════════════════╗`);
+  lines.push(`║           PLÁN ÚTOKŮ – DK cs112                 ║`);
+  lines.push(`║  Exportováno: ${fmtDT(new Date()).padEnd(33)}║`);
+  lines.push(`╚══════════════════════════════════════════════════╝`);
+  lines.push('');
+
+  // Souhrn
+  const sharpRows = visible.filter(r => !r.isFake);
+  const fakeRows  = visible.filter(r =>  r.isFake);
+  lines.push(`📊 SOUHRN:`);
+  lines.push(`  Ostrých útoků: ${sharpRows.length}  (fullka: ${sharpRows.filter(r=>r.srcCategory==='fullka').length}, 3/4: ${sharpRows.filter(r=>r.srcCategory==='triq_off').length}, 1/2: ${sharpRows.filter(r=>r.srcCategory==='half_off').length})`);
+  lines.push(`  Fejků: ${fakeRows.length}`);
+  lines.push(`  Celkem příkazů: ${visible.length}  |  Hráčů: ${byPlayer.size}`);
+  lines.push('');
+
+  // Jeden blok na hráče, seřazeno podle času odeslání
+  for (const [player, rows] of byPlayer) {
+    rows.sort((a, b) => a.sendTime - b.sendTime);
+    const sharpCnt = rows.filter(r => !r.isFake).length;
+    const fakeCnt  = rows.filter(r =>  r.isFake).length;
+
+    lines.push(`${'═'.repeat(54)}`);
+    lines.push(`👤 ${player.toUpperCase()}`);
+    lines.push(`   Ostrých: ${sharpCnt}  |  Fejků: ${fakeCnt}  |  Celkem: ${rows.length}`);
+    lines.push('');
+
+    rows.forEach((r, i) => {
+      const typ    = r.isFake
+        ? '💨 FEJK  '
+        : (r.srcCategory === 'fullka'   ? '⚔️  FULLKA'
+          : r.srcCategory === 'triq_off' ? '⚔️  3/4 OFF'
+          : r.srcCategory === 'half_off' ? '⚔️  1/2 OFF'
+          : '⚔️  OFF');
+      const src    = `${r.srcX}|${r.srcY}`;
+      const tgt    = `${r.tgtX}|${r.tgtY}`;
+      const unit   = r.unit === 'lk' ? 'LK' : r.unit === 'scout' ? 'špeh' : r.unit === 'axe' ? 'sekera' : r.unit === 'noble' ? 'šlechtic' : 'Beranidlo';
+      const send   = fmtDT(new Date(r.sendTime));
+      const arrive = fmtDT(new Date(r.arrivalTime));
+      const dur    = fmtDur(r.travel);
+
+      lines.push(`  ${String(i+1).padStart(2)}.  ${typ}`);
+      lines.push(`       Ze:      ${src}  ${r.srcName}`);
+      lines.push(`       Na:      ${tgt}${r.tgtName && r.tgtName !== tgt ? '  ' + r.tgtName : ''}${r.tgtOwner ? '  ('+r.tgtOwner+')' : ''}`);
+      lines.push(`       Jednotka: ${unit}`);
+      lines.push(`       Odeslat:  ${send}   (cesta: ${dur})`);
+      lines.push(`       Příchod:  ${arrive}`);
+      lines.push('');
+    });
+
+    // Unikátní URL pro tohoto hráče
+    lines.push(`   🔗 Osobní odkaz: ${playerDataToUrl(player, rows)}`);
+    lines.push('');
+  }
+
+  document.getElementById('export-text').value = lines.join('\n');
+  document.getElementById('export-copy-status').style.display = 'none';
+  document.getElementById('export-modal').classList.add('show');
+}
+
+async function copyExport() {
+  const text = document.getElementById('export-text').value;
+  try {
+    await navigator.clipboard.writeText(text);
+    const s = document.getElementById('export-copy-status');
+    s.style.display = 'block';
+    setTimeout(() => s.style.display = 'none', 2000);
+  } catch(e) {
+    document.getElementById('export-text').select();
+    document.execCommand('copy');
+  }
+}
+
+function closeExport() {
+  document.getElementById('export-modal').classList.remove('show');
+}
+
+// ── COUNTDOWNS ─────────────────────────────────────────────
+function startCountdowns() {
+  clearInterval(cdInterval); updateCountdowns();
+  cdInterval = setInterval(updateCountdowns, 500);
+}
+function updateCountdowns() {
+  const now = Date.now();
+  document.querySelectorAll('.countdown[data-send]').forEach(el => {
+    const diff = +el.dataset.send - now;
+    if (diff < 0) { el.textContent='Odešlo'; el.className='countdown past'; return; }
+    el.textContent = fmtHMS(diff);
+    el.className = 'countdown '+(diff<60000?'urgent':diff<600000?'soon':'ok');
+  });
+}
+
+// ── ALARM ──────────────────────────────────────────────────
+function startAlarm(evt, rowIdx, link) {
+  evt.preventDefault();
+  const row = attackRows[rowIdx]; if (!row) return;
+  alarmLink = link; alarmTargetTime = row.sendTime; alarmOpened = false;
+  document.getElementById('alarm-info-src').textContent = `Z: ${row.srcX}|${row.srcY} ${row.srcName}`;
+  document.getElementById('alarm-info-tgt').textContent = `→ ${row.tgtX}|${row.tgtY} ${row.tgtName}  |  ${UNIT_LABELS[row.unit]}  |  Příchod: ${fmtDT(new Date(row.arrivalTime))}`;
+  document.getElementById('alarm-link').href = link;
+  document.getElementById('alarm-modal').classList.add('show');
+  clearInterval(alarmInterval); updateAlarm();
+  alarmInterval = setInterval(updateAlarm, 100);
+}
+function updateAlarm() {
+  const diff = alarmTargetTime - Date.now();
+  const el   = document.getElementById('alarm-count');
+  if (diff <= 0) {
+    el.textContent='▶ ODESLAT!'; el.style.color='#ff3333';
+    if (!alarmOpened) { alarmOpened=true; window.open(alarmLink,'tw_game'); }
+    if (diff < -8000) closeAlarm(); return;
+  }
+  alarmOpened = false;
+  el.textContent = fmtHMScs(diff);
+  el.style.color = diff<10000?'var(--urgent)':'var(--green)';
+}
+function closeAlarm() {
+  clearInterval(alarmInterval); alarmInterval=null; alarmTargetTime=null; alarmOpened=false;
+  document.getElementById('alarm-modal').classList.remove('show');
+}
+
+// ── UTILS ──────────────────────────────────────────────────
+const pad = n => String(Math.floor(n)).padStart(2,'0');
+function fmtDT(dt)    { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`; }
+function fmtDur(ms)   { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; }
+function fmtHMS(ms)   { const s=Math.floor(ms/1000); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`; }
+function fmtHMScs(ms) { const s=Math.floor(ms/1000),cs=Math.floor((ms%1000)/10); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}.${pad(cs)}`; }
+
+</script>
+</body>
+</html>
