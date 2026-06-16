@@ -1856,47 +1856,105 @@ function editAction(idx) {
   const action = savedActions[idx];
   if (!action) return;
 
-  // Obnov attackRows z dané akce
   attackRows = [...action.rows];
 
-  // Vrať použité offky zpět do srcVillages
   const usedCoords = new Set(action.rows.map(r => `${r.srcX}|${r.srcY}`));
   const restored = jsonVillages.filter(v => usedCoords.has(`${v.x}|${v.y}`) && !srcVillages.find(s => s.x===v.x && s.y===v.y));
   srcVillages = [...srcVillages, ...restored];
 
-  // Odstraň akci ze savedActions
   savedActions.splice(idx, 1);
   refreshSavedActionsBar();
 
-  // Zobraz výsledky
+  // Obnov snapshot vstupů
+  if (action.snapshot) restoreInputSnapshot(action.snapshot);
+
   renderResults();
   alert(`✏️ Akce "${action.label}" obnovena k úpravě.\nPo změnách znovu klikni "💾 Přidat do plánu".`);
+}
+
+function captureInputSnapshot() {
+  const g = id => document.getElementById(id)?.value || '';
+  const gc = id => document.getElementById(id)?.checked ?? true;
+  return {
+    // Cílové vesnice
+    sharpCount:       document.getElementById('sharp-count')?.value || '1',
+    coordsPaste:      document.getElementById('coords-paste')?.value || '',
+    globalArrival:    g('global-arrival'),
+    globalArrivalTo:  g('global-arrival-to'),
+    globalUnit:       getUnitSelectValue('global-unit'),
+    arrivalMode:      arrivalMode,
+    coordTargets:     JSON.stringify(coordTargets),
+    // Fejky
+    fakeCount:        g('fake-count'),
+    fakeCoordsPaste:  g('fake-coords-paste'),
+    fakeArrival:      g('fake-arrival'),
+    fakeArrivalTo:    g('fake-arrival-to'),
+    // Fejk vlaky
+    fakeNobleCount:   g('fake-noble-count'),
+    fakeNobleCoords:  g('fake-noble-coords-paste'),
+    fakeNobleArrival: g('fake-noble-arrival'),
+    fakeNobleArrTo:   g('fake-noble-arrival-to'),
+    // Šlechtici
+    noblePerTarget:   g('noble-count-per-target'),
+    nobleTarget:      g('noble-target-coords'),
+    nobleArrival:     g('noble-arrival'),
+    nobleArrivalTo:   g('noble-arrival-to'),
+    noblePlayer:      document.getElementById('noble-player-select')?.value || '',
+  };
+}
+
+function restoreInputSnapshot(snap) {
+  if (!snap) return;
+  const s = id => { const el = document.getElementById(id); if (el) el.value = snap[id] !== undefined ? snap[id] : el.value; };
+  // Cílové vesnice
+  if (document.getElementById('sharp-count')) document.getElementById('sharp-count').value = snap.sharpCount || '1';
+  if (document.getElementById('coords-paste')) document.getElementById('coords-paste').value = snap.coordsPaste || '';
+  if (document.getElementById('global-arrival')) document.getElementById('global-arrival').value = snap.globalArrival || '';
+  if (document.getElementById('global-arrival-to')) document.getElementById('global-arrival-to').value = snap.globalArrivalTo || '';
+  if (snap.arrivalMode) setArrivalMode(snap.arrivalMode);
+  if (snap.coordTargets) { try { coordTargets = JSON.parse(snap.coordTargets); renderCoordList(); } catch(e){} }
+  const cg = document.getElementById('coord-count-global');
+  if (cg) cg.textContent = coordTargets.length ? `✓ Načteno ${coordTargets.length} cílů` : '';
+  // Fejky
+  if (document.getElementById('fake-count')) document.getElementById('fake-count').value = snap.fakeCount || '0';
+  if (document.getElementById('fake-coords-paste')) document.getElementById('fake-coords-paste').value = snap.fakeCoordsPaste || '';
+  if (document.getElementById('fake-arrival')) document.getElementById('fake-arrival').value = snap.fakeArrival || '';
+  if (document.getElementById('fake-arrival-to')) document.getElementById('fake-arrival-to').value = snap.fakeArrivalTo || '';
+  // Fejk vlaky
+  if (document.getElementById('fake-noble-count')) document.getElementById('fake-noble-count').value = snap.fakeNobleCount || '0';
+  if (document.getElementById('fake-noble-coords-paste')) document.getElementById('fake-noble-coords-paste').value = snap.fakeNobleCoords || '';
+  if (document.getElementById('fake-noble-arrival')) document.getElementById('fake-noble-arrival').value = snap.fakeNobleArrival || '';
+  if (document.getElementById('fake-noble-arrival-to')) document.getElementById('fake-noble-arrival-to').value = snap.fakeNobleArrTo || '';
+  // Šlechtici
+  if (document.getElementById('noble-count-per-target')) document.getElementById('noble-count-per-target').value = snap.noblePerTarget || '4';
+  if (document.getElementById('noble-target-coords')) document.getElementById('noble-target-coords').value = snap.nobleTarget || '';
+  if (document.getElementById('noble-arrival')) document.getElementById('noble-arrival').value = snap.nobleArrival || '';
+  if (document.getElementById('noble-arrival-to')) document.getElementById('noble-arrival-to').value = snap.nobleArrivalTo || '';
+  if (snap.noblePlayer && document.getElementById('noble-player-select')) {
+    document.getElementById('noble-player-select').value = snap.noblePlayer;
+    refreshNoblelist();
+  }
+  updateNobleTargetCount();
 }
 
 function saveAction() {
   if (!attackRows.length) { alert('Nejprve vypočítej plán!'); return; }
 
-  // Zjisti čas příchodu pro label
   const times = attackRows.map(r => r.arrivalTime);
   const minT  = Math.min(...times), maxT = Math.max(...times);
   const label = minT === maxT
     ? `Akce ${savedActions.length+1} (příchod ${fmtDT(new Date(minT))})`
     : `Akce ${savedActions.length+1} (příchod ${fmtDT(new Date(minT))}–${fmtDT(new Date(maxT))})`;
 
-  savedActions.push({ label, rows: [...attackRows] });
+  savedActions.push({ label, rows: [...attackRows], snapshot: captureInputSnapshot() });
 
-  // Odeber použité offky ze srcVillages a jsonVillages
   const usedSrcIds = new Set(attackRows.map(r => `${r.srcX}|${r.srcY}`));
   srcVillages  = srcVillages.filter(v  => !usedSrcIds.has(`${v.x}|${v.y}`));
   jsonVillages = jsonVillages.filter(v => !usedSrcIds.has(`${v.x}|${v.y}`));
 
-  // Aktualizuj seznam uložených akcí
   refreshSavedActionsBar();
-
-  // Refresh zobrazení zbývajících offek
   applyJsonFilter();
 
-  // Reset výsledků pro novou akci
   attackRows = [];
   document.getElementById('results-area').innerHTML = '';
   document.getElementById('attack-summary').style.display = 'none';
@@ -1911,20 +1969,19 @@ function clearSavedActions() {
 }
 
 function playerDataToUrl(playerName, rows) {
+  // Kompaktní formát: krátké klíče + časy v sekundách místo ms
   const data = {
-    player: playerName,
-    world: WORLD,
-    exported: Date.now(),
-    rows: rows.map(r => ({
-      srcId: r.srcId, srcName: r.srcName, srcX: r.srcX, srcY: r.srcY,
-      srcCategory: r.srcCategory,
-      tgtX: r.tgtX, tgtY: r.tgtY, tgtName: r.tgtName, tgtId: r.tgtId,
-      tgtOwner: r.tgtOwner||'',
-      unit: r.unit, sendTime: r.sendTime, arrivalTime: r.arrivalTime,
-      travel: r.travel, isFake: r.isFake, isFakeNoble: r.isFakeNoble||false,
-      isNoble: r.isNoble||false, night: r.night,
-      nobleCount: r.nobleCount || null
-    }))
+    p: playerName,
+    w: WORLD,
+    e: Math.floor(Date.now()/1000),
+    r: rows.map(r => [
+      r.srcId||0, r.srcName||'', r.srcX, r.srcY, r.srcCategory||'',
+      r.tgtX, r.tgtY, r.tgtName||'', r.tgtId||0, r.tgtOwner||'',
+      r.unit||'ram', Math.floor(r.sendTime/1000), Math.floor(r.arrivalTime/1000),
+      Math.floor(r.travel/1000),
+      (r.isFake?1:0)|(r.isFakeNoble?2:0)|(r.isNoble?4:0)|(r.night?8:0),
+      r.nobleCount||0
+    ])
   };
   const json = JSON.stringify(data);
   const compressed = LZString.compressToEncodedURIComponent(json);
