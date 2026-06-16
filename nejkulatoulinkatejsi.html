@@ -2,6 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Plánovač útoků – Divoké kmeny cs112</title>
 <style>
   :root {
@@ -154,6 +155,57 @@
   .unit-select-option:hover{background:#2a1e0e;}
   .unit-select-option img{width:20px;height:20px;}
   .unit-select-option.selected{color:var(--gold2);}
+  /* ── MOBILE (iPhone 13 = 390px) ─────────────────────────── */
+  @media (max-width: 700px) {
+    .main { flex-direction: column; padding: 8px; gap: 10px; }
+    .left-col { width: 100%; min-width: unset; }
+    .right-col { min-width: unset; width: 100%; }
+
+    .header { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+    .header h1 { font-size: 14px; }
+
+    /* Panel header – tlačítka zabalíme */
+    .panel-header { flex-wrap: wrap; gap: 6px; font-size: 12px; }
+    .panel-header > div { flex-wrap: wrap; gap: 6px; }
+
+    /* Summary bar – scrollovatelný řádek */
+    #attack-summary { overflow-x: auto; flex-wrap: nowrap; gap: 12px; font-size: 11px; padding: 6px 10px; }
+
+    /* Tabulka – horizontální scroll */
+    .right-col .panel > div:last-child { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { font-size: 11px; min-width: 700px; }
+    th, td { padding: 5px 7px; }
+
+    /* Skryj méně důležité sloupce na mobilu */
+    th:nth-child(6), td:nth-child(6),   /* Čas odeslání */
+    th:nth-child(8), td:nth-child(8)    /* Cesta */
+    { display: none; }
+
+    /* Formuláře */
+    .arrival-row { flex-direction: column; gap: 6px; }
+    .arrival-row select, .arrival-row input { width: 100%; }
+    .world-row { flex-direction: column; }
+    .btn-row { flex-wrap: wrap; }
+
+    /* Export modal */
+    .export-box { min-width: unset; width: calc(100vw - 32px); max-height: 85vh; }
+
+    /* Top buttons – wrap */
+    .panel-header .btn-sm { font-size: 11px; padding: 5px 9px; }
+
+    /* Filtr a toggle na mobilu */
+    .table-filter input { width: 140px; font-size: 11px; }
+    .night-toggle { font-size: 11px; }
+
+    /* Unit select dropdown */
+    .unit-select-btn { min-width: unset; font-size: 12px; padding: 4px 8px; }
+
+    /* Datetime inputs */
+    input[type="datetime-local"] { font-size: 12px; padding: 5px 8px; }
+
+    /* Saved actions bar */
+    #saved-actions-bar { font-size: 11px; overflow-x: auto; }
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 </head>
