@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DK – Plán útoků</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <style>
   :root {
     --bg:#0d0a05;--panel:#1a1208;--border:#3a2a10;--gold:#d4a84b;--gold2:#f0c96a;
@@ -11,72 +12,62 @@
     --gold-night:#8a6aaa;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:13px;padding:16px;}
-  .header{background:var(--panel);border:1px solid var(--gold);border-radius:8px;padding:14px 18px;margin-bottom:14px;}
-  .header h1{color:var(--gold2);font-size:17px;margin-bottom:4px;}
-  .header .meta{font-size:11px;color:var(--dim);}
-  .summary{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:13px;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:13px;}
+  input,select,textarea{background:#140e04;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:4px;font-size:13px;outline:none;}
+  input[type="datetime-local"]{color-scheme:dark;}
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator{filter:invert(0.8);cursor:pointer;opacity:0.8;}
+
+  /* Header */
+  .top-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .top-bar h1{font-size:15px;color:var(--gold2);display:flex;align-items:center;gap:6px;}
+  .top-bar .meta{font-size:11px;color:var(--dim);}
+
+  /* Summary */
+  .summary-bar{background:#1a1208;border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;align-items:center;}
+
+  /* Table */
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;margin:12px;overflow:hidden;}
+  .panel-header{padding:8px 14px;background:#1e1508;border-bottom:1px solid var(--border);font-weight:bold;color:var(--gold);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
   table{width:100%;border-collapse:collapse;font-size:12px;}
-  th{background:#1a1208;color:var(--gold);font-weight:600;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+  th{background:#1a1208;color:var(--gold);font-weight:600;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+  th:hover{color:var(--gold2);}
   td{padding:6px 10px;border-bottom:1px solid #1e1608;vertical-align:middle;}
   tr:hover td{background:#1e1a0e}
   .past-row td{opacity:.45}
   .night-row td{background:var(--night)!important}
   .coords{font-family:monospace;color:var(--gold2);font-weight:bold}
-  .chip{display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600;white-space:nowrap}
-  .chip-full{background:#002a00;color:#60e060;border:1px solid #206020}
-  .chip-half{background:#1a1a00;color:#c0b040;border:1px solid #605010}
-  .chip-ram{background:#1a001a;color:#c060c0;border:1px solid #602060}
+  .chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600;white-space:nowrap;gap:3px;}
+  .chip-noble{background:#001a00;color:#50c050;border:1px solid #205020}
   .chip-night{background:#1a0a2a;color:#9a6aaa;border:1px solid #4a2a6a;margin-left:4px}
-  .send-time{font-family:monospace;white-space:nowrap}
+  .send-time{font-family:monospace;white-space:nowrap;}
   .send-time.night{color:var(--gold-night)}
   .arrival-time{font-family:monospace;white-space:nowrap;color:var(--dim)}
-  .countdown{font-family:monospace;font-weight:bold;font-size:13px}
+  .countdown{font-family:monospace;font-weight:bold;font-size:13px;}
   .countdown.ok{color:var(--green)}
   .countdown.soon{color:#c08020}
   .countdown.urgent{color:var(--urgent)}
   .countdown.past{color:var(--dim)}
-  .play-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#1a1208;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--green);text-decoration:none}
+  .play-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#1a1208;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--green);text-decoration:none;}
   .play-btn svg{width:14px;height:14px;fill:currentColor}
   .play-btn:hover{background:#2a2010;border-color:var(--gold)}
-  .play-btn.alarm-active{background:linear-gradient(180deg,#c44a00,#8b2200);border-color:#cc3333;animation:pulse 1s infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
   .error{background:#2a0a0a;border:1px solid #8b2020;border-radius:8px;padding:20px;text-align:center;color:#ff8080;margin:40px auto;max-width:500px}
-
-  /* Alarm modal */
-  .alarm-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center}
-  .alarm-modal.show{display:flex}
-  .alarm-box{background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:28px;text-align:center;min-width:320px}
-  .alarm-box h2{color:var(--gold2);margin-bottom:8px;font-size:18px}
-  .big-count{font-size:52px;font-family:monospace;font-weight:bold;margin:16px 0;letter-spacing:2px}
-  .alarm-info{font-size:13px;color:var(--dim);margin-bottom:4px}
-  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:4px;border:1px solid var(--border);cursor:pointer;font-size:13px;font-weight:600;text-decoration:none}
-  .btn-green{background:#0a2a0a;color:#60e060;border-color:#206020}
-  .btn-red{background:#2a0a0a;color:#e06060;border-color:#602020}
+  .night-toggle{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--dim);}
+  .table-filter input{background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:12px;width:200px;}
+  .warning-box{background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:8px 14px;margin:8px 12px;font-size:12px;color:#ff9955;}
+  .warning-box.bold{font-size:13px;font-weight:bold;}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 </head>
 <body>
 
-<div id="app"></div>
-
-<div class="alarm-modal" id="alarm-modal">
-  <div class="alarm-box">
-    <h2>⚔️ ODESLAT ÚTOK!</h2>
-    <div class="alarm-info" id="alarm-info-src"></div>
-    <div class="alarm-info" id="alarm-info-tgt" style="font-weight:bold;color:var(--text);"></div>
-    <div class="big-count" id="alarm-count">--:--:--</div>
-    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:12px;">
-      <a id="alarm-link" href="#" target="tw_game" class="btn btn-green" style="font-size:15px;padding:9px 20px;">▶ Otevřít hru</a>
-      <button class="btn btn-red" onclick="closeAlarm()">✕ Zavřít</button>
-    </div>
-    <div style="font-size:11px;color:var(--dim);">Klikni "Otevřít hru" přesně ve správný čas</div>
-  </div>
+<div id="app">
+  <div style="text-align:center;padding:40px;color:var(--dim);">Načítám plán...</div>
 </div>
 
 <script>
 const API_BASE = 'https://cs112.divokekmeny.cz';
-const API_IMG = `${API_BASE}/graphic/unit`;
+const API_IMG  = `${API_BASE}/graphic/unit`;
+const NIGHT_START = 0, NIGHT_END = 6;
+
 const UNIT_EMOJI = { ram:'🪨', noble:'👑', lk:'🐎', scout:'🔍', axe:'🪓', tk:'🛡️', spear:'⚔️', sword:'🗡️', catapult:'💣', paladin:'✨' };
 function unitImg(key) {
   const file = key==='lk'?'light':key==='tk'?'heavy':key==='scout'?'spy':key==='paladin'?'knight':key==='noble'?'snob':key;
@@ -94,21 +85,46 @@ const UNIT_LABELS = {
   catapult:`${unitImg('catapult')} Katapult`,
   paladin: `${unitImg('paladin')} Paladin`,
 };
-const UNIT_CHIPS  = { ram:'chip-ram', noble:'chip-noble' };
-const NIGHT_START = 0, NIGHT_END = 6;
 
-let attackRows = [], alarmInterval = null, alarmTargetTime = null, alarmLink = '', alarmOpened = false;
-let cdInterval = null;
+const SMALL_ICO  = 'https://help.divokekmeny.cz/images/b/b6/Small.png';
+const LARGE_ICO  = 'https://help.divokekmeny.cz/images/7/71/Large.png';
+const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
+const twImg = (url, style='') => `<img src="${url}" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;${style}" onerror="this.style.display='none'">`;
+const NOBLE_FLIP = `<img src="${API_IMG}/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;transform:rotate(180deg);" onerror="this.style.display='none'">`;
+const NOBLE_NORM = `<img src="${API_IMG}/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
+
+function typeChip(r) {
+  if (r.isFake && r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
+  if (r.isFake)                  return `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${twImg(SMALL_ICO)} fejk</span>`;
+  if (r.srcCategory==='fullka')  return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${twImg(LARGE_ICO)} fullka</span>`;
+  if (r.srcCategory==='triq_off')return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${twImg(SMALL_ICO,'filter:sepia(1) saturate(3) hue-rotate(10deg)')} 3/4 off</span>`;
+  if (r.srcCategory==='half_off')return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${twImg(MEDIUM_ICO)} 1/2 off</span>`;
+  if (r.srcCategory==='noble')   return `<span class="chip chip-noble">${NOBLE_NORM} vlak</span>`;
+  return '';
+}
+
+let attackRows = [], cdInterval = null;
+let currentSort = 'send', sortAsc = true;
 
 const pad = n => String(Math.floor(n)).padStart(2,'0');
-function fmtDT(dt)    { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`; }
-function fmtDur(ms)   { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; }
-function fmtHMScs(ms) { const s=Math.floor(ms/1000),cs=Math.floor((ms%1000)/10); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}.${pad(cs)}`; }
-function isNight(ts)  { const h=new Date(ts).getHours(); return h>=NIGHT_START&&h<NIGHT_END; }
+function fmtDT(dt)  { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`; }
+function fmtDur(ms) { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; }
+function fmtHMS(ms) { const s=Math.floor(ms/1000); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`; }
+function isNight(ts){ const h=new Date(ts).getHours(); return h>=NIGHT_START&&h<NIGHT_END; }
+
+function sortIndicator(col) {
+  if (currentSort!==col) return '<span style="opacity:.3">↕</span>';
+  return sortAsc?'↑':'↓';
+}
+
+function setSort(col) {
+  if (currentSort===col) sortAsc=!sortAsc; else { currentSort=col; sortAsc=true; }
+  renderTable();
+}
 
 function startAlarm(evt, rowIdx, link) {
   evt.preventDefault();
-  window.open(link, 'tw_game');
+  window.open(link,'tw_game');
 }
 
 function updateCountdowns() {
@@ -117,69 +133,142 @@ function updateCountdowns() {
     const diff = +el.dataset.send - now;
     if (diff < 0) { el.textContent='Odešlo'; el.className='countdown past'; return; }
     const s=Math.floor(diff/1000);
-    el.textContent = `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`;
-    el.className = 'countdown '+(diff<60000?'urgent':diff<600000?'soon':'ok');
+    el.textContent=`${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`;
+    el.className='countdown '+(diff<60000?'urgent':diff<600000?'soon':'ok');
   });
 }
 
-function render(data) {
-  const now = Date.now();
-  const rows = data.rows.sort((a,b) => a.sendTime - b.sendTime);
-  attackRows = rows;
-  const sharpCnt = rows.filter(r=>!r.isFake).length;
-  const fakeCnt  = rows.filter(r=> r.isFake).length;
+function renderTable() {
+  const search    = (document.getElementById('tbl-search')?.value||'').toLowerCase();
+  const hideNight = document.getElementById('hide-night')?.checked;
+  const now       = Date.now();
 
-  let html = `
-    <div class="header">
-      <h1>⚔️ Plán útoků – ${data.player}</h1>
-      <div class="meta">Svět: ${data.world} &nbsp;|&nbsp; Exportováno: ${fmtDT(new Date(data.exported))}</div>
-      <div class="summary">
-        <span>⚔️ Ostrých: <strong>${sharpCnt}</strong></span>
-        <span>💨 Fejků: <strong>${fakeCnt}</strong></span>
-        <span>Celkem: <strong>${rows.length}</strong></span>
-      </div>
-    </div>
-    <table><thead><tr>
-      <th>#</th><th>Zdroj</th><th>Typ</th><th>Cíl</th><th>Jednotka</th>
-      <th>Čas odeslání</th><th>Čas příchodu</th><th>Cesta</th><th>Odpočet</th><th>▶</th>
-    </tr></thead><tbody>`;
+  let visible = attackRows.filter(r => {
+    if (!search && hideNight && r.night && !r.isPast) return false;
+    return true;
+  });
+  if (search) visible = visible.filter(r =>
+    `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''}`.toLowerCase().includes(search)
+  );
 
-  rows.forEach((r, i) => {
-    const past      = r.sendTime < now;
-    const rowClass  = past ? 'past-row' : r.night ? 'night-row' : '';
-    const sendClass = r.night ? 'send-time night' : 'send-time';
-    const gameLink  = r.tgtId
-      ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`
-      : `${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`;
-    const typeHtml  = r.isFake
-      ? '<span class="chip" style="background:#1a0a00;color:#cc6600;border:1px solid #663300">💨 fejk</span>'
-      : (r.srcCategory === 'fullka'   ? '<span class="chip chip-full">fullka</span>'
-       : r.srcCategory === 'triq_off' ? '<span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050">3/4 off</span>'
-       : r.srcCategory === 'half_off' ? '<span class="chip chip-half">1/2 off</span>'
-       : '<span class="chip" style="background:#1a1a1a;color:#808080;border:1px solid #404040">mini</span>');
+  // Sort
+  const dir = sortAsc ? 1 : -1;
+  visible = [...visible].sort((a,b) => {
+    switch(currentSort) {
+      case 'player': return dir*(a.srcPlayer||'').localeCompare(b.srcPlayer||'');
+      case 'src':    return dir*(`${a.srcX}|${a.srcY}`).localeCompare(`${b.srcX}|${b.srcY}`);
+      case 'type':   return dir*(a.srcCategory||'').localeCompare(b.srcCategory||'');
+      case 'tgt':    return dir*(`${a.tgtX}|${a.tgtY}`).localeCompare(`${b.tgtX}|${b.tgtY}`);
+      case 'arrive': return dir*(a.arrivalTime-b.arrivalTime);
+      case 'travel': return dir*(a.travel-b.travel);
+      default:       return dir*(a.sendTime-b.sendTime);
+    }
+  });
+
+  // Summary
+  const sharp  = attackRows.filter(r=>!r.isFake&&!r.isNoble);
+  const nobles = attackRows.filter(r=>r.isNoble);
+  const fakes  = attackRows.filter(r=>r.isFake);
+  document.getElementById('sum-sharp').textContent = sharp.length;
+  document.getElementById('sum-full').textContent  = sharp.filter(r=>r.srcCategory==='fullka').length;
+  document.getElementById('sum-triq').textContent  = sharp.filter(r=>r.srcCategory==='triq_off').length;
+  document.getElementById('sum-half').textContent  = sharp.filter(r=>r.srcCategory==='half_off').length;
+  document.getElementById('sum-noble').textContent = nobles.length;
+  document.getElementById('sum-fake').textContent  = fakes.length;
+  document.getElementById('sum-total').textContent = attackRows.length;
+  document.getElementById('sum-count').textContent = `${visible.length} aktivních / ${attackRows.length} celkem`;
+
+  // Night warnings
+  const nightRows = attackRows.filter(r=>r.night&&!r.isPast);
+  const wrapEl = document.getElementById('warnings-wrap');
+  if (nightRows.length) {
+    const ns = nightRows.filter(r=>!r.isFake&&!r.isNoble).length;
+    const nf = nightRows.filter(r=>r.isFake).length;
+    const nn = nightRows.filter(r=>r.isNoble).length;
+    let lines = [];
+    if (ns) lines.push(`${ns} ostrých útoků musí být odesláno v noci`);
+    if (nf) lines.push(`${nf} fejků musí být odesláno v noci`);
+    if (nn) lines.push(`${nn} vlaků šlechticů musí být odesláno v noci`);
+    wrapEl.innerHTML = `<div class="warning-box">🌙 <strong>Upozornění – noční odesílání:</strong><br>${lines.map(l=>`• ${l}`).join('<br>')}</div>`;
+    wrapEl.style.display='block';
+  } else { wrapEl.style.display='none'; }
+
+  // Table
+  let html = `<table><thead><tr>
+    <th onclick="setSort('idx')">#</th>
+    <th onclick="setSort('src')">Zdroj ${sortIndicator('src')}</th>
+    <th onclick="setSort('type')">Typ ${sortIndicator('type')}</th>
+    <th onclick="setSort('tgt')">Cíl ${sortIndicator('tgt')}</th>
+    <th>Jednotka</th>
+    <th onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
+    <th onclick="setSort('arrive')">Čas příchodu ${sortIndicator('arrive')}</th>
+    <th onclick="setSort('travel')">Cesta ${sortIndicator('travel')}</th>
+    <th>Odpočet</th><th>▶</th>
+  </tr></thead><tbody>`;
+
+  visible.forEach((r, i) => {
+    const past     = r.sendTime < now;
+    const rowClass = past ? 'past-row' : r.night ? 'night-row' : '';
+    const sendCls  = r.night ? 'send-time night' : 'send-time';
+    const gameLink = r.srcId
+      ? (r.tgtId
+          ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`
+          : `${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`)
+      : `${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
+    const rowIdx = attackRows.indexOf(r);
 
     html += `<tr class="${rowClass}">
-      <td style="color:var(--dim)">${i+1}</td>
+      <td style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span></td>
-      <td>${typeHtml}</td>
-      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''}</td>
-      <td>
-        <span class="chip ${UNIT_CHIPS[r.unit]||''}">${UNIT_LABELS[r.unit]||r.unit}</span>
-        ${r.night?'<span class="chip chip-night">🌙</span>':''}
-      </td>
-      <td class="${sendClass}">${fmtDT(new Date(r.sendTime))}</td>
+      <td>${typeChip(r)}</td>
+      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
+      <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
       <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
-      <td style="color:var(--dim)">${fmtDur(r.travel)}</td>
+      <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
       <td><span class="countdown" data-send="${r.sendTime}"></span></td>
-      <td><a class="play-btn" href="#" onclick="startAlarm(event,${i},'${gameLink.replace(/'/g,"\\'")}')">
-        <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a></td>
+      <td><a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a></td>
     </tr>`;
   });
 
   html += '</tbody></table>';
-  document.getElementById('app').innerHTML = html;
-  clearInterval(cdInterval);
+  document.getElementById('tbl-wrap').innerHTML = html;
   updateCountdowns();
+}
+
+function render(data) {
+  const rows = data.rows.sort((a,b)=>a.sendTime-b.sendTime);
+  attackRows = rows;
+
+  document.getElementById('app').innerHTML = `
+    <div class="top-bar">
+      <h1>⚔️ Plán útoků – ${data.player}</h1>
+      <div class="meta">Svět: ${data.world} &nbsp;|&nbsp; Exportováno: ${fmtDT(new Date(data.exported))}</div>
+    </div>
+    <div class="summary-bar">
+      <span>⚔️ Ostrých: <strong id="sum-sharp">0</strong></span>
+      <span style="color:#f5c842">🟡 Fullek: <strong id="sum-full">0</strong></span>
+      <span style="color:#50d0d0">🔵 3/4 off: <strong id="sum-triq">0</strong></span>
+      <span style="color:#a0c8ff">🔷 1/2 off: <strong id="sum-half">0</strong></span>
+      <span style="color:#80d080">👑 Vlaků: <strong id="sum-noble">0</strong></span>
+      <span style="color:#40cc40">💨 Fejků: <strong id="sum-fake">0</strong></span>
+      <span style="color:var(--dim)">Celkem: <strong id="sum-total">0</strong></span>
+    </div>
+    <div id="warnings-wrap" style="display:none;"></div>
+    <div class="panel">
+      <div class="panel-header">
+        <span>📋 Plán útoku</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <div class="table-filter"><input type="text" id="tbl-search" placeholder="🔍 Filtr (vesnice, hráč…)" oninput="renderTable()"></div>
+          <label class="night-toggle"><input type="checkbox" id="hide-night" checked onchange="renderTable()"> 🌙 Skrýt noční (0–6h)</label>
+          <span id="sum-count" style="font-size:11px;color:var(--dim);"></span>
+        </div>
+      </div>
+      <div id="tbl-wrap"></div>
+    </div>`;
+
+  renderTable();
+  clearInterval(cdInterval);
   cdInterval = setInterval(updateCountdowns, 500);
 }
 
@@ -190,11 +279,9 @@ function init() {
     return;
   }
   try {
-    // Zkus LZString, fallback na plain base64
     let json = LZString.decompressFromEncodedURIComponent(hash);
     if (!json) json = decodeURIComponent(escape(atob(hash)));
-    const data = JSON.parse(json);
-    render(data);
+    render(JSON.parse(json));
   } catch(e) {
     document.getElementById('app').innerHTML = '<div class="error">⚠️ Nepodařilo se načíst plán útoků. Odkaz je poškozený nebo neplatný.</div>';
     console.error(e);
