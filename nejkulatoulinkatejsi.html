@@ -183,10 +183,17 @@
 
         <!-- TAB: hráč -->
         <div class="tab-pane active" id="src-tab-player">
-          <label>Jméno hráče</label>
-          <div style="display:flex;gap:6px;">
-            <input type="text" id="player-name" placeholder="např. Ragnar123" style="flex:1" onkeydown="if(event.key==='Enter')loadPlayer('src')">
-            <button class="btn btn-primary btn-sm" onclick="loadPlayer('src')">Hledat</button>
+          <div id="src-from-json-wrap" style="display:none;">
+            <label style="color:var(--gold2);">Vyber hráče z importu kmene</label>
+            <div style="display:flex;gap:6px;margin-top:4px;">
+              <select id="src-player-select" style="flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;">
+                <option value="">— vyber hráče —</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="loadPlayerFromJson()">▶ Načíst</button>
+            </div>
+          </div>
+          <div id="src-from-json-empty" style="font-size:12px;color:var(--dim);padding:8px 0;">
+            Nejprve načti JSON v záložce 📦 Import kmene.
           </div>
           <div class="status-bar" id="player-status"></div>
           <div class="village-list" id="village-list"></div>
@@ -208,9 +215,9 @@
           <div id="src-filter-wrap" style="display:none;margin-top:8px;">
             <div style="font-size:12px;color:var(--gold);margin-bottom:4px;">Filtr vesnic:</div>
             <div class="src-filter">
-              <label><input type="checkbox" id="filter-full" checked onchange="applyJsonFilter()"> <span class="chip chip-full" title="≥18 000 off populace">fullka ≥18k pop</span></label>
-              <label><input type="checkbox" id="filter-triq" checked onchange="applyJsonFilter()"> <span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off ≥15k</span></label>
-              <label><input type="checkbox" id="filter-half" checked onchange="applyJsonFilter()"> <span class="chip chip-half" title="10 000–14 999 off populace">1/2 off ≥10k</span></label>
+              <label><input type="checkbox" id="filter-full" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.getElementById('src-player-select').value) loadPlayerFromJson()"> <span class="chip chip-full" title="≥18 000 off populace">fullka ≥18k pop</span></label>
+              <label><input type="checkbox" id="filter-triq" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.getElementById('src-player-select').value) loadPlayerFromJson()"> <span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off ≥15k</span></label>
+              <label><input type="checkbox" id="filter-half" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.getElementById('src-player-select').value) loadPlayerFromJson()"> <span class="chip chip-half" title="10 000–14 999 off populace">1/2 off ≥10k</span></label>
             </div>
             <div class="village-list" id="json-village-list" style="margin-top:8px;"></div>
             <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="json-village-count"></div>
@@ -560,9 +567,52 @@ function importJson() {
     setStatus('json-status', 'ok', `✓ Načteno ${jsonVillages.length} vesnic z kmene`);
     document.getElementById('src-filter-wrap').style.display = 'block';
     applyJsonFilter();
+
+    // Naplň dropdown hráčů v záložce Hráč
+    const players = [...new Set(jsonVillages.map(v => v.player_name).filter(Boolean))].sort();
+    const sel = document.getElementById('src-player-select');
+    sel.innerHTML = '<option value="">— vyber hráče —</option>' +
+      players.map(p => `<option value="${p}">${p}</option>`).join('');
+    document.getElementById('src-from-json-wrap').style.display = 'block';
+    document.getElementById('src-from-json-empty').style.display = 'none';
   } catch(e) {
     setStatus('json-status', 'err', `❌ Chyba: ${e.message}`);
   }
+}
+
+function loadPlayerFromJson() {
+  const playerName = document.getElementById('src-player-select').value;
+  if (!playerName) { alert('Vyber hráče ze seznamu!'); return; }
+
+  const wantFull = document.getElementById('filter-full').checked;
+  const wantTriq = document.getElementById('filter-triq').checked;
+  const wantHalf = document.getElementById('filter-half').checked;
+
+  const playerVillages = jsonVillages.filter(v => v.player_name === playerName);
+  srcVillages = playerVillages.filter(v => {
+    if (v.category === 'fullka')   return wantFull;
+    if (v.category === 'triq_off') return wantTriq;
+    if (v.category === 'half_off') return wantHalf;
+    return false;
+  });
+
+  const catChipHtml = (v) => {
+    if (v.category === 'fullka')   return '<span class="vi-cat vi-cat-full">fullka</span>';
+    if (v.category === 'triq_off') return '<span class="vi-cat" style="background:#001a1a;color:#50d0d0;border:1px solid #205050">3/4</span>';
+    if (v.category === 'half_off') return '<span class="vi-cat vi-cat-half">1/2</span>';
+    return '';
+  };
+
+  const listEl = document.getElementById('village-list');
+  listEl.innerHTML = srcVillages.slice(0, 100).map(v =>
+    `<div class="village-item">
+      <span style="font-size:12px">${v.village_name || v.name || ''} ${catChipHtml(v)}</span>
+      <span class="village-coords">${v.x}|${v.y}</span>
+    </div>`
+  ).join('') + (srcVillages.length > 100 ? `<div class="village-item" style="color:var(--dim)">… a ${srcVillages.length-100} dalších</div>` : '');
+
+  document.getElementById('village-count').textContent = `Zobrazeno: ${srcVillages.length} vesnic`;
+  setStatus('player-status', 'ok', `✓ Načteno ${srcVillages.length} offek hráče ${playerName} z importu`);
 }
 
 function applyJsonFilter() {
@@ -1045,7 +1095,7 @@ async function calculate() {
         const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
         const sendTime = tgt.arrivalTime - travel;
         byTgtKey[k].push({
-          srcId:sv.id, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
           tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id, tgtOwner:tgt.owner||(allPlayers.get((allVillages.find(v=>v.x===tgt.x&&v.y===tgt.y)||{}).playerId)||''),
           unit:tgt.unit, arrivalTime:tgt.arrivalTime, sendTime, travel,
@@ -1089,7 +1139,7 @@ async function calculate() {
         const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
         const sendTime = tgt.arrivalTime - travel;
         rows.push({
-          srcId:sv.id, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
           tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id, tgtOwner:tgt.owner||(allPlayers.get((allVillages.find(v=>v.x===tgt.x&&v.y===tgt.y)||{}).playerId)||''),
           unit:tgt.unit, arrivalTime:tgt.arrivalTime, sendTime, travel,
@@ -1121,7 +1171,7 @@ async function calculate() {
       const travel   = travelMs(sv.x, sv.y, fakeTgt.x, fakeTgt.y, fakeUnit);
       const sendTime = arrivalTime - travel;
       rows.push({
-        srcId:sv.id, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+        srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
         srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
         tgtX:fakeTgt.x, tgtY:fakeTgt.y, tgtName:fakeTgt.name, tgtId:fakeTgt.id, tgtOwner:fakeTgt.owner||(allPlayers.get((allVillages.find(v=>v.x===fakeTgt.x&&v.y===fakeTgt.y)||{}).playerId)||''),
         unit:fakeUnit, arrivalTime, sendTime, travel,
@@ -1227,7 +1277,7 @@ function renderResults(nightWarnings) {
     const past     = row.sendTime < now;
     const gameLink = row.tgtId
       ? `${API_BASE}/game.php?village=${row.srcId}&screen=place&target=${row.tgtId}`
-      : `${API_BASE}/game.php?village=${row.srcId}&screen=place`;
+      : `${API_BASE}/game.php?village=${row.srcId}&screen=place&x=${row.tgtX}&y=${row.tgtY}`;
     const rowClass  = past ? 'past-row' : row.night ? 'night-row' : '';
     const sendClass = row.night ? 'send-time night' : 'send-time';
     const rowIdx    = attackRows.indexOf(row);

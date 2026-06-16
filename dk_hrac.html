@@ -156,7 +156,7 @@ function render(data) {
     const sendClass = r.night ? 'send-time night' : 'send-time';
     const gameLink  = r.tgtId
       ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`
-      : `${API_BASE}/game.php?village=${r.srcId}&screen=place`;
+      : `${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`;
     const typeHtml  = r.isFake
       ? '<span class="chip" style="background:#1a0a00;color:#cc6600;border:1px solid #663300">💨 fejk</span>'
       : (r.srcCategory === 'fullka'   ? '<span class="chip chip-full">fullka</span>'
