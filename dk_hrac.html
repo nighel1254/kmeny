@@ -76,7 +76,24 @@
 
 <script>
 const API_BASE = 'https://cs112.divokekmeny.cz';
-const UNIT_LABELS = { ram:'🪨 Beranidlo', noble:'👑 Šlechtic', lk:'⚡ LK', scout:'🔍 Špeh', axe:'🪓 Sekera' };
+const API_IMG = `${API_BASE}/graphic/unit`;
+const UNIT_EMOJI = { ram:'🪨', noble:'👑', lk:'🐎', scout:'🔍', axe:'🪓', tk:'🛡️', spear:'⚔️', sword:'🗡️', catapult:'💣', paladin:'✨' };
+function unitImg(key) {
+  const file = key==='lk'?'light':key==='tk'?'heavy':key==='scout'?'spy':key==='paladin'?'knight':key==='noble'?'snob':key;
+  return `<img src="${API_IMG}/unit_${file}.png" style="width:20px;height:20px;vertical-align:middle;margin-right:3px;" onerror="this.outerHTML='<span style=margin-right:4px>${UNIT_EMOJI[key]||'⚔️'}</span>'">`;
+}
+const UNIT_LABELS = {
+  ram:     `${unitImg('ram')} Beranidlo`,
+  noble:   `${unitImg('noble')} Šlechtic`,
+  lk:      `${unitImg('lk')} LK`,
+  scout:   `${unitImg('scout')} Špeh`,
+  axe:     `${unitImg('axe')} Sekerník`,
+  tk:      `${unitImg('tk')} TK`,
+  spear:   `${unitImg('spear')} Kopiník`,
+  sword:   `${unitImg('sword')} Šermíř`,
+  catapult:`${unitImg('catapult')} Katapult`,
+  paladin: `${unitImg('paladin')} Paladin`,
+};
 const UNIT_CHIPS  = { ram:'chip-ram', noble:'chip-noble' };
 const NIGHT_START = 0, NIGHT_END = 6;
 
@@ -91,30 +108,7 @@ function isNight(ts)  { const h=new Date(ts).getHours(); return h>=NIGHT_START&&
 
 function startAlarm(evt, rowIdx, link) {
   evt.preventDefault();
-  const row = attackRows[rowIdx]; if (!row) return;
-  alarmLink = link; alarmTargetTime = row.sendTime; alarmOpened = false;
-  document.getElementById('alarm-info-src').textContent = `Z: ${row.srcX}|${row.srcY} ${row.srcName}`;
-  document.getElementById('alarm-info-tgt').textContent = `→ ${row.tgtX}|${row.tgtY} ${row.tgtName}  |  ${UNIT_LABELS[row.unit]||row.unit}  |  Příchod: ${fmtDT(new Date(row.arrivalTime))}`;
-  document.getElementById('alarm-link').href = link;
-  document.getElementById('alarm-modal').classList.add('show');
-  clearInterval(alarmInterval); updateAlarm();
-  alarmInterval = setInterval(updateAlarm, 100);
-}
-function updateAlarm() {
-  const diff = alarmTargetTime - Date.now();
-  const el = document.getElementById('alarm-count');
-  if (diff <= 0) {
-    el.textContent='▶ ODESLAT!'; el.style.color='#ff3333';
-    if (!alarmOpened) { alarmOpened=true; window.open(alarmLink,'tw_game'); }
-    if (diff < -8000) closeAlarm(); return;
-  }
-  alarmOpened = false;
-  el.textContent = fmtHMScs(diff);
-  el.style.color = diff<10000?'var(--urgent)':'var(--green)';
-}
-function closeAlarm() {
-  clearInterval(alarmInterval); alarmInterval=null; alarmTargetTime=null; alarmOpened=false;
-  document.getElementById('alarm-modal').classList.remove('show');
+  window.open(link, 'tw_game');
 }
 
 function updateCountdowns() {

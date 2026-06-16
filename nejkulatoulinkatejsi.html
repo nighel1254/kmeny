@@ -24,6 +24,9 @@
   label:first-child{margin-top:0}
   input,select,textarea{width:100%;background:#140e04;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:4px;font-size:13px;outline:none;transition:border-color .2s}
   input:focus,select:focus,textarea:focus{border-color:var(--gold)}
+  input[type="datetime-local"]{color-scheme:dark;}
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator{filter:invert(0.8);cursor:pointer;opacity:0.8;}
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover{opacity:1;}
   textarea{resize:vertical;font-family:monospace;line-height:1.6}
   .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:4px;border:none;font-size:13px;font-weight:bold;cursor:pointer;transition:all .15s;white-space:nowrap}
   .btn-primary{background:linear-gradient(180deg,#c4922a,#8b5e10);color:#fff3d0;border:1px solid #d4a84b}
@@ -141,6 +144,16 @@
   .export-box{background:var(--panel);border:2px solid var(--gold);border-radius:8px;padding:24px;min-width:420px;max-width:600px;max-height:80vh;display:flex;flex-direction:column;gap:12px}
   .export-box h2{color:var(--gold2);font-size:16px}
   .export-box textarea{flex:1;min-height:300px;font-size:11px;font-family:monospace;line-height:1.5;resize:none}
+  /* Custom unit select */
+  .unit-select-wrap{position:relative;display:inline-block;}
+  .unit-select-btn{display:flex;align-items:center;gap:5px;background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;cursor:pointer;font-size:13px;min-width:130px;user-select:none;white-space:nowrap;}
+  .unit-select-btn img{width:20px;height:20px;}
+  .unit-select-dropdown{display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:200;background:#1a1208;border:1px solid var(--gold);border-radius:4px;min-width:150px;box-shadow:0 4px 12px rgba(0,0,0,.7);}
+  .unit-select-dropdown.open{display:block;}
+  .unit-select-option{display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;font-size:13px;}
+  .unit-select-option:hover{background:#2a1e0e;}
+  .unit-select-option img{width:20px;height:20px;}
+  .unit-select-option.selected{color:var(--gold2);}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 </head>
@@ -267,9 +280,9 @@
             <label>Čas příchodu (pro všechny cíle)</label>
             <div class="arrival-row">
               <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
-              <select id="global-unit">
-                <option value="ram" selected>🪨 Beranidlo</option>
-                <option value="noble">👑 Šlechtic</option>
+              <select id="global-unit" class="unit-select">
+                <option value="ram" selected>Beranidlo</option>
+                <option value="noble">Šlechtic</option>
               </select>
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
@@ -302,9 +315,9 @@
             <label>⏰ Čas příchodu (pro všechny cíle)</label>
             <div class="arrival-row">
               <input type="datetime-local" id="global-arrival-player" step="1">
-              <select id="global-unit-player">
-                <option value="ram" selected>🪨 Beranidlo</option>
-                <option value="noble">👑 Šlechtic</option>
+              <select id="global-unit-player" class="unit-select">
+                <option value="ram" selected>Beranidlo</option>
+                <option value="noble">Šlechtic</option>
               </select>
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
@@ -362,7 +375,7 @@
           <label>⏰ Čas příchodu fejků</label>
           <div class="arrival-row">
             <input type="datetime-local" id="fake-arrival" step="1">
-            <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:4px;font-size:13px;white-space:nowrap;">🪨 Beranidlo</span>
+            <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><img id="fake-unit-img" src="" style="width:20px;height:20px;" onerror="this.style.display='none'"> Beranidlo</span>
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
             <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
@@ -372,38 +385,101 @@
       </div>
     </div>
 
+    <!-- Fejk Vlaky -->
+    <div class="panel">
+      <div class="panel-header"><span style="display:inline-block;transform:rotate(180deg);margin-right:4px;">👑</span> Fejk vlaky</div>
+      <div class="panel-body">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <label style="white-space:nowrap;font-size:13px;">Počet fejk vlaků na cíl:</label>
+          <input type="number" id="fake-noble-count" min="0" max="50" value="0" style="width:70px;text-align:center;">
+          <span style="font-size:11px;color:var(--dim);">(0 = bez fejk vlaků)</span>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" onclick="switchFakeNobleTab('coords')">📋 Souřadnice</div>
+          <div class="tab"       onclick="switchFakeNobleTab('player')">👤 Hráč</div>
+        </div>
+
+        <div class="tab-pane active" id="fake-noble-tab-coords">
+          <label>Fejk vlak cíle – vesnice (každá na novém řádku)</label>
+          <textarea id="fake-noble-coords-paste" rows="4" placeholder="500|500&#10;501|502&#10;523|488"></textarea>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="parseFakeNobleCoords()">▶ Načíst</button>
+            <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearFakeNobleCoords()">✕ Smazat</button>
+          </div>
+        </div>
+
+        <div class="tab-pane" id="fake-noble-tab-player">
+          <label>Jméno hráče (fejk vlak cíle)</label>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="fake-noble-player-name" placeholder="např. Obránce99" style="flex:1">
+            <button class="btn btn-primary btn-sm" onclick="loadFakeNoblePlayer()">Hledat</button>
+          </div>
+          <div class="status-bar" id="fake-noble-player-status"></div>
+          <div class="village-list" id="fake-noble-village-list"></div>
+        </div>
+
+        <div id="fake-noble-coord-count" style="font-size:11px;color:var(--dim);margin-top:4px;"></div>
+
+        <div class="global-arrival" style="margin-top:10px;">
+          <label>⏰ Čas příchodu fejk vlaků</label>
+          <div class="arrival-row">
+            <input type="datetime-local" id="fake-noble-arrival" step="1">
+            <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><span style="display:inline-block;transform:rotate(180deg);">👑</span> Šlechtic</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+            <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
+            <input type="datetime-local" id="fake-noble-arrival-to" step="1" style="flex:1;">
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Šlechtici -->
     <div class="panel">
       <div class="panel-header">👑 Šlechtici</div>
       <div class="panel-body">
-        <div id="noble-empty" style="font-size:12px;color:var(--dim);">Načti JSON z importu kmene – šlechtici se zobrazí automaticky.</div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <label style="white-space:nowrap;font-size:13px;margin:0;">Počet šlechticů na cíl:</label>
+          <input type="number" id="noble-count-per-target" min="1" max="4" value="4" style="width:60px;text-align:center;">
+          <span style="font-size:11px;color:var(--dim);">(obvykle 4 pro snobení)</span>
+        </div>
+
+        <!-- Výběr zdroje šlechticů -->
+        <div id="noble-empty" style="font-size:12px;color:var(--dim);padding:4px 0 8px;">Načti JSON v záložce 📦 Import kmene.</div>
         <div id="noble-content" style="display:none;">
-          <div style="font-size:12px;color:var(--dim);margin-bottom:8px;">Vesnice se šlechtici (z importu):</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <label style="font-size:12px;color:var(--gold);white-space:nowrap;">Zdroj šlechticů:</label>
+            <select id="noble-player-select" style="flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:12px;" onchange="refreshNoblelist()">
+              <option value="">🏰 Celý kmen</option>
+            </select>
+          </div>
           <div class="village-list" id="noble-village-list"></div>
           <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="noble-count"></div>
-          <div style="margin-top:10px;">
-            <label style="font-size:13px;">Počet šlechticů na cíl:</label>
-            <input type="number" id="noble-count-per-target" min="1" max="4" value="4" style="width:60px;margin-left:8px;text-align:center;">
-            <span style="font-size:11px;color:var(--dim);margin-left:6px;">(obvykle 4 pro snobení)</span>
+        </div>
+
+        <!-- Cílová vesnice -->
+        <div style="margin-top:10px;">
+          <label style="font-size:13px;">Cílové vesnice</label>
+          <textarea id="noble-target-coords" rows="3" placeholder="567|503&#10;568|504&#10;570|501" style="width:100%;margin-top:4px;resize:vertical;" oninput="updateNobleTargetCount()"></textarea>
+          <div style="font-size:11px;color:var(--dim);margin-top:3px;">Každá vesnice na novém řádku nebo oddělená mezerou. Šlechtici se přiřadí nejbližší ke každému cíli.</div>
+          <div id="noble-target-count" style="font-size:11px;color:var(--gold);margin-top:4px;font-weight:bold;"></div>
+        </div>
+
+        <!-- Čas příchodu -->
+        <div class="global-arrival" style="margin-top:10px;">
+          <label>⏰ Čas příchodu šlechticů</label>
+          <div class="arrival-row">
+            <input type="datetime-local" id="noble-arrival" step="1" style="flex:1;">
+            <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><img src="" id="noble-unit-img" style="width:20px;height:20px;" onerror="this.style.display='none'"> Šlechtic</span>
           </div>
-          <div style="margin-top:8px;">
-            <label style="font-size:13px;">Čas příchodu šlechticů</label>
-            <div class="arrival-row" style="margin-top:4px;">
-              <input type="datetime-local" id="noble-arrival" step="1" style="flex:1;">
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
-              <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
-              <input type="datetime-local" id="noble-arrival-to" step="1" style="flex:1;">
-            </div>
-          </div>
-          <div style="margin-top:8px;">
-            <label style="font-size:13px;">Cílová vesnice šlechticů</label>
-            <div style="display:flex;gap:6px;margin-top:4px;">
-              <input type="text" id="noble-target-coords" placeholder="např. 567|503" style="flex:1;">
-            </div>
-            <div style="font-size:11px;color:var(--dim);margin-top:4px;">Jedna cílová vesnice – šlechtici se vyberou nejbližší</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+            <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
+            <input type="datetime-local" id="noble-arrival-to" step="1" style="flex:1;">
           </div>
         </div>
+
       </div>
     </div>
 
@@ -446,6 +522,7 @@
         <span style="color:#f5c842">🟡 Fullek: <strong id="sum-full">0</strong></span>
         <span style="color:#50d0d0">🔵 3/4 off: <strong id="sum-triq">0</strong></span>
         <span style="color:#a0c8ff">🔷 1/2 off: <strong id="sum-half">0</strong></span>
+        <span style="color:#80d080">👑 Vlaků: <strong id="sum-noble">0</strong></span>
         <span style="color:#cc6600">💨 Fejků: <strong id="sum-fake">0</strong></span>
         <span style="color:var(--dim)">Celkem: <strong id="sum-total">0</strong></span>
         <span id="sum-coverage" style="color:var(--green);margin-left:8px;"></span>
@@ -510,7 +587,25 @@ const PROXIES  = [
 let UNIT_SPEEDS_S   = { spear:1080, sword:1320, axe:1080, scout:540, lk:600, tk:660, ram:1800, catapult:1800, noble:2100, paladin:600 };
 let apiSpeedsLoaded = false;
 
-const UNIT_LABELS = { ram:'🪨 Beranidlo', noble:'👑 Šlechtic' };
+const API_IMG = `${API_BASE}/graphic/unit`;
+// Fallback emoji pokud obrázky z herního serveru nejsou dostupné
+const UNIT_EMOJI = { ram:'🪨', noble:'👑', lk:'🐎', scout:'🔍', axe:'🪓', tk:'🛡️', spear:'⚔️', sword:'🗡️', catapult:'💣', paladin:'✨' };
+function unitImg(key) {
+  const file = key==='lk'?'light':key==='tk'?'heavy':key==='scout'?'spy':key==='paladin'?'knight':key==='noble'?'snob':key;
+  return `<img src="${API_IMG}/unit_${file}.png" style="width:20px;height:20px;vertical-align:middle;margin-right:3px;" onerror="this.outerHTML='<span style=margin-right:4px>${UNIT_EMOJI[key]||'⚔️'}</span>'">`;
+}
+const UNIT_LABELS = {
+  ram:     `${unitImg('ram')} Beranidlo`,
+  noble:   `${unitImg('noble')} Šlechtic`,
+  lk:      `${unitImg('lk')} LK`,
+  scout:   `${unitImg('scout')} Špeh`,
+  axe:     `${unitImg('axe')} Sekerník`,
+  tk:      `${unitImg('tk')} TK`,
+  spear:   `${unitImg('spear')} Kopiník`,
+  sword:   `${unitImg('sword')} Šermíř`,
+  catapult:`${unitImg('catapult')} Katapult`,
+  paladin: `${unitImg('paladin')} Paladin`,
+};
 const UNIT_CHIPS  = { ram:'chip-ram', noble:'chip-noble' };
 const NIGHT_START = 0, NIGHT_END = 6;
 
@@ -519,6 +614,8 @@ let worldSpeed = 1.0, unitSpeedMult = 1.0;
 let allVillages = [], srcVillages = [], tgtVillages = [];
 let coordTargets   = [];   // [{x,y,name,id,arrivalTime?,unit?}]
 let fakeTargets    = [];   // fejk cíle [{x,y,name}]
+let fakeNobleTargets = []; // fejk vlak cíle [{x,y,name}]
+let currentFakeNobleTab = 'coords';
 let jsonVillages   = [];   // všechny z importu
 let attackRows     = [];
 let savedActions   = [];   // [{label, rows}] – uložené akce pro multi-plán
@@ -531,7 +628,82 @@ let alarmInterval = null, alarmTargetTime = null, alarmLink = '', alarmOpened = 
 let cdInterval = null;
 
 // ── INIT ───────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', loadWorldConfig);
+// ── CUSTOM UNIT SELECT ────────────────────────────────────
+const UNIT_OPTIONS = [
+  { value: 'ram',   label: 'Beranidlo', key: 'ram'   },
+  { value: 'noble', label: 'Šlechtic',  key: 'noble' },
+];
+const UNIT_OPTIONS_COORD = UNIT_OPTIONS; // stejné pro per-cíl
+
+function buildUnitSelect(origSelect) {
+  const id = origSelect.id;
+  const onChange = origSelect.getAttribute('onchange');
+  const currentVal = origSelect.value || 'ram';
+  const wrap = document.createElement('div');
+  wrap.className = 'unit-select-wrap';
+  wrap.dataset.id = id;
+
+  const btn = document.createElement('div');
+  btn.className = 'unit-select-btn';
+  btn.setAttribute('tabindex', '0');
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'unit-select-dropdown';
+
+  function setValue(val) {
+    const opt = UNIT_OPTIONS.find(o => o.value === val) || UNIT_OPTIONS[0];
+    btn.innerHTML = `${unitImg(opt.key || opt.value)} ${opt.label} ▾`;
+    wrap.dataset.value = val;
+    // Sync hidden input
+    let hidden = wrap.querySelector('input[type=hidden]');
+    if (!hidden) { hidden = document.createElement('input'); hidden.type='hidden'; hidden.id=id; hidden.name=id; wrap.appendChild(hidden); }
+    hidden.value = val;
+    // Call original onchange if any
+    if (onChange) { try { eval(onChange.replace('this.value', `'${val}'`)); } catch(e){} }
+    dropdown.querySelectorAll('.unit-select-option').forEach(o => o.classList.toggle('selected', o.dataset.value === val));
+  }
+
+  UNIT_OPTIONS.forEach(opt => {
+    const item = document.createElement('div');
+    item.className = 'unit-select-option' + (opt.value === currentVal ? ' selected' : '');
+    item.dataset.value = opt.value;
+    item.innerHTML = `${unitImg(opt.key || opt.value)} ${opt.label}`;
+    item.onclick = () => { setValue(opt.value); dropdown.classList.remove('open'); };
+    dropdown.appendChild(item);
+  });
+
+  btn.onclick = (e) => { e.stopPropagation(); dropdown.classList.toggle('open'); };
+  wrap.appendChild(btn);
+  wrap.appendChild(dropdown);
+  origSelect.replaceWith(wrap);
+  setValue(currentVal);
+
+  // Přidej globální getValue helper
+  wrap._getValue = () => wrap.dataset.value;
+}
+
+function initUnitSelects() {
+  document.querySelectorAll('select.unit-select').forEach(sel => buildUnitSelect(sel));
+  // Nastav obrázky statických spanů
+  const fakeImg = document.getElementById('fake-unit-img');
+  const nobleImg = document.getElementById('noble-unit-img');
+  if (fakeImg) fakeImg.outerHTML = unitImg('ram');
+  if (nobleImg) nobleImg.outerHTML = unitImg('noble');
+  // Zavři dropdown při kliknutí mimo
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.unit-select-dropdown.open').forEach(d => d.classList.remove('open'));
+  });
+}
+
+// Helper pro čtení hodnoty custom selectu nebo nativního selectu
+function getUnitSelectValue(id) {
+  const wrap = document.querySelector(`.unit-select-wrap[data-id="${id}"]`);
+  if (wrap) return wrap.dataset.value || 'ram';
+  const el = document.getElementById(id);
+  return el ? el.value : 'ram';
+}
+
+document.addEventListener('DOMContentLoaded', () => { loadWorldConfig(); initUnitSelects(); });
 
 // ── FETCH ──────────────────────────────────────────────────
 async function fetchWithFallback(url) {
@@ -657,24 +829,48 @@ function populateNoblePanel() {
   const empty = document.getElementById('noble-empty');
   if (!nobleVillages.length) { el.style.display='none'; empty.style.display='block'; return; }
   el.style.display = 'block'; empty.style.display = 'none';
+
+  // Naplň dropdown hráčů
+  const players = [...new Set(nobleVillages.map(v => v.player_name).filter(Boolean))].sort();
+  const sel = document.getElementById('noble-player-select');
+  sel.innerHTML = '<option value="">🏰 Celý kmen</option>' +
+    players.map(p => `<option value="${p}">${p}</option>`).join('');
+
+  refreshNoblelist();
+}
+
+function refreshNoblelist() {
+  const sel = document.getElementById('noble-player-select');
+  const selectedPlayer = sel?.value || '';
+  const nobleVillages = jsonVillages
+    .filter(v => (v.noble || (v.units && v.units.noble)) > 0)
+    .filter(v => !selectedPlayer || v.player_name === selectedPlayer);
+
   const listEl = document.getElementById('noble-village-list');
-  listEl.innerHTML = nobleVillages.map(v => {
+  listEl.innerHTML = nobleVillages.slice(0, 50).map(v => {
     const cnt = v.noble || (v.units && v.units.noble) || 0;
     return `<div class="village-item">
-      <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${cnt}</span></span>
+      <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${cnt}</span> <span style="color:var(--dim);font-size:11px;">${v.player_name||''}</span></span>
       <span class="village-coords">${v.x}|${v.y}</span>
     </div>`;
-  }).join('');
+  }).join('') + (nobleVillages.length > 50 ? `<div class="village-item" style="color:var(--dim)">… a ${nobleVillages.length-50} dalších</div>` : '');
   document.getElementById('noble-count').textContent = `${nobleVillages.length} vesnic se šlechtici`;
+}
+
+function updateNobleTargetCount() {
+  const raw = document.getElementById('noble-target-coords').value;
+  const coords = raw.split(/[\n\s]+/).filter(l => /^\d+\|\d+/.test(l.trim()));
+  const el = document.getElementById('noble-target-count');
+  el.textContent = coords.length ? `✓ ${coords.length} cílů` : '';
 }
 
 function calculateNobles(rows) {
   // Načti nastavení
-  const coordStr = document.getElementById('noble-target-coords').value.trim();
-  if (!coordStr) return; // šlechtu neplánujeme
-  const m = coordStr.match(/^(\d+)\|(\d+)/);
-  if (!m) { alert('Neplatné souřadnice cíle šlechticů!'); return; }
-  const tgtX = +m[1], tgtY = +m[2];
+  const raw = document.getElementById('noble-target-coords').value.trim();
+  if (!raw) return;
+  const coordLines = raw.split(/[\n\s]+/).filter(l => /^\d+\|\d+/.test(l.trim()));
+  if (!coordLines.length) { alert('Neplatné souřadnice cíle šlechticů!'); return; }
+
   const arrStr = document.getElementById('noble-arrival').value;
   if (!arrStr) { alert('Nastav čas příchodu šlechticů!'); return; }
   const arrFrom = new Date(arrStr).getTime();
@@ -682,56 +878,70 @@ function calculateNobles(rows) {
   const arrTo = arrToStr ? new Date(arrToStr).getTime() : null;
   const noblePerTarget = parseInt(document.getElementById('noble-count-per-target').value) || 4;
 
-  // Sestav pool šlechticů z importu (v filterovaném hráči nebo celém kmeni)
-  const pool = jsonVillages.filter(v => (v.noble || (v.units && v.units.noble)) > 0);
-  if (!pool.length) return;
+  // Sestav pool šlechticů
+  const noblePlayerSel = document.getElementById('noble-player-select')?.value || '';
+  const selectedPlayer = noblePlayerSel || '';
+  const pool = jsonVillages
+    .filter(v => (v.noble || (v.units && v.units.noble)) > 0)
+    .filter(v => !noblePlayerSel || v.player_name === noblePlayerSel);
+  if (!pool.length) { alert('Žádní šlechtici v importu!'); return; }
 
-  // Rozhodni jaký hráč je vybraný
-  const selectedPlayer = document.getElementById('src-player-select').value;
-
-  // Seřaď podle vzdálenosti od cíle
-  const tgtAv = allVillages.find(v => v.x === tgtX && v.y === tgtY);
-  const tgtName = tgtAv?.name || `${tgtX}|${tgtY}`;
-  const tgtId = tgtAv?.id || null;
-  const tgtOwner = tgtAv ? (allPlayers.get(tgtAv.playerId) || '') : '';
-
-  const sorted = pool.map(v => ({
+  // Pracovní kopie – počet celých vlaků které může každá vesnice poslat
+  // vlak = noblePerTarget šlechticů, takže vlaky = floor(remaining / noblePerTarget)
+  const available = pool.map(v => ({
     ...v,
-    dist: Math.sqrt((v.x-tgtX)**2 + (v.y-tgtY)**2),
-    nobleCount: v.noble || (v.units && v.units.noble) || 0
-  })).sort((a,b) => a.dist - b.dist);
+    nobleCount: v.noble || (v.units && v.units.noble) || 0,
+    remaining: v.noble || (v.units && v.units.noble) || 0,
+    get trains() { return Math.floor(this.remaining / noblePerTarget); }
+  }));
 
   const now = Date.now();
   const nobleUnit = 'noble';
-  let assigned = 0;
 
-  for (const sv of sorted) {
-    if (assigned >= noblePerTarget) break;
-    const available = sv.nobleCount;
-    for (let k = 0; k < available && assigned < noblePerTarget; k++) {
-      const arrTime = bestArrivalTime(arrFrom, arrTo, [sv], {x:tgtX,y:tgtY,unit:nobleUnit}, nobleUnit);
-      const travel = travelMs(sv.x, sv.y, tgtX, tgtY, nobleUnit);
-      const sendTime = arrTime - travel;
-      const srcAv = allVillages.find(v => v.x === sv.x && v.y === sv.y);
-      rows.push({
-        srcId: srcAv?.id || sv.id || null,
-        srcName: sv.village_name || sv.name || '',
-        srcPlayer: sv.player_name || selectedPlayer || '',
-        srcX: sv.x, srcY: sv.y,
-        srcCategory: 'noble',
-        tgtX, tgtY, tgtName, tgtId,
-        tgtOwner,
-        unit: nobleUnit,
-        arrivalTime: arrTime, sendTime, travel,
-        night: isNight(sendTime), isPast: sendTime < now,
-        isFake: false, forced_night: false, isNoble: true
+  // Pro každý cíl přiřaď 1 vlak z nejbližší dostupné vesnice
+  for (const coordStr of coordLines) {
+    const m = coordStr.match(/^(\d+)\|(\d+)/);
+    if (!m) continue;
+    const tgtX = +m[1], tgtY = +m[2];
+    const tgtAv = allVillages.find(v => v.x === tgtX && v.y === tgtY);
+    const tgtName = tgtAv?.name || `${tgtX}|${tgtY}`;
+    const tgtId = tgtAv?.id || null;
+    const tgtOwner = tgtAv ? (allPlayers.get(tgtAv.playerId) || '') : '';
+
+    // Seřaď dostupné zdroje (s alespoň 1 vlakem) podle vzdálenosti
+    const sorted = available
+      .filter(v => Math.floor(v.remaining / noblePerTarget) > 0)
+      .sort((a, b) => {
+        const da = Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2);
+        const db = Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2);
+        return da - db;
       });
-      assigned++;
-    }
-  }
 
-  if (assigned < noblePerTarget) {
-    alert(`⚠️ Dostupných šlechticů jen ${assigned} z požadovaných ${noblePerTarget}.`);
+    if (!sorted.length) {
+      alert(`⚠️ Cíl ${tgtX}|${tgtY}: žádné dostupné vlaky šlechticů!`);
+      continue;
+    }
+
+    // Přiřaď nejbližší vesnici – 1 vlak
+    const sv = sorted[0];
+    const arrTime = bestArrivalTime(arrFrom, arrTo, [sv], {x:tgtX, y:tgtY, unit:nobleUnit}, nobleUnit);
+    const travel = travelMs(sv.x, sv.y, tgtX, tgtY, nobleUnit);
+    const sendTime = arrTime - travel;
+    const srcAv = allVillages.find(v => v.x === sv.x && v.y === sv.y);
+    rows.push({
+      srcId: srcAv?.id || sv.id || null,
+      srcName: sv.village_name || sv.name || '',
+      srcPlayer: sv.player_name || selectedPlayer || '',
+      srcX: sv.x, srcY: sv.y,
+      srcCategory: 'noble',
+      tgtX, tgtY, tgtName, tgtId, tgtOwner,
+      unit: nobleUnit,
+      nobleCount: noblePerTarget,
+      arrivalTime: arrTime, sendTime, travel,
+      night: isNight(sendTime), isPast: sendTime < now,
+      isFake: false, forced_night: false, isNoble: true
+    });
+    sv.remaining -= noblePerTarget;
   }
 }
 
@@ -870,12 +1080,45 @@ function switchFakeTab(tab) {
   currentFakeTab = tab;
   document.querySelectorAll('#fake-tab-coords, #fake-tab-player').forEach(p => p.classList.remove('active'));
   document.getElementById(`fake-tab-${tab}`).classList.add('active');
-  // Přepni taby v fake panelu
-  const fakePanelTabs = document.querySelectorAll('#fake-tab-coords, #fake-tab-player');
-  const fakeTabBtns = fakePanelTabs[0]?.closest('.panel-body')?.querySelectorAll('.tab');
-  if (fakeTabBtns) fakeTabBtns.forEach((t,i) => {
-    t.classList.toggle('active', (tab==='coords'&&i===0)||(tab==='player'&&i===1));
+}
+
+function switchFakeNobleTab(tab) {
+  currentFakeNobleTab = tab;
+  document.querySelectorAll('#fake-noble-tab-coords, #fake-noble-tab-player').forEach(p => p.classList.remove('active'));
+  document.getElementById(`fake-noble-tab-${tab}`).classList.add('active');
+}
+
+function parseFakeNobleCoords() {
+  const raw = document.getElementById('fake-noble-coords-paste').value.trim();
+  if (!raw) return;
+  const lines = raw.split(/[\n\s]+/).filter(l => /^\d+\|\d+/.test(l.trim()));
+  fakeNobleTargets = lines.map(l => {
+    const m = l.match(/^(\d+)\|(\d+)/);
+    const x = +m[1], y = +m[2];
+    const tv = allVillages.find(v => v.x===x && v.y===y);
+    return { x, y, name: tv?.name || `${x}|${y}`, id: tv?.id || null, owner: tv ? (allPlayers.get(tv.playerId)||'') : '' };
   });
+  document.getElementById('fake-noble-coord-count').textContent = `${fakeNobleTargets.length} fejk vlak cílů`;
+}
+
+function clearFakeNobleCoords() {
+  document.getElementById('fake-noble-coords-paste').value = '';
+  fakeNobleTargets = [];
+  document.getElementById('fake-noble-coord-count').textContent = '';
+}
+
+async function loadFakeNoblePlayer() {
+  const name = document.getElementById('fake-noble-player-name').value.trim();
+  if (!name) return;
+  try {
+    await ensureVillages();
+    const player = await findPlayer(name);
+    fakeNobleTargets = allVillages.filter(v => v.playerId === player.id).map(v => ({ x:v.x, y:v.y, name:v.name, id:v.id, owner: allPlayers.get(v.playerId)||'' }));
+    document.getElementById('fake-noble-player-status').textContent = `✓ ${fakeNobleTargets.length} vesnic`;
+    document.getElementById('fake-noble-village-list').innerHTML = fakeNobleTargets.slice(0,50).map(v => `<div class="village-item"><span>${v.name}</span><span class="village-coords">${v.x}|${v.y}</span></div>`).join('');
+  } catch(e) {
+    document.getElementById('fake-noble-player-status').textContent = `❌ ${e.message}`;
+  }
 }
 
 // ── SOUŘADNICE ─────────────────────────────────────────────
@@ -933,9 +1176,9 @@ function renderCoordList() {
          <span class="ci-coords">${c.x}|${c.y}</span>
          <span class="ci-time"><input type="datetime-local" step="1" value="${dtVal}"
            onchange="coordTargets[${i}].arrivalTime=this.value?new Date(this.value).getTime():null"></span>
-         <span class="ci-unit"><select onchange="coordTargets[${i}].unit=this.value">
-           <option value="ram" ${c.unit==='ram'?'selected':''}>🪨</option>
-           <option value="noble" ${c.unit==='noble'?'selected':''}>👑</option>
+         <span class="ci-unit"><select class="unit-select" onchange="coordTargets[${i}].unit=this.value">
+           <option value="ram" ${c.unit==='ram'?'selected':''}>Beranidlo</option>
+           <option value="noble" ${c.unit==='noble'?'selected':''}>Šlechtic</option>
          </select></span>
          <button class="ci-remove" onclick="removeCoord(${i})">✕</button>
        </div>`;
@@ -1041,7 +1284,7 @@ async function calculate() {
         if (isNaN(af)) { alert('Neplatný čas příchodu!'); return; }
         const arrToStr = document.getElementById('global-arrival-to').value;
         const at = arrToStr ? new Date(arrToStr).getTime() : null;
-        const unit = document.getElementById('global-unit').value;
+        const unit = getUnitSelectValue('global-unit');
         // Uložíme rozmezí, čas přiřadíme po výběru offek
         targets = coordTargets.map(c => ({ ...c, unit, _arrFrom: af, _arrTo: at, arrivalTime: af }));
       } else {
@@ -1057,7 +1300,7 @@ async function calculate() {
       const af = new Date(arrStr).getTime();
       const arrToStr = document.getElementById('global-arrival-player-to').value;
       const at = arrToStr ? new Date(arrToStr).getTime() : null;
-      const unit = document.getElementById('global-unit-player').value;
+      const unit = getUnitSelectValue('global-unit-player');
       targets = tgtVillages.map(v => ({
         x:v.x, y:v.y, name:v.name, id:v.id, unit,
         _arrFrom: af, _arrTo: at, arrivalTime: af
@@ -1066,9 +1309,10 @@ async function calculate() {
   }
 
   const fakeCount = parseInt(document.getElementById('fake-count').value) || 0;
+  const fakeNobleCount = parseInt(document.getElementById('fake-noble-count').value) || 0;
 
   // Pokud nejsou ani cíle ani fejky, nemá co počítat
-  if (!targets.length && fakeCount === 0) {
+  if (!targets.length && fakeCount === 0 && fakeNobleCount === 0) {
     alert('Zadej cílové vesnice nebo nastav fejky!');
     return;
   }
@@ -1078,12 +1322,18 @@ async function calculate() {
   const fakeUnit   = 'ram';
   const fakeArrivalFrom = fakeArrStr ? new Date(fakeArrStr).getTime() : null;
   const fakeArrivalTo   = fakeArrToStr ? new Date(fakeArrToStr).getTime() : null;
+  const fakeNobleArrStr = document.getElementById('fake-noble-arrival').value;
+  const fakeNobleArrToStr = document.getElementById('fake-noble-arrival-to').value;
+  const fakeNobleArrFrom = fakeNobleArrStr ? new Date(fakeNobleArrStr).getTime() : null;
+  const fakeNobleArrTo   = fakeNobleArrToStr ? new Date(fakeNobleArrToStr).getTime() : null;
 
   if (fakeCount > 0 && !fakeTargets.length) {
     alert(currentFakeTab === 'player' ? 'Načti hráče pro fejk cíle!' : 'Zadej fejk vesnice!');
     return;
   }
   if (fakeCount > 0 && !fakeArrivalFrom) { alert('Nastav čas příchodu fejků!'); return; }
+  if (fakeNobleCount > 0 && !fakeNobleTargets.length) { alert('Zadej cíle pro fejk vlaky!'); return; }
+  if (fakeNobleCount > 0 && !fakeNobleArrFrom) { alert('Nastav čas příchodu fejk vlaků!'); return; }
 
   const rows = [];
   const now  = Date.now();
@@ -1303,8 +1553,49 @@ async function calculate() {
     }
   }
 
-  // Šlechtici
-  if (document.getElementById('noble-target-coords').value.trim()) {
+  // Fejk vlaky
+  if (fakeNobleCount > 0 && fakeNobleTargets.length && fakeNobleArrFrom) {
+    const maxFakeNoble = Math.floor(srcVillages.length / fakeNobleCount);
+    const coveredFakeNoble = Math.min(maxFakeNoble, fakeNobleTargets.length);
+    const fakeNobleAssign = new Map();
+    const sortedSrcForFakeNoble = [...srcVillages].sort((a,b) => (ORDER[a.category]??9)-(ORDER[b.category]??9));
+    for (let fi = 0; fi < coveredFakeNoble; fi++) {
+      const ft = fakeNobleTargets[fi];
+      for (let k = 0; k < fakeNobleCount; k++) {
+        const sv = sortedSrcForFakeNoble[fi * fakeNobleCount + k];
+        if (!sv) break;
+        fakeNobleAssign.set(sv, ft);
+      }
+    }
+    const fakeNobleTgtArrival = new Map();
+    for (let fi = 0; fi < coveredFakeNoble; fi++) {
+      const ft = fakeNobleTargets[fi];
+      const key = `${ft.x}|${ft.y}`;
+      if (!fakeNobleTgtArrival.has(key)) {
+        const srcsForThis = sortedSrcForFakeNoble.filter(sv => fakeNobleAssign.get(sv) === ft);
+        const arrTime = (fakeNobleArrTo && fakeNobleArrTo > fakeNobleArrFrom)
+          ? bestArrivalTime(fakeNobleArrFrom, fakeNobleArrTo, srcsForThis, ft, 'noble')
+          : fakeNobleArrFrom;
+        fakeNobleTgtArrival.set(key, arrTime);
+      }
+    }
+    for (const sv of sortedSrcForFakeNoble) {
+      const fakeTgt = fakeNobleAssign.get(sv);
+      if (!fakeTgt) continue;
+      const arrivalTime = fakeNobleTgtArrival.get(`${fakeTgt.x}|${fakeTgt.y}`) || fakeNobleArrFrom;
+      const travel = travelMs(sv.x, sv.y, fakeTgt.x, fakeTgt.y, 'noble');
+      const sendTime = arrivalTime - travel;
+      rows.push({
+        srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+        srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
+        tgtX:fakeTgt.x, tgtY:fakeTgt.y, tgtName:fakeTgt.name, tgtId:fakeTgt.id, tgtOwner:fakeTgt.owner||(allPlayers.get((allVillages.find(v=>v.x===fakeTgt.x&&v.y===fakeTgt.y)||{}).playerId)||''),
+        unit:'noble', arrivalTime, sendTime, travel,
+        night:isNight(sendTime), isPast:sendTime<now,
+        isFake:true, isFakeNoble:true, forced_night:false
+      });
+    }
+  }
+  if (document.getElementById('noble-target-coords').value.trim().match(/\d+\|\d+/)) {
     calculateNobles(rows);
   }
 
@@ -1331,6 +1622,8 @@ async function calculate() {
       const nightFake  = nightRows.filter(r =>  r.isFake).length;
       if (nightSharp > 0) nightWarnings.push(`${nightSharp} ostrých útoků musí být odesláno v noci (kombinaci nelze změnit bez jiného času příchodu)`);
       if (nightFake  > 0) nightWarnings.push(`${nightFake} fejků musí být odesláno v noci (kombinaci nelze změnit bez jiného času příchodu fejků)`);
+      const nightNoble = nightRows.filter(r => r.isNoble).length;
+      if (nightNoble > 0) nightWarnings.push(`${nightNoble} vlaků šlechticů musí být odesláno v noci`);
     }
   }
 
@@ -1360,8 +1653,8 @@ function renderResults(nightWarnings) {
   let warningHtml = '';
   if (warnings.length > 0) {
     // Rozděl extra varování (začínají ⚔️ nebo 💨) od nočních
-    const extra = warnings.filter(w => w.startsWith('⚔️') || w.startsWith('💨'));
-    const night = warnings.filter(w => !w.startsWith('⚔️') && !w.startsWith('💨'));
+    const extra = warnings.filter(w => w.startsWith('⚔️') || w.startsWith('💨') || w.startsWith('⚠️'));
+    const night = warnings.filter(w => !w.startsWith('⚔️') && !w.startsWith('💨') && !w.startsWith('⚠️'));
 
     if (extra.length > 0) {
       warningHtml += `<div style="background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:13px;font-weight:bold;color:#ff9955;">
@@ -1369,13 +1662,14 @@ function renderResults(nightWarnings) {
       </div>`;
     }
     if (night.length > 0) {
-      // Shrň noční do počtů
       const nightSharpMatch = night.find(w => w.match(/^\d+ ostrých/));
       const nightFakeMatch  = night.find(w => w.match(/^\d+ fejků/));
+      const nightNobleMatch = night.find(w => w.match(/^\d+ vlaků/));
       const nightCilMatch   = night.filter(w => w.includes('všechna odesílání'));
       let nightLines = [];
       if (nightSharpMatch) nightLines.push(nightSharpMatch);
       if (nightFakeMatch)  nightLines.push(nightFakeMatch);
+      if (nightNobleMatch) nightLines.push(nightNobleMatch);
       if (nightCilMatch.length > 0) nightLines.push(`${nightCilMatch.length} cílů lze odeslat pouze v noci (změn čas příchodu)`);
       if (nightLines.length > 0) {
         warningHtml += `<div style="background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#ff9955;">
@@ -1402,21 +1696,33 @@ function renderResults(nightWarnings) {
   const sorted = applySortToVisible(visible);
   sorted.forEach((row, i) => {
     const past     = row.sendTime < now;
-    const gameLink = row.tgtId
-      ? `${API_BASE}/game.php?village=${row.srcId}&screen=place&target=${row.tgtId}`
-      : `${API_BASE}/game.php?village=${row.srcId}&screen=place&x=${row.tgtX}&y=${row.tgtY}`;
+    const gameLink = row.srcId
+      ? (row.tgtId
+          ? `${API_BASE}/game.php?village=${row.srcId}&screen=place&target=${row.tgtId}`
+          : `${API_BASE}/game.php?village=${row.srcId}&screen=place&x=${row.tgtX}&y=${row.tgtY}`)
+      : `${API_BASE}/game.php?screen=place&x=${row.tgtX}&y=${row.tgtY}`;
     const rowClass  = past ? 'past-row' : row.night ? 'night-row' : '';
     const sendClass = row.night ? 'send-time night' : 'send-time';
     const rowIdx    = attackRows.indexOf(row);
 
     // Fejk = jen fejk chip, ostrý = jen kategorie chip
+    const twImg = (url, style='') => `<img src="${url}" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;${style}" onerror="this.style.display='none'">`;
+    const SMALL_ICO  = 'https://help.divokekmeny.cz/images/b/b6/Small.png';
+    const LARGE_ICO  = 'https://help.divokekmeny.cz/images/7/71/Large.png';
+    const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
+    const NOBLE_FLIP = `<img src="${API_BASE}/graphic/unit/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;transform:rotate(180deg);" onerror="this.style.display='none'">`;
+    const NOBLE_NORM = `<img src="${API_BASE}/graphic/unit/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
+
     let typeHtml;
-    if (row.isFake) {
-      typeHtml = '<span class="chip" style="background:#1a0a00;color:#cc6600;border:1px solid #663300">💨 fejk</span>';
+    if (row.isFake && row.isFakeNoble) {
+      typeHtml = `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
+    } else if (row.isFake) {
+      typeHtml = `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${twImg(SMALL_ICO)} fejk</span>`;
     } else {
-      typeHtml = row.srcCategory === 'fullka'   ? '<span class="chip chip-full" title="≥18 000 off populace">fullka</span>'
-               : row.srcCategory === 'triq_off' ? '<span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off</span>'
-               : row.srcCategory === 'half_off' ? '<span class="chip chip-half" title="10 000–14 999 off populace">1/2 off</span>'
+      typeHtml = row.srcCategory === 'fullka'   ? `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${twImg(LARGE_ICO)} fullka</span>`
+               : row.srcCategory === 'triq_off' ? `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${twImg(SMALL_ICO, 'filter:sepia(1) saturate(3) hue-rotate(10deg)')} 3/4 off</span>`
+               : row.srcCategory === 'half_off' ? `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${twImg(MEDIUM_ICO)} 1/2 off</span>`
+               : row.srcCategory === 'noble'    ? `<span class="chip chip-noble">${NOBLE_NORM} vlak</span>`
                : '';
     }
 
@@ -1463,11 +1769,13 @@ function updateCount(visible) {
   const sumEl = document.getElementById('attack-summary');
   if (!attackRows.length) { sumEl.style.display = 'none'; return; }
   sumEl.style.display = 'flex';
-  const sharpVisible = v.filter(r => !r.isFake);
+  const sharpVisible = v.filter(r => !r.isFake && !r.isNoble);
+  const nobleVisible = v.filter(r => r.isNoble);
   document.getElementById('sum-sharp').textContent = sharpVisible.length;
   document.getElementById('sum-full').textContent  = sharpVisible.filter(r => r.srcCategory === 'fullka').length;
   document.getElementById('sum-triq').textContent  = sharpVisible.filter(r => r.srcCategory === 'triq_off').length;
   document.getElementById('sum-half').textContent  = sharpVisible.filter(r => r.srcCategory === 'half_off').length;
+  document.getElementById('sum-noble').textContent = nobleVisible.length;
   document.getElementById('sum-fake').textContent  = v.filter(r => r.isFake).length;
   document.getElementById('sum-total').textContent = v.length;
 
@@ -1611,7 +1919,8 @@ function playerDataToUrl(playerName, rows) {
       tgtX: r.tgtX, tgtY: r.tgtY, tgtName: r.tgtName, tgtId: r.tgtId,
       tgtOwner: r.tgtOwner||'',
       unit: r.unit, sendTime: r.sendTime, arrivalTime: r.arrivalTime,
-      travel: r.travel, isFake: r.isFake, night: r.night
+      travel: r.travel, isFake: r.isFake, night: r.night,
+      nobleCount: r.nobleCount || null
     }))
   };
   const json = JSON.stringify(data);
@@ -1664,15 +1973,16 @@ function openExport() {
     lines.push('');
 
     rows.forEach((r, i) => {
-      const typ    = r.isFake
-        ? '💨 FEJK  '
-        : (r.srcCategory === 'fullka'   ? '⚔️  FULLKA'
-          : r.srcCategory === 'triq_off' ? '⚔️  3/4 OFF'
-          : r.srcCategory === 'half_off' ? '⚔️  1/2 OFF'
-          : '⚔️  OFF');
+      const typ    = r.isFake && r.isFakeNoble ? '↑👑 FEJK VLAK'
+        : r.isFake                             ? '🟢 FEJK    '
+        : r.srcCategory === 'noble'            ? '👑 VLAK    '
+        : r.srcCategory === 'fullka'           ? '🔴 FULLKA  '
+        : r.srcCategory === 'triq_off'         ? '🟡 3/4 OFF '
+        : r.srcCategory === 'half_off'         ? '🟤 1/2 OFF '
+        :                                        '⚔️  OFF     ';
       const src    = `${r.srcX}|${r.srcY}`;
       const tgt    = `${r.tgtX}|${r.tgtY}`;
-      const unit   = r.unit === 'lk' ? 'LK' : r.unit === 'scout' ? 'špeh' : r.unit === 'axe' ? 'sekera' : r.unit === 'noble' ? 'šlechtic' : 'Beranidlo';
+      const unit   = r.unit === 'lk' ? 'Lehká kavalérie' : r.unit === 'tk' ? 'Těžká kavalérie' : r.unit === 'scout' ? 'Špeh' : r.unit === 'axe' ? 'Sekerník' : r.unit === 'noble' ? 'Šlechtic' : r.unit === 'spear' ? 'Kopiník' : r.unit === 'sword' ? 'Šermíř' : r.unit === 'catapult' ? 'Katapult' : r.unit === 'paladin' ? 'Paladin' : 'Beranidlo';
       const send   = fmtDT(new Date(r.sendTime));
       const arrive = fmtDT(new Date(r.arrivalTime));
       const dur    = fmtDur(r.travel);
@@ -1731,30 +2041,7 @@ function updateCountdowns() {
 // ── ALARM ──────────────────────────────────────────────────
 function startAlarm(evt, rowIdx, link) {
   evt.preventDefault();
-  const row = attackRows[rowIdx]; if (!row) return;
-  alarmLink = link; alarmTargetTime = row.sendTime; alarmOpened = false;
-  document.getElementById('alarm-info-src').textContent = `Z: ${row.srcX}|${row.srcY} ${row.srcName}`;
-  document.getElementById('alarm-info-tgt').textContent = `→ ${row.tgtX}|${row.tgtY} ${row.tgtName}  |  ${UNIT_LABELS[row.unit]}  |  Příchod: ${fmtDT(new Date(row.arrivalTime))}`;
-  document.getElementById('alarm-link').href = link;
-  document.getElementById('alarm-modal').classList.add('show');
-  clearInterval(alarmInterval); updateAlarm();
-  alarmInterval = setInterval(updateAlarm, 100);
-}
-function updateAlarm() {
-  const diff = alarmTargetTime - Date.now();
-  const el   = document.getElementById('alarm-count');
-  if (diff <= 0) {
-    el.textContent='▶ ODESLAT!'; el.style.color='#ff3333';
-    if (!alarmOpened) { alarmOpened=true; window.open(alarmLink,'tw_game'); }
-    if (diff < -8000) closeAlarm(); return;
-  }
-  alarmOpened = false;
-  el.textContent = fmtHMScs(diff);
-  el.style.color = diff<10000?'var(--urgent)':'var(--green)';
-}
-function closeAlarm() {
-  clearInterval(alarmInterval); alarmInterval=null; alarmTargetTime=null; alarmOpened=false;
-  document.getElementById('alarm-modal').classList.remove('show');
+  window.open(link, 'tw_game');
 }
 
 // ── UTILS ──────────────────────────────────────────────────
