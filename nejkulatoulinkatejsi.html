@@ -372,6 +372,41 @@
       </div>
     </div>
 
+    <!-- Šlechtici -->
+    <div class="panel">
+      <div class="panel-header">👑 Šlechtici</div>
+      <div class="panel-body">
+        <div id="noble-empty" style="font-size:12px;color:var(--dim);">Načti JSON z importu kmene – šlechtici se zobrazí automaticky.</div>
+        <div id="noble-content" style="display:none;">
+          <div style="font-size:12px;color:var(--dim);margin-bottom:8px;">Vesnice se šlechtici (z importu):</div>
+          <div class="village-list" id="noble-village-list"></div>
+          <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="noble-count"></div>
+          <div style="margin-top:10px;">
+            <label style="font-size:13px;">Počet šlechticů na cíl:</label>
+            <input type="number" id="noble-count-per-target" min="1" max="4" value="4" style="width:60px;margin-left:8px;text-align:center;">
+            <span style="font-size:11px;color:var(--dim);margin-left:6px;">(obvykle 4 pro snobení)</span>
+          </div>
+          <div style="margin-top:8px;">
+            <label style="font-size:13px;">Čas příchodu šlechticů</label>
+            <div class="arrival-row" style="margin-top:4px;">
+              <input type="datetime-local" id="noble-arrival" step="1" style="flex:1;">
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+              <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
+              <input type="datetime-local" id="noble-arrival-to" step="1" style="flex:1;">
+            </div>
+          </div>
+          <div style="margin-top:8px;">
+            <label style="font-size:13px;">Cílová vesnice šlechticů</label>
+            <div style="display:flex;gap:6px;margin-top:4px;">
+              <input type="text" id="noble-target-coords" placeholder="např. 567|503" style="flex:1;">
+            </div>
+            <div style="font-size:11px;color:var(--dim);margin-top:4px;">Jedna cílová vesnice – šlechtici se vyberou nejbližší</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div style="text-align:center;">
       <button class="btn btn-primary" style="font-size:15px;padding:10px 28px;" onclick="calculate()">
         ⚔️ Vypočítat plán
@@ -567,6 +602,7 @@ function importJson() {
     setStatus('json-status', 'ok', `✓ Načteno ${jsonVillages.length} vesnic z kmene`);
     document.getElementById('src-filter-wrap').style.display = 'block';
     applyJsonFilter();
+    populateNoblePanel();
 
     // Naplň dropdown hráčů v záložce Hráč
     const players = [...new Set(jsonVillages.map(v => v.player_name).filter(Boolean))].sort();
@@ -615,12 +651,98 @@ function loadPlayerFromJson() {
   setStatus('player-status', 'ok', `✓ Načteno ${srcVillages.length} offek hráče ${playerName} z importu`);
 }
 
+function populateNoblePanel() {
+  const nobleVillages = jsonVillages.filter(v => (v.noble || (v.units && v.units.noble)) > 0);
+  const el = document.getElementById('noble-content');
+  const empty = document.getElementById('noble-empty');
+  if (!nobleVillages.length) { el.style.display='none'; empty.style.display='block'; return; }
+  el.style.display = 'block'; empty.style.display = 'none';
+  const listEl = document.getElementById('noble-village-list');
+  listEl.innerHTML = nobleVillages.map(v => {
+    const cnt = v.noble || (v.units && v.units.noble) || 0;
+    return `<div class="village-item">
+      <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${cnt}</span></span>
+      <span class="village-coords">${v.x}|${v.y}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('noble-count').textContent = `${nobleVillages.length} vesnic se šlechtici`;
+}
+
+function calculateNobles(rows) {
+  // Načti nastavení
+  const coordStr = document.getElementById('noble-target-coords').value.trim();
+  if (!coordStr) return; // šlechtu neplánujeme
+  const m = coordStr.match(/^(\d+)\|(\d+)/);
+  if (!m) { alert('Neplatné souřadnice cíle šlechticů!'); return; }
+  const tgtX = +m[1], tgtY = +m[2];
+  const arrStr = document.getElementById('noble-arrival').value;
+  if (!arrStr) { alert('Nastav čas příchodu šlechticů!'); return; }
+  const arrFrom = new Date(arrStr).getTime();
+  const arrToStr = document.getElementById('noble-arrival-to').value;
+  const arrTo = arrToStr ? new Date(arrToStr).getTime() : null;
+  const noblePerTarget = parseInt(document.getElementById('noble-count-per-target').value) || 4;
+
+  // Sestav pool šlechticů z importu (v filterovaném hráči nebo celém kmeni)
+  const pool = jsonVillages.filter(v => (v.noble || (v.units && v.units.noble)) > 0);
+  if (!pool.length) return;
+
+  // Rozhodni jaký hráč je vybraný
+  const selectedPlayer = document.getElementById('src-player-select').value;
+
+  // Seřaď podle vzdálenosti od cíle
+  const tgtAv = allVillages.find(v => v.x === tgtX && v.y === tgtY);
+  const tgtName = tgtAv?.name || `${tgtX}|${tgtY}`;
+  const tgtId = tgtAv?.id || null;
+  const tgtOwner = tgtAv ? (allPlayers.get(tgtAv.playerId) || '') : '';
+
+  const sorted = pool.map(v => ({
+    ...v,
+    dist: Math.sqrt((v.x-tgtX)**2 + (v.y-tgtY)**2),
+    nobleCount: v.noble || (v.units && v.units.noble) || 0
+  })).sort((a,b) => a.dist - b.dist);
+
+  const now = Date.now();
+  const nobleUnit = 'noble';
+  let assigned = 0;
+
+  for (const sv of sorted) {
+    if (assigned >= noblePerTarget) break;
+    const available = sv.nobleCount;
+    for (let k = 0; k < available && assigned < noblePerTarget; k++) {
+      const arrTime = bestArrivalTime(arrFrom, arrTo, [sv], {x:tgtX,y:tgtY,unit:nobleUnit}, nobleUnit);
+      const travel = travelMs(sv.x, sv.y, tgtX, tgtY, nobleUnit);
+      const sendTime = arrTime - travel;
+      const srcAv = allVillages.find(v => v.x === sv.x && v.y === sv.y);
+      rows.push({
+        srcId: srcAv?.id || sv.id || null,
+        srcName: sv.village_name || sv.name || '',
+        srcPlayer: sv.player_name || selectedPlayer || '',
+        srcX: sv.x, srcY: sv.y,
+        srcCategory: 'noble',
+        tgtX, tgtY, tgtName, tgtId,
+        tgtOwner,
+        unit: nobleUnit,
+        arrivalTime: arrTime, sendTime, travel,
+        night: isNight(sendTime), isPast: sendTime < now,
+        isFake: false, forced_night: false, isNoble: true
+      });
+      assigned++;
+    }
+  }
+
+  if (assigned < noblePerTarget) {
+    alert(`⚠️ Dostupných šlechticů jen ${assigned} z požadovaných ${noblePerTarget}.`);
+  }
+}
+
 function applyJsonFilter() {
   const wantFull  = document.getElementById('filter-full').checked;
   const wantTriq  = document.getElementById('filter-triq').checked;
   const wantHalf  = document.getElementById('filter-half').checked;
+  const selectedPlayer = document.getElementById('src-player-select')?.value || '';
+  const base = selectedPlayer ? jsonVillages.filter(v => v.player_name === selectedPlayer) : jsonVillages;
 
-  srcVillages = jsonVillages.filter(v => {
+  srcVillages = base.filter(v => {
     if (v.category === 'fullka')   return wantFull;
     if (v.category === 'triq_off') return wantTriq;
     if (v.category === 'half_off') return wantHalf;
@@ -1179,6 +1301,11 @@ async function calculate() {
         isFake:true, forced_night:false
       });
     }
+  }
+
+  // Šlechtici
+  if (document.getElementById('noble-target-coords').value.trim()) {
+    calculateNobles(rows);
   }
 
   rows.sort((a,b)=>a.sendTime-b.sendTime);
