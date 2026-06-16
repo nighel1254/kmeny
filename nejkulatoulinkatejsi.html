@@ -523,7 +523,8 @@
         <span style="color:#50d0d0">🔵 3/4 off: <strong id="sum-triq">0</strong></span>
         <span style="color:#a0c8ff">🔷 1/2 off: <strong id="sum-half">0</strong></span>
         <span style="color:#80d080">👑 Vlaků: <strong id="sum-noble">0</strong></span>
-        <span style="color:#cc6600">💨 Fejků: <strong id="sum-fake">0</strong></span>
+        <span style="color:#ffffff">↑👑 Fejk vlaků: <strong id="sum-fake-noble">0</strong></span>
+        <span style="color:#40cc40">💨 Fejků: <strong id="sum-fake">0</strong></span>
         <span style="color:var(--dim)">Celkem: <strong id="sum-total">0</strong></span>
         <span id="sum-coverage" style="color:var(--green);margin-left:8px;"></span>
       </div>
@@ -1776,7 +1777,8 @@ function updateCount(visible) {
   document.getElementById('sum-triq').textContent  = sharpVisible.filter(r => r.srcCategory === 'triq_off').length;
   document.getElementById('sum-half').textContent  = sharpVisible.filter(r => r.srcCategory === 'half_off').length;
   document.getElementById('sum-noble').textContent = nobleVisible.length;
-  document.getElementById('sum-fake').textContent  = v.filter(r => r.isFake).length;
+  document.getElementById('sum-fake-noble').textContent = v.filter(r => r.isFake && r.isFakeNoble).length;
+  document.getElementById('sum-fake').textContent  = v.filter(r => r.isFake && !r.isFakeNoble).length;
   document.getElementById('sum-total').textContent = v.length;
 
   // Počítadlo pokrytých vesnic + nepokryté spoiler

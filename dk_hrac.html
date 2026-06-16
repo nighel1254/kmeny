@@ -174,7 +174,8 @@ function renderTable() {
   document.getElementById('sum-triq').textContent  = sharp.filter(r=>r.srcCategory==='triq_off').length;
   document.getElementById('sum-half').textContent  = sharp.filter(r=>r.srcCategory==='half_off').length;
   document.getElementById('sum-noble').textContent = nobles.length;
-  document.getElementById('sum-fake').textContent  = fakes.length;
+  document.getElementById('sum-fake-noble').textContent = fakes.filter(r=>r.isFakeNoble).length;
+  document.getElementById('sum-fake').textContent  = fakes.filter(r=>!r.isFakeNoble).length;
   document.getElementById('sum-total').textContent = attackRows.length;
   document.getElementById('sum-count').textContent = `${visible.length} aktivních / ${attackRows.length} celkem`;
 
@@ -251,6 +252,7 @@ function render(data) {
       <span style="color:#50d0d0">🔵 3/4 off: <strong id="sum-triq">0</strong></span>
       <span style="color:#a0c8ff">🔷 1/2 off: <strong id="sum-half">0</strong></span>
       <span style="color:#80d080">👑 Vlaků: <strong id="sum-noble">0</strong></span>
+      <span style="color:#ffffff">↑👑 Fejk vlaků: <strong id="sum-fake-noble">0</strong></span>
       <span style="color:#40cc40">💨 Fejků: <strong id="sum-fake">0</strong></span>
       <span style="color:var(--dim)">Celkem: <strong id="sum-total">0</strong></span>
     </div>
