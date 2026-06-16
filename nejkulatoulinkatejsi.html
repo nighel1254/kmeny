@@ -507,6 +507,9 @@
           <span id="attack-count" style="font-size:11px;color:var(--dim);font-weight:normal;"></span>
           <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;font-weight:normal;" onclick="saveAction()" title="Uloží aktuální akci a odebere použité offky ze zdrojů">💾 Přidat do plánu</button>
           <button class="btn btn-sm btn-blue" onclick="openExport()" style="font-weight:normal;">📤 Export</button>
+          <button class="btn btn-sm" style="background:#0a2a0a;border:1px solid #205020;color:#60c060;font-weight:normal;" onclick="savePlanToFile()" title="Stáhne celý plán jako JSON soubor">💾 Uložit plán</button>
+          <button class="btn btn-sm" style="background:#1a1a0a;border:1px solid #504020;color:#c0c060;font-weight:normal;" onclick="document.getElementById('load-plan-input').click()" title="Načte plán z JSON souboru">📂 Načíst plán</button>
+          <input type="file" id="load-plan-input" accept=".json" style="display:none" onchange="loadPlanFromFile(event)">
           <button class="btn btn-sm btn-red" onclick="clearResults()" style="font-weight:normal;">✕ Smazat</button>
         </div>
       </div>
@@ -704,7 +707,7 @@ function getUnitSelectValue(id) {
   return el ? el.value : 'ram';
 }
 
-document.addEventListener('DOMContentLoaded', () => { loadWorldConfig(); initUnitSelects(); });
+document.addEventListener('DOMContentLoaded', () => { loadWorldConfig(); initUnitSelects(); loadAutosave(); });
 
 // ── FETCH ──────────────────────────────────────────────────
 async function fetchWithFallback(url) {
@@ -1869,6 +1872,7 @@ function editAction(idx) {
   if (action.snapshot) restoreInputSnapshot(action.snapshot);
 
   renderResults();
+  autosave();
   alert(`✏️ Akce "${action.label}" obnovena k úpravě.\nPo změnách znovu klikni "💾 Přidat do plánu".`);
 }
 
@@ -1960,16 +1964,95 @@ function saveAction() {
   document.getElementById('attack-summary').style.display = 'none';
   document.getElementById('uncovered-wrap').style.display = 'none';
 
+  autosave();
   alert(`✓ Akce uložena: ${label}\nZbývá ${srcVillages.length} offek pro další akci.`);
+}
+
+// ── ULOŽENÍ / NAČTENÍ PLÁNU ────────────────────────────────
+const PLAN_LS_KEY = 'dk_plan_autosave';
+
+function getPlanState() {
+  return {
+    savedActions,
+    attackRows,
+    srcVillages,
+    jsonVillages,
+    snapshot: captureInputSnapshot(),
+    version: 2,
+    savedAt: Date.now()
+  };
+}
+
+function applyPlanState(state) {
+  if (!state || state.version !== 2) { alert('Neplatný nebo zastaralý soubor plánu.'); return false; }
+  savedActions = state.savedActions || [];
+  attackRows   = state.attackRows   || [];
+  srcVillages  = state.srcVillages  || [];
+  jsonVillages = state.jsonVillages || [];
+  refreshSavedActionsBar();
+  if (state.snapshot) restoreInputSnapshot(state.snapshot);
+  if (attackRows.length) renderResults();
+  applyJsonFilter();
+  // Obnov noble panel pokud je JSON načtený
+  if (jsonVillages.length) populateNoblePanel();
+  return true;
+}
+
+function savePlanToFile() {
+  const state = getPlanState();
+  const json  = JSON.stringify(state, null, 2);
+  const blob  = new Blob([json], { type: 'application/json' });
+  const url   = URL.createObjectURL(blob);
+  const a     = document.createElement('a');
+  const dt    = new Date();
+  a.href      = url;
+  a.download  = `dk_plan_${dt.getDate()}-${dt.getMonth()+1}-${dt.getFullYear()}_${pad(dt.getHours())}${pad(dt.getMinutes())}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function loadPlanFromFile(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const state = JSON.parse(e.target.result);
+      if (applyPlanState(state)) alert(`✓ Plán načten: ${savedActions.length} akcí, ${attackRows.length} útoků ve výsledcích.`);
+    } catch(err) {
+      alert('❌ Nepodařilo se načíst soubor: ' + err.message);
+    }
+    evt.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function autosave() {
+  try {
+    const state = JSON.stringify(getPlanState());
+    localStorage.setItem(PLAN_LS_KEY, state);
+  } catch(e) { /* localStorage plný nebo nedostupný */ }
+}
+
+function loadAutosave() {
+  try {
+    const raw = localStorage.getItem(PLAN_LS_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (!state || state.version !== 2) return;
+    const dt = new Date(state.savedAt);
+    const msg = `Nalezen automaticky uložený plán z ${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}.\n${(state.savedActions||[]).length} akcí, ${(state.attackRows||[]).length} útoků.\n\nChceš ho obnovit?`;
+    if (confirm(msg)) applyPlanState(state);
+  } catch(e) {}
 }
 
 function clearSavedActions() {
   savedActions = [];
-  document.getElementById('saved-actions-bar').style.display = 'none';
+  refreshSavedActionsBar();
+  autosave();
 }
 
 function playerDataToUrl(playerName, rows) {
-  // Kompaktní formát: krátké klíče + časy v sekundách místo ms
   const data = {
     p: playerName,
     w: WORLD,
@@ -1984,8 +2067,10 @@ function playerDataToUrl(playerName, rows) {
     ])
   };
   const json = JSON.stringify(data);
-  const compressed = LZString.compressToEncodedURIComponent(json);
-  const base = location.href.replace(/\/[^/]*$/, '/');
+  // Použij LZString ale s base64url-safe výstupem
+  const compressed = LZString.compressToBase64(json)
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  const base = location.origin + location.pathname.replace(/\/[^/]*$/, '/');
   return `${base}dk_hrac.html#${compressed}`;
 }
 

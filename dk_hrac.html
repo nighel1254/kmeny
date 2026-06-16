@@ -274,6 +274,28 @@ function render(data) {
   cdInterval = setInterval(updateCountdowns, 500);
 }
 
+function decodeData(json) {
+  const d = JSON.parse(json);
+  // Nový kompaktní formát
+  if (d.r) {
+    return {
+      player: d.p, world: d.w, exported: d.e * 1000,
+      rows: d.r.map(a => ({
+        srcId: a[0]||null, srcName: a[1], srcX: a[2], srcY: a[3], srcCategory: a[4],
+        tgtX: a[5], tgtY: a[6], tgtName: a[7]||`${a[5]}|${a[6]}`, tgtId: a[8]||null, tgtOwner: a[9],
+        unit: a[10], sendTime: a[11]*1000, arrivalTime: a[12]*1000, travel: a[13]*1000,
+        isFake:      !!(a[14]&1),
+        isFakeNoble: !!(a[14]&2),
+        isNoble:     !!(a[14]&4),
+        night:       !!(a[14]&8),
+        nobleCount: a[15]||null
+      }))
+    };
+  }
+  // Starý formát
+  return { player: d.player, world: d.world, exported: d.exported, rows: d.rows };
+}
+
 function init() {
   const hash = location.hash.slice(1);
   if (!hash) {
@@ -281,11 +303,31 @@ function init() {
     return;
   }
   try {
-    let json = LZString.decompressFromEncodedURIComponent(hash);
-    if (!json) json = decodeURIComponent(escape(atob(hash)));
-    render(JSON.parse(json));
+    let json = null;
+
+    // 1. Zkus nový base64url formát (LZString.compressToBase64 + url-safe)
+    try {
+      const b64 = hash.replace(/-/g,'+').replace(/_/g,'/');
+      const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
+      json = LZString.decompressFromBase64(padded);
+    } catch(e) {}
+
+    // 2. Zkus LZString.compressToEncodedURIComponent (starší verze)
+    if (!json) {
+      try { json = LZString.decompressFromEncodedURIComponent(hash); } catch(e) {}
+    }
+
+    // 3. Zkus plain base64 (nejstarší verze)
+    if (!json) {
+      try { json = decodeURIComponent(escape(atob(hash))); } catch(e) {}
+    }
+
+    if (!json) throw new Error('Dekomprimace selhala');
+    const data = decodeData(json);
+    if (!data || !data.rows) throw new Error('Chybí data rows');
+    render(data);
   } catch(e) {
-    document.getElementById('app').innerHTML = '<div class="error">⚠️ Nepodařilo se načíst plán útoků. Odkaz je poškozený nebo neplatný.</div>';
+    document.getElementById('app').innerHTML = `<div class="error">⚠️ Nepodařilo se načíst plán útoků. Odkaz je poškozený nebo neplatný.<br><small style="opacity:.6">${e.message}</small></div>`;
     console.error(e);
   }
 }
