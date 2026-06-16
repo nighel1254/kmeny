@@ -1921,7 +1921,8 @@ function playerDataToUrl(playerName, rows) {
       tgtX: r.tgtX, tgtY: r.tgtY, tgtName: r.tgtName, tgtId: r.tgtId,
       tgtOwner: r.tgtOwner||'',
       unit: r.unit, sendTime: r.sendTime, arrivalTime: r.arrivalTime,
-      travel: r.travel, isFake: r.isFake, night: r.night,
+      travel: r.travel, isFake: r.isFake, isFakeNoble: r.isFakeNoble||false,
+      isNoble: r.isNoble||false, night: r.night,
       nobleCount: r.nobleCount || null
     }))
   };
