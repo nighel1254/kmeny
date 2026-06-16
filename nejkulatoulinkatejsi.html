@@ -1590,7 +1590,7 @@ async function calculate() {
         srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
         srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
         tgtX:fakeTgt.x, tgtY:fakeTgt.y, tgtName:fakeTgt.name, tgtId:fakeTgt.id, tgtOwner:fakeTgt.owner||(allPlayers.get((allVillages.find(v=>v.x===fakeTgt.x&&v.y===fakeTgt.y)||{}).playerId)||''),
-        unit:'noble', arrivalTime, sendTime, travel,
+        unit:'ram', arrivalTime, sendTime, travel,
         night:isNight(sendTime), isPast:sendTime<now,
         isFake:true, isFakeNoble:true, forced_night:false
       });
