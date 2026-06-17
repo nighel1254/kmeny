@@ -1828,7 +1828,7 @@ function renderResults(nightWarnings) {
                : '';
     }
 
-    html += `<tr class="${rowClass}">
+    html += `<tr class="${rowClass}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td style="color:var(--dim);font-size:11px;white-space:nowrap">${row.srcPlayer||'—'}</td>
       <td><span class="coords">${row.srcX}|${row.srcY}</span> <span style="color:var(--dim)">${row.srcName}</span></td>
@@ -2428,7 +2428,7 @@ function refreshRow(rowIdx) {
     const travelMsNew = Math.round(dist * ramSpeed * 60 * 1000);
     const newSendMs = arrivalMs - travelMsNew;
 
-    if (newSendMs < Date.now() + 60000) continue;
+    if (newSendMs < Date.now() + 120000) continue; // min 2 minuty v budoucnu
     if (isNightSend(newSendMs)) continue;
 
     const key = `${vx}|${vy}`;
@@ -2467,21 +2467,11 @@ function showRefreshProposal(rowIdx, original, proposal) {
   const fmtL = (ms) => { const d=new Date(ms); return `${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; };
   const fmtD = (ms) => { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; };
 
-  // Najdi TR podle rowIdx
-  const hideNight = document.getElementById('hide-night').checked;
-  const search = (document.getElementById('table-search')?.value||'').toLowerCase();
-  const trs = document.querySelectorAll('table.attacks tbody tr:not([id^="proposal-"])');
-  let vi = 0, targetTr = null;
-  for (let i = 0; i < attackRows.length; i++) {
-    const r = attackRows[i];
-    if (hideNight && r.night && !r.isPast) continue;
-    if (search && !`${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''}`.toLowerCase().includes(search)) continue;
-    if (i === rowIdx) { targetTr = trs[vi]; break; }
-    vi++;
-  }
+  // Najdi TR přes data-rowidx atribut – spolehlivé i při proposal řádcích
+  const targetTr = document.querySelector(`table.attacks tbody tr[data-rowidx="${rowIdx}"]`);
   if (!targetTr) { toast('Řádek nenalezen.', 'err'); return; }
 
-  targetTr.dataset.refreshOrigStyle = targetTr.style.cssText;
+  targetTr.dataset.refreshOrigStyle = targetTr.getAttribute('style') || '';
   targetTr.style.outline = '2px solid #cc3333';
   targetTr.style.opacity = '0.5';
   document.getElementById(`proposal-${rowIdx}`)?.remove();
@@ -2523,20 +2513,10 @@ function acceptRefresh(rowIdx) {
 
 function cancelRefresh(rowIdx) {
   document.getElementById(`proposal-${rowIdx}`)?.remove();
-  const hideNight = document.getElementById('hide-night').checked;
-  const trs = document.querySelectorAll('table.attacks tbody tr:not([id^="proposal-"])');
-  let vi = 0;
-  for (let i = 0; i < attackRows.length; i++) {
-    const r = attackRows[i];
-    if (hideNight && r.night && !r.isPast) continue;
-    if (i === rowIdx) {
-      if (trs[vi]) {
-        trs[vi].style.cssText = trs[vi].dataset.refreshOrigStyle || '';
-        delete trs[vi].dataset.refreshOrigStyle;
-      }
-      break;
-    }
-    vi++;
+  const tr = document.querySelector(`table.attacks tbody tr[data-rowidx="${rowIdx}"]`);
+  if (tr) {
+    tr.style.cssText = tr.dataset.refreshOrigStyle || '';
+    delete tr.dataset.refreshOrigStyle;
   }
   if (attackRows[rowIdx]) delete attackRows[rowIdx]._proposal;
 }
