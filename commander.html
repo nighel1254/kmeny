@@ -85,7 +85,8 @@
   table.attacks tr:hover td{background:#221608}
   table.attacks tr.night-row{opacity:.55}
   table.attacks tr.night-row td{background:#1c1025}
-  table.attacks tr.past-row{opacity:.3}
+  table.attacks tr.past-row td{opacity:.3;text-decoration:line-through;text-decoration-color:rgba(255,255,255,.15);}
+  table.attacks tr.past-row{background:#070503!important;border-left:3px solid #333!important;}
   .coords{font-family:monospace;color:var(--blue)}
   .send-time{font-family:monospace;color:var(--green);font-weight:bold}
   .send-time.night{color:#c080e0}
@@ -240,15 +241,20 @@
 <body>
 
 <div class="header">
-  <div>⚔️</div>
-  <h1>Plánovač útoků</h1>
-  <div class="world-badge">cs112 – Divoké kmeny</div>
-  <div style="margin-left:auto;font-size:12px;color:var(--dim);" id="world-speed-display"></div>
-  <div style="display:flex;align-items:center;gap:10px;margin-left:12px;">
-    <span style="font-size:12px;color:var(--dim);" id="nav-user-name"></span>
-    <a href="dashboard.html" style="font-size:12px;color:var(--gold);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;" title="Přejít na dashboard hráče">📋 Moje plány</a>
-    <button onclick="openPlansPanel()" style="font-size:12px;background:#0a1a0a;border:1px solid #205020;color:#60c060;padding:4px 10px;border-radius:4px;cursor:pointer;" title="Uložené verze plánů">🗄 Verze plánů</button>
-    <button onclick="doNavLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:4px 10px;border-radius:4px;cursor:pointer;">Odhlásit</button>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div>⚔️</div>
+    <h1>Plánovač útoků</h1>
+    <div class="world-badge">cs112 – Divoké kmeny</div>
+    <div style="font-size:11px;color:var(--dim);margin-left:4px;" id="world-speed-display"></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+    <div style="display:flex;align-items:center;gap:6px;background:#1e1508;border:1px solid var(--gold);border-radius:20px;padding:4px 12px;">
+      <span style="color:var(--gold);">⚔️</span>
+      <span style="font-size:13px;font-weight:600;color:var(--gold2);" id="nav-user-name"></span>
+    </div>
+    <button onclick="openPlansPanel('tribal')" style="font-size:12px;background:#0a1a0a;border:1px solid #205020;color:#60c060;padding:5px 11px;border-radius:4px;cursor:pointer;">🏰 Kmenové plány</button>
+    <button onclick="openPlansPanel('personal')" style="font-size:12px;background:#0a0a2a;border:1px solid #202060;color:#6060c0;padding:5px 11px;border-radius:4px;cursor:pointer;">👤 Osobní plány</button>
+    <button onclick="doNavLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">Odhlásit</button>
   </div>
 </div>
 
@@ -265,32 +271,31 @@
 <!-- Plans panel -->
 <div id="plans-panel">
   <div class="plans-panel-header">
-    <h2>📋 Moje plány</h2>
+    <h2 id="plans-panel-title">📋 Kmenové plány</h2>
     <button onclick="closePlansPanel()" style="background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer;">✕</button>
   </div>
-  <div style="padding:8px 12px;border-bottom:1px solid var(--border);">
+  <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;">
+    <button id="plans-tab-tribal"  onclick="switchPlansTab('tribal')"   style="flex:1;padding:6px;border-radius:4px;border:1px solid #205020;background:#0a1a0a;color:#60c060;cursor:pointer;font-size:12px;font-weight:600;">🏰 Kmenové</button>
+    <button id="plans-tab-personal" onclick="switchPlansTab('personal')" style="flex:1;padding:6px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-size:12px;">👤 Osobní</button>
+    <button id="plans-tab-players" onclick="switchPlansTab('players')"  style="flex:1;padding:6px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-size:12px;">👥 Hráči</button>
+  </div>
+  <div style="padding:8px 12px;border-bottom:1px solid var(--border);" id="plans-save-btn-wrap">
     <button onclick="saveCurrentPlanToDB()" style="width:100%;padding:8px;background:var(--gold);color:#1a0e00;border:none;border-radius:4px;font-weight:600;cursor:pointer;font-size:13px;">💾 Uložit aktuální verzi</button>
   </div>
   <div class="plans-panel-list" id="plans-panel-list">
-    <div style="text-align:center;color:var(--dim);padding:20px;font-size:12px;">Načítám plány...</div>
+    <div style="text-align:center;color:var(--dim);padding:20px;font-size:12px;">Načítám...</div>
   </div>
 </div>
 
 <div class="main">
   <div class="left-col">
 
-    <!-- Nastavení světa -->
-    <div class="panel">
-      <div class="panel-header">⚙️ Nastavení světa</div>
-      <div class="panel-body">
-        <div class="world-row">
-          <div><label>Rychlost světa</label><input type="number" id="world-speed" value="1" step="0.5" min="0.5" max="10"></div>
-          <div><label>Rychlost jednotek</label><input type="number" id="unit-speed" value="1" step="0.5" min="0.5" max="5"></div>
-        </div>
-        <div style="font-size:11px;color:var(--dim);margin-top:6px;" id="speed-info">Načítám…</div>
-        <div class="speed-debug" id="speed-debug"></div>
-        <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="loadWorldConfig()">🔄 Načíst z hry</button></div>
-      </div>
+    <!-- Nastavení světa – skryté, načítá se automaticky -->
+    <div style="display:none;">
+      <input type="number" id="world-speed" value="1" step="0.5" min="0.5" max="10">
+      <input type="number" id="unit-speed" value="1" step="0.5" min="0.5" max="5">
+      <div id="speed-info"></div>
+      <div id="speed-debug"></div>
     </div>
 
     <!-- Zdroj útoků -->
@@ -2339,11 +2344,28 @@ function dismissAutosave() {
 
 // ── PLANS PANEL ────────────────────────────────────────────
 let _plansOpen = false;
+let _plansTab = 'tribal';
 
-function openPlansPanel() {
+function switchPlansTab(tab) {
+  _plansTab = tab;
+  ['tribal','personal','players'].forEach(t => {
+    const btn = document.getElementById(`plans-tab-${t}`);
+    const active = t === tab;
+    btn.style.background    = active ? (t==='tribal'?'#0a1a0a':t==='personal'?'#0a0a2a':'#1a0a1a') : 'transparent';
+    btn.style.color         = active ? (t==='tribal'?'#60c060':t==='personal'?'#6060c0':'#c060c0') : 'var(--dim)';
+    btn.style.borderColor   = active ? (t==='tribal'?'#205020':t==='personal'?'#202060':'#602060') : 'var(--border)';
+  });
+  document.getElementById('plans-panel-title').textContent =
+    tab==='tribal' ? '🏰 Kmenové plány' : tab==='personal' ? '👤 Osobní plány' : '👥 Registrovaní hráči';
+  document.getElementById('plans-save-btn-wrap').style.display = tab==='players' ? 'none' : '';
+  if (tab === 'players') loadPlayersList();
+  else loadPlansFromDB(tab);
+}
+
+function openPlansPanel(tab='tribal') {
   document.getElementById('plans-panel').classList.add('open');
   _plansOpen = true;
-  loadPlansFromDB();
+  switchPlansTab(tab);
 }
 
 function closePlansPanel() {
@@ -2351,7 +2373,7 @@ function closePlansPanel() {
   _plansOpen = false;
 }
 
-async function loadPlansFromDB() {
+async function loadPlansFromDB(type='tribal') {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
   const { data: plans, error } = await sb.from('plans')
@@ -2377,6 +2399,41 @@ async function loadPlansFromDB() {
       </div>
     </div>`;
   }).join('');
+}
+
+async function loadPlayersList() {
+  const listEl = document.getElementById('plans-panel-list');
+  listEl.innerHTML = '<div style="text-align:center;color:var(--dim);padding:16px;font-size:12px;">Načítám hráče...</div>';
+  const { data: profiles, error } = await sb.from('profiles')
+    .select('player_name, role, created_at')
+    .order('created_at', { ascending: true });
+  if (error || !profiles?.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--dim);padding:20px;font-size:12px;">Žádní registrovaní hráči.</div>';
+    return;
+  }
+  listEl.innerHTML = profiles.map(p => {
+    const isCmd = p.role === 'commander';
+    const dt = new Date(p.created_at);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#140e04;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;">
+      <span style="font-size:16px;">${isCmd?'👑':'⚔️'}</span>
+      <div style="flex:1;">
+        <div style="font-weight:600;color:${isCmd?'var(--gold2)':'var(--text)'};">${p.player_name||'?'}</div>
+        <div style="font-size:11px;color:var(--dim);">${isCmd?'Commander':'Hráč'} &nbsp;|&nbsp; od ${dt.getDate()}.${dt.getMonth()+1}.</div>
+      </div>
+      ${isCmd ? '' : `<button onclick="makeCommander('${p.player_name}')" style="font-size:10px;padding:3px 7px;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:3px;cursor:pointer;" title="Povýšit na commandera">👑</button>`}
+    </div>`;
+  }).join('');
+}
+
+async function makeCommander(playerName) {
+  const { error } = await sb.rpc('set_commander_role', { p_name: playerName });
+  if (error) {
+    // Fallback: SQL přes Supabase (vyžaduje service key – nestandardní, jen info)
+    toast(`Pro povýšení spusť v SQL: UPDATE profiles SET role=\'commander\' WHERE player_name=\'${playerName}\';`, 'info', 8000);
+  } else {
+    toast(`${playerName} povýšen na commandera.`, 'ok');
+    loadPlayersList();
+  }
 }
 
 async function saveCurrentPlanToDB() {
@@ -2455,6 +2512,11 @@ async function publishToPlayers() {
 
   const { data: allProfiles } = await sb.from('profiles').select('email, player_name').eq('role','player');
 
+  // Pro matching používáme player_name (case-insensitive)
+  const findProfile = (playerName) => allProfiles?.find(p =>
+    p.player_name?.toLowerCase() === playerName.toLowerCase()
+  );
+
   const times = allRows.map(r => r.arrivalTime);
   const minT  = Math.min(...times), maxT = Math.max(...times);
   const label = `Akce ${fmtDT(new Date(minT))}${minT!==maxT?'–'+fmtDT(new Date(maxT)):''}`;
@@ -2470,7 +2532,7 @@ async function publishToPlayers() {
   const listEl = document.getElementById('publish-player-list');
   listEl.innerHTML = '';
   for (const [playerName, rows] of byPlayer) {
-    const profile = allProfiles?.find(p => p.player_name?.toLowerCase() === playerName.toLowerCase());
+    const profile = findProfile(playerName);
     const hasAccount = !!profile;
     const sharp  = rows.filter(r => !r.isFake && !r.isNoble);
     const fakes  = rows.filter(r => r.isFake);
@@ -2506,7 +2568,7 @@ async function publishSelected() {
   for (const [playerName, rows] of byPlayer) {
     const cb = document.getElementById(`pub-${playerName}`);
     if (!cb || !cb.checked) continue;
-    const profile = allProfiles?.find(p => p.player_name?.toLowerCase() === playerName.toLowerCase());
+    const profile = _publishPlan.allProfiles?.find(p => p.player_name?.toLowerCase() === playerName.toLowerCase());
     if (!profile) { missing.push(playerName); continue; }
     assignments.push({ plan_id: plan.id, player_email: profile.email, player_name: playerName, rows_data: rows });
     sent.push(playerName);
