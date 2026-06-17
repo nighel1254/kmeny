@@ -71,14 +71,15 @@ async function init() {
   if (profile?.role === 'commander') { window.location.href = 'nejkulatoulinkatejsi.html'; return; }
 
   document.getElementById('user-name').textContent = profile?.player_name || currentUser.email;
-  loadPlans(currentUser.email);
+  // Hledej přiřazení case-insensitive podle emailu
+  loadPlans(currentUser.email.toLowerCase());
 }
 
 async function loadPlans(email) {
   const { data: assignments, error } = await sb
     .from('plan_assignments')
     .select('*, plans(label, world, created_at)')
-    .eq('player_email', email)
+    .ilike('player_email', email)
     .order('created_at', { ascending: false });
 
   const container = document.getElementById('plans-container');

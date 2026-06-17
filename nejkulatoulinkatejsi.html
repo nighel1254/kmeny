@@ -2254,7 +2254,7 @@ sb.auth.getSession().then(({ data: { session } }) => {
 });
 
 async function publishToPlayers() {
-  const allRows = getAllRows(); // všechny uložené + aktuální
+  const allRows = getAllRows();
   if (!allRows.length) { alert('Nejsou žádné útoky k publikování.'); return; }
 
   const { data: { session } } = await sb.auth.getSession();
@@ -2268,9 +2268,9 @@ async function publishToPlayers() {
     byPlayer.get(p).push(r);
   });
 
-  const times  = allRows.map(r => r.arrivalTime);
-  const minT   = Math.min(...times), maxT = Math.max(...times);
-  const label  = `Akce ${fmtDT(new Date(minT))}${minT!==maxT?'–'+fmtDT(new Date(maxT)):''}`;
+  const times = allRows.map(r => r.arrivalTime);
+  const minT  = Math.min(...times), maxT = Math.max(...times);
+  const label = `Akce ${fmtDT(new Date(minT))}${minT!==maxT?'–'+fmtDT(new Date(maxT)):''}`;
 
   // Ulož plán do DB
   const { data: plan, error: planErr } = await sb.from('plans').insert({
@@ -2282,12 +2282,17 @@ async function publishToPlayers() {
 
   if (planErr) { alert('Chyba při ukládání plánu: ' + planErr.message); return; }
 
-  // Ulož přiřazení pro každého hráče
+  // Načti všechny profily najednou (case-insensitive matching)
+  const { data: allProfiles } = await sb.from('profiles').select('email, player_name');
+
   const assignments = [];
   for (const [playerName, rows] of byPlayer) {
-    // Pokus o nalezení emailu hráče podle jména
-    const { data: profile } = await sb.from('profiles').select('email').eq('player_name', playerName).single();
-    const playerEmail = profile?.email || '';
+    // Case-insensitive hledání jména
+    const profile = allProfiles?.find(p =>
+      p.player_name?.toLowerCase() === playerName.toLowerCase()
+    );
+    // Pokud jsi to ty (commander), použij svůj email
+    const playerEmail = profile?.email || session.user.email || '';
     assignments.push({
       plan_id: plan.id,
       player_email: playerEmail,
@@ -2299,9 +2304,13 @@ async function publishToPlayers() {
   const { error: assignErr } = await sb.from('plan_assignments').insert(assignments);
   if (assignErr) { alert('Chyba při přiřazování: ' + assignErr.message); return; }
 
-  const missing = assignments.filter(a => !a.player_email).map(a => a.player_name);
+  const missing = assignments.filter(a => !a.player_email || a.player_email === session.user.email && !allProfiles?.find(p => p.player_name?.toLowerCase() === a.player_name.toLowerCase()));
   let msg = `✓ Plán publikován pro ${byPlayer.size} hráčů!`;
-  if (missing.length) msg += `\n\n⚠️ Tito hráči nemají účet (musí se zaregistrovat):\n${missing.join(', ')}`;
+  const reallyMissing = assignments.filter(a => {
+    const found = allProfiles?.find(p => p.player_name?.toLowerCase() === a.player_name.toLowerCase());
+    return !found;
+  });
+  if (reallyMissing.length) msg += `\n\n⚠️ Tito hráči nemají účet (musí se zaregistrovat):\n${reallyMissing.map(a=>a.player_name).join(', ')}`;
   alert(msg);
 }
 
