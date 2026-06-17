@@ -2677,8 +2677,22 @@ async function publishToPlayers() {
   const { data: allProfiles } = await sb.from('profiles').select('email, player_name, role');
   const players = allProfiles?.filter(p => p.role === 'player') || [];
 
-  // Ulož jen byPlayer a allProfiles
-  _publishPlan = { byPlayer, allProfiles, allRows, planLabel: _currentPlanLabel || 'Plán útoku' };
+  // Pokus najít plan_id – buď z načteného plánu nebo podle posledního kmenového plánu
+  let planId = _currentPlanId;
+  if (!planId) {
+    const { data: latestPlans } = await sb.from('plans')
+      .select('id, label').eq('type','tribal')
+      .order('created_at', { ascending: false }).limit(1);
+    const latestPlan = latestPlans?.[0];
+    if (latestPlan) {
+      planId = latestPlan.id;
+      _currentPlanId = planId;
+      _currentPlanLabel = latestPlan.label;
+      toast(`Použit plán: "${latestPlan.label}"`, 'info', 3000);
+    }
+  }
+
+  _publishPlan = { byPlayer, allProfiles, allRows, planId, planLabel: _currentPlanLabel || 'Plán útoku' };
 
   const listEl = document.getElementById('publish-player-list');
   listEl.innerHTML = '';
@@ -2767,7 +2781,7 @@ async function publishSelected() {
     const rows = planKey ? byPlayer.get(planKey) : [];
     if (!rows.length) empty.push(profile.player_name);
     const assignment = { player_email: profile.email, player_name: profile.player_name, rows_data: rows };
-    if (_currentPlanId) assignment.plan_id = _currentPlanId;
+    if (_publishPlan.planId) assignment.plan_id = _publishPlan.planId;
     assignments.push(assignment);
     sent.push(profile.player_name);
   }
