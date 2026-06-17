@@ -80,7 +80,7 @@
   }
 </style>
 </head>
-<body>
+<body style="visibility:hidden">
 
 <div id="app">
   <div style="text-align:center;padding:40px;color:var(--dim);">Načítám plán...</div>
@@ -263,6 +263,7 @@ function renderTable() {
 }
 
 function render(data) {
+  document.body.style.visibility = 'visible';
   const rows = data.rows.sort((a,b)=>a.sendTime-b.sendTime);
   attackRows = rows;
 

@@ -238,7 +238,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 </head>
-<body>
+<body style="visibility:hidden">
 
 <div class="header">
   <div style="display:flex;align-items:center;gap:8px;">
@@ -2542,9 +2542,25 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // Při načtení zkontroluj přihlášení a zobraz jméno
 sb.auth.getSession().then(async ({ data: { session } }) => {
   if (!session) { window.location.href = 'index.html'; return; }
-  const { data: profile } = await sb.from('profiles').select('player_name, role').eq('id', session.user.id).single();
+  let { data: profile } = await sb.from('profiles').select('player_name, role').eq('id', session.user.id).single();
+
+  // Pokud profil neexistuje nebo nemá player_name, vytvoř/oprav ho
+  if (!profile || !profile.player_name) {
+    const nick = session.user.email?.split('@')[0] || '?';
+    await sb.from('profiles').upsert({
+      id: session.user.id,
+      email: session.user.email,
+      player_name: nick,
+      role: profile?.role || 'player'
+    });
+    const { data: p2 } = await sb.from('profiles').select('player_name, role').eq('id', session.user.id).single();
+    profile = p2;
+  }
+
   if (profile?.role !== 'commander') { window.location.href = 'dashboard.html'; return; }
-  document.getElementById('nav-user-name').textContent = profile?.player_name || session.user.email.split('@')[0];
+  document.body.style.visibility = 'visible';
+  const nick = profile?.player_name || session.user.email?.split('@')[0] || '?';
+  document.getElementById('nav-user-name').textContent = nick;
 });
 
 async function doNavLogout() {

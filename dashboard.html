@@ -30,7 +30,7 @@
   @media(max-width:600px) { .plan-stats { gap:8px; font-size:11px; } }
 </style>
 </head>
-<body>
+<body style="visibility:hidden">
 
 <div class="top-bar">
   <h1>⚔️ DK Plánovač – Moje plány</h1>
@@ -70,9 +70,16 @@ async function init() {
   const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
   if (profile?.role === 'commander') { window.location.href = 'commander.html'; return; }
 
-  document.getElementById('user-name').textContent = profile?.player_name || currentUser.email;
-  // Hledej přiřazení case-insensitive podle emailu
-  loadPlans(currentUser.email.toLowerCase());
+  // Zobraz stránku až po ověření
+  document.body.style.visibility = 'visible';
+
+  // Nick: player_name, nebo část před @ z fake emailu
+  const nick = profile?.player_name || currentUser.email?.split('@')[0] || '?';
+  document.getElementById('user-name').textContent = nick;
+
+  // Email pro vyhledání plánů – použij skutečný email z profilu
+  const email = profile?.email || currentUser.email;
+  loadPlans(email.toLowerCase());
 }
 
 async function loadPlans(email) {
