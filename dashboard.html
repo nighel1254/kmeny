@@ -67,28 +67,27 @@ async function init() {
   if (!session) { window.location.href = 'index.html'; return; }
   currentUser = session.user;
 
-  // Načti profil – zkus 2x kvůli možnému zpoždění RLS
-  let profile = null;
-  for (let i = 0; i < 2; i++) {
-    const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
-    if (data) { profile = data; break; }
-    await new Promise(r => setTimeout(r, 500));
-  }
+  // Načti profil
+  const { data: profile, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
 
-  // Pokud profil stále chybí, vytvoř ho
-  if (!profile) {
-    const nick = currentUser.email?.split('@')[0] || '?';
-    await sb.from('profiles').upsert({ id: currentUser.id, email: currentUser.email, player_name: nick, role: 'player' });
-    const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
-    profile = data;
-  }
+  // Debug – odstraň po opravě
+  console.log('Profile:', profile, 'Error:', error, 'User ID:', currentUser.id);
 
+  // Pokud je commander, přesměruj
   if (profile?.role === 'commander') { window.location.href = 'commander.html'; return; }
+
+  // Záloha – zkontroluj email přímo
+  if (!profile) {
+    console.error('Profil nenačten! Zkouším zálohu...');
+    // Zkus přes email
+    const { data: byEmail } = await sb.from('profiles').select('*').eq('email', currentUser.email).single();
+    console.log('By email:', byEmail);
+    if (byEmail?.role === 'commander') { window.location.href = 'commander.html'; return; }
+  }
 
   document.body.style.visibility = 'visible';
   const nick = profile?.player_name || currentUser.email?.split('@')[0] || '?';
   document.getElementById('user-name').textContent = nick;
-
   const email = profile?.email || currentUser.email;
   loadPlans(email.toLowerCase());
 }
