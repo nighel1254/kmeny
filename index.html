@@ -19,21 +19,19 @@
   .btn { width:100%; padding:11px; border:none; border-radius:4px; font-size:14px; font-weight:600; cursor:pointer; margin-top:20px; }
   .btn-primary { background:var(--gold); color:#1a0e00; }
   .btn-primary:hover { background:var(--gold2); }
-  .btn-secondary { background:transparent; border:1px solid var(--border); color:var(--dim); margin-top:8px; }
-  .btn-secondary:hover { border-color:var(--gold); color:var(--text); }
   .error { background:#2a0a00; border:1px solid #8b2020; border-radius:4px; padding:10px; font-size:12px; color:#ff8080; margin-top:12px; display:none; }
   .success { background:#0a2a0a; border:1px solid #205020; border-radius:4px; padding:10px; font-size:12px; color:#80d080; margin-top:12px; display:none; }
-  .divider { text-align:center; color:var(--dim); font-size:11px; margin:16px 0; }
   .tab-btns { display:flex; gap:6px; margin-bottom:20px; }
   .tab-btn { flex:1; padding:8px; border:1px solid var(--border); border-radius:4px; background:transparent; color:var(--dim); cursor:pointer; font-size:13px; }
   .tab-btn.active { border-color:var(--gold); color:var(--gold); background:#1e1508; }
+  .hint { font-size:11px; color:var(--dim); margin-top:6px; }
 </style>
 </head>
 <body>
 <div class="card">
   <div class="logo">
     <h1>⚔️ DK Plánovač</h1>
-    <p>cs112.divokekmeny.cz</p>
+    <p>cs112 – Divoké kmeny</p>
   </div>
 
   <div class="tab-btns">
@@ -43,8 +41,8 @@
 
   <!-- LOGIN -->
   <div id="tab-login">
-    <label>Email</label>
-    <input type="email" id="login-email" placeholder="tvuj@email.cz" autocomplete="email">
+    <label>Nick ve hře</label>
+    <input type="text" id="login-nick" placeholder="např. skret1254" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
     <label>Heslo</label>
     <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn btn-primary" onclick="doLogin()">Přihlásit se</button>
@@ -52,10 +50,9 @@
 
   <!-- REGISTER -->
   <div id="tab-register" style="display:none">
-    <label>Email</label>
-    <input type="email" id="reg-email" placeholder="tvuj@email.cz" autocomplete="email">
-    <label>Jméno hráče (v TW)</label>
-    <input type="text" id="reg-name" placeholder="např. skret1254">
+    <label>Nick ve hře</label>
+    <input type="text" id="reg-nick" placeholder="např. skret1254" autocomplete="username">
+    <p class="hint">Zadej přesně svůj nick z Divokých kmenů (velká/malá písmena nevadí)</p>
     <label>Heslo</label>
     <input type="password" id="reg-password" placeholder="min. 6 znaků" autocomplete="new-password">
     <label>Heslo znovu</label>
@@ -71,11 +68,19 @@
 const SUPABASE_URL = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const FAKE_DOMAIN = '@dk.cs112.tw';
+
+// Nick → fake email
+function nickToEmail(nick) {
+  return nick.toLowerCase().trim() + FAKE_DOMAIN;
+}
 
 function showTab(tab) {
   document.getElementById('tab-login').style.display    = tab==='login'    ? '' : 'none';
   document.getElementById('tab-register').style.display = tab==='register' ? '' : 'none';
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1)));
+  document.querySelectorAll('.tab-btn').forEach((b,i) =>
+    b.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1))
+  );
   hideMessages();
 }
 
@@ -94,42 +99,57 @@ function hideMessages() {
   document.getElementById('ok-msg').style.display = 'none';
 }
 
+async function redirect(userId) {
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', userId).single();
+  window.location.href = profile?.role === 'commander' ? 'commander.html' : 'dashboard.html';
+}
+
 async function doLogin() {
-  const email    = document.getElementById('login-email').value.trim();
+  const nick     = document.getElementById('login-nick').value.trim();
   const password = document.getElementById('login-password').value;
-  if (!email || !password) { showErr('Vyplň email a heslo.'); return; }
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) { showErr('Chyba: ' + error.message); return; }
-  // Zjisti roli a přesměruj
-  const { data: profile } = await sb.from('profiles').select('role').eq('id', data.user.id).single();
-  if (profile?.role === 'commander') {
-    window.location.href = 'commander.html';
-  } else {
-    window.location.href = 'dashboard.html';
+  if (!nick || !password) { showErr('Vyplň nick a heslo.'); return; }
+  const { data, error } = await sb.auth.signInWithPassword({
+    email: nickToEmail(nick), password
+  });
+  if (error) {
+    showErr(error.message.includes('Invalid') ? 'Špatný nick nebo heslo.' : 'Chyba: ' + error.message);
+    return;
   }
+  redirect(data.user.id);
 }
 
 async function doRegister() {
-  const email  = document.getElementById('reg-email').value.trim();
-  const name   = document.getElementById('reg-name').value.trim();
-  const pass1  = document.getElementById('reg-password').value;
-  const pass2  = document.getElementById('reg-password2').value;
-  if (!email || !name || !pass1) { showErr('Vyplň všechna pole.'); return; }
+  const nick  = document.getElementById('reg-nick').value.trim();
+  const pass1 = document.getElementById('reg-password').value;
+  const pass2 = document.getElementById('reg-password2').value;
+  if (!nick)           { showErr('Vyplň svůj nick.'); return; }
+  if (!pass1)          { showErr('Vyplň heslo.'); return; }
   if (pass1 !== pass2) { showErr('Hesla se neshodují.'); return; }
-  if (pass1.length < 6) { showErr('Heslo musí mít alespoň 6 znaků.'); return; }
-  const { error } = await sb.auth.signUp({ email, password: pass1, options: { data: { player_name: name } } });
-  if (error) { showErr('Chyba: ' + error.message); return; }
+  if (pass1.length < 6){ showErr('Heslo musí mít alespoň 6 znaků.'); return; }
+
+  const fakeEmail = nickToEmail(nick);
+  const { data, error } = await sb.auth.signUp({
+    email: fakeEmail,
+    password: pass1,
+    options: { data: { player_name: nick } }
+  });
+  if (error) {
+    showErr(error.message.includes('already') ? 'Tento nick je již zaregistrován.' : 'Chyba: ' + error.message);
+    return;
+  }
   // Ulož player_name do profilu
-  showOk('Účet vytvořen! Přihlaš se.');
-  showTab('login');
+  if (data.user) {
+    await sb.from('profiles').upsert({ id: data.user.id, email: fakeEmail, player_name: nick });
+    redirect(data.user.id);
+  } else {
+    showOk('Účet vytvořen! Přihlaš se.');
+    showTab('login');
+  }
 }
 
 // Pokud je už přihlášen, přesměruj
 sb.auth.getSession().then(({ data: { session } }) => {
-  if (!session) return;
-  sb.from('profiles').select('role').eq('id', session.user.id).single().then(({ data }) => {
-    window.location.href = data?.role === 'commander' ? 'commander.html' : 'dashboard.html';
-  });
+  if (session) redirect(session.user.id);
 });
 </script>
 </body>
