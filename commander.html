@@ -2414,12 +2414,20 @@ function refreshRow(rowIdx) {
   const ws = parseFloat(document.getElementById('world-speed')?.value || '1') || 1;
   const us = parseFloat(document.getElementById('unit-speed')?.value || '1') || 1;
 
+  // Vesnice které už jsou navrženy pro jiné řádky – vyloučit
+  const alreadyProposed = new Set();
+  attackRows.forEach((r, idx) => {
+    if (idx === rowIdx) return;
+    if (r._proposal) alreadyProposed.add(`${r._proposal.srcX}|${r._proposal.srcY}`);
+  });
+
   const candidates = [];
   for (const v of pool) {
     const vx = v.x ?? v.srcX;
     const vy = v.y ?? v.srcY;
     if (!vx || !vy) continue;
     if (vx === row.srcX && vy === row.srcY) continue;
+    if (alreadyProposed.has(`${vx}|${vy}`)) continue;
 
     const dx = Math.abs(vx - row.tgtX);
     const dy = Math.abs(vy - row.tgtY);
@@ -2506,6 +2514,21 @@ function acceptRefresh(rowIdx) {
   delete proposal._proposal;
   attackRows[rowIdx] = proposal;
   document.getElementById(`proposal-${rowIdx}`)?.remove();
+
+  // Aktualizuj i v savedActions – hledej podle původního zdroje + cíle + typu
+  const origRow = attackRows[rowIdx]; // už nahrazeno proposal
+  savedActions.forEach(action => {
+    for (let i = 0; i < action.rows.length; i++) {
+      const r = action.rows[i];
+      if (r.tgtX === proposal.tgtX && r.tgtY === proposal.tgtY &&
+          r.isFake === proposal.isFake && r.isFakeNoble === proposal.isFakeNoble &&
+          !r._alreadyRefreshed) {
+        action.rows[i] = { ...proposal, _alreadyRefreshed: true };
+        break;
+      }
+    }
+  });
+
   renderResults();
   autosave();
   toast('✓ Řádek nahrazen.', 'ok');
