@@ -265,12 +265,6 @@
 <div id="toast-container"></div>
 
 <!-- Autosave banner -->
-<div id="autosave-banner" style="display:flex;">
-  <span id="autosave-banner-text"></span>
-  <button onclick="restoreAutosave()" style="background:var(--gold);color:#1a0e00;">↩ Obnovit</button>
-  <button onclick="dismissAutosave()" style="background:transparent;border:1px solid var(--border);color:var(--dim);">✕</button>
-</div>
-
 <!-- Plans panel -->
 <div id="plans-panel">
   <div class="plans-panel-header">
@@ -384,35 +378,21 @@
           </div>
           <div id="coord-count-global" style="font-size:11px;color:var(--gold);margin-top:6px;font-weight:bold;"></div>
 
-          <!-- PŘEPÍNAČ: globální / per-cíl -->
+          <!-- Čas příchodu – pouze globální -->
           <div style="margin-top:12px;">
-            <div style="font-size:12px;color:var(--gold);margin-bottom:6px;">⏰ Čas příchodu</div>
-            <div class="arrival-mode-toggle">
-              <div class="arrival-mode-btn active" id="mode-btn-global" onclick="setArrivalMode('global')">🌍 Globální</div>
-              <div class="arrival-mode-btn"        id="mode-btn-per"    onclick="setArrivalMode('per')">🎯 Per-cíl</div>
+            <div class="global-arrival">
+              <label>⏰ Čas příchodu (pro všechny cíle)</label>
+              <div class="arrival-row">
+                <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
+                <select id="global-unit" class="unit-select">
+                  <option value="ram" selected>Beranidlo</option>
+                </select>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+                <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
+                <input type="datetime-local" id="global-arrival-to" step="1" style="flex:1;">
+              </div>
             </div>
-          </div>
-
-          <!-- Globální čas -->
-          <div id="global-arrival-wrap" class="global-arrival">
-            <label>Čas příchodu (pro všechny cíle)</label>
-            <div class="arrival-row">
-              <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
-              <select id="global-unit" class="unit-select">
-                <option value="ram" selected>Beranidlo</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
-              <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
-              <input type="datetime-local" id="global-arrival-to" step="1" style="flex:1;">
-            </div>
-          </div>
-
-          <!-- Per-cíl seznam -->
-          <div id="per-arrival-wrap" style="display:none;margin-top:8px;">
-            <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">Nastav čas a jednotku pro každý cíl:</div>
-            <div class="coord-list" id="coord-list" style="display:none;"></div>
-            <div id="coord-count" style="font-size:11px;color:var(--dim);margin-top:4px;"></div>
           </div>
         </div>
 
@@ -824,7 +804,7 @@ function getUnitSelectValue(id) {
   return el ? el.value : 'ram';
 }
 
-document.addEventListener('DOMContentLoaded', () => { loadWorldConfig(); initUnitSelects(); loadAutosave(); });
+document.addEventListener('DOMContentLoaded', () => { loadWorldConfig(); initUnitSelects(); loadAutosaveFromDB(); });
 
 // ── FETCH ──────────────────────────────────────────────────
 async function fetchWithFallback(url) {
@@ -2205,11 +2185,28 @@ function loadPlanFromFile(evt) {
   reader.readAsText(file);
 }
 
-function autosave() {
+async function autosave() {
+  // Ulož do localStorage pro zálohu
   try {
     const state = JSON.stringify(getPlanState());
     localStorage.setItem(PLAN_LS_KEY, state);
-  } catch(e) { /* localStorage plný nebo nedostupný */ }
+  } catch(e) {}
+  // Ulož do DB jako osobní plán (přepíše poslední autosave)
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const allRows = getAllRowsIncludingCurrent();
+    if (!allRows.length && !savedActions.length) return;
+    // Najdi existující autosave a přepiš ho
+    const { data: existing } = await sb.from('plans')
+      .select('id').eq('created_by', session.user.id).eq('type','personal').eq('label','⚙️ Autosave').single();
+    const planData = { rows: allRows, savedActions, snapshot: captureInputSnapshot() };
+    if (existing) {
+      await sb.from('plans').update({ data: planData, updated_at: new Date().toISOString() }).eq('id', existing.id);
+    } else {
+      await sb.from('plans').insert({ created_by: session.user.id, label: '⚙️ Autosave', world: WORLD, type: 'personal', data: planData });
+    }
+  } catch(e) { /* tichá chyba */ }
 }
 
 function loadAutosave() {
@@ -2456,6 +2453,7 @@ async function loadPlansFromDB(type='tribal') {
   if (!session) return;
   const { data: plans, error } = await sb.from('plans')
     .select('id, label, created_at, data, created_by, profiles(player_name)')
+    .eq('type', type === 'personal' ? 'personal' : 'tribal')
     .order('created_at', { ascending: false })
     .limit(50);
   const listEl = document.getElementById('plans-panel-list');
@@ -2552,12 +2550,49 @@ async function doSavePlanWithName() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
   const { error } = await sb.from('plans').insert({
-    created_by: session.user.id, label, world: WORLD,
+    created_by: session.user.id, label, world: WORLD, type: 'tribal',
     data: { rows: allRows, savedActions, snapshot: captureInputSnapshot() }
   });
   if (error) { toast('Chyba při ukládání: ' + error.message, 'err'); return; }
   toast(`✓ Plán "${label}" uložen do kmenových plánů.`, 'ok', 5000);
   if (_plansOpen) loadPlansFromDB(_plansTab);
+}
+
+async function saveCurrentPlanToDB() {
+  const allRows = getAllRowsIncludingCurrent();
+  if (!allRows.length && !savedActions.length) { toast('Není co uložit.', 'err'); return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  const dt = new Date();
+  const label = `Osobní ${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  const { error } = await sb.from('plans').insert({
+    created_by: session.user.id, label, world: WORLD, type: 'personal',
+    data: { rows: allRows, savedActions, snapshot: captureInputSnapshot() }
+  });
+  if (error) { toast('Chyba: ' + error.message, 'err'); return; }
+  toast(`✓ Osobní verze "${label}" uložena.`, 'ok');
+  if (_plansOpen) loadPlansFromDB('personal');
+}
+
+async function loadAutosaveFromDB() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const { data: plan } = await sb.from('plans')
+      .select('data, created_at').eq('created_by', session.user.id)
+      .eq('type','personal').eq('label','⚙️ Autosave').single();
+    if (!plan) return;
+    const state = {
+      savedActions: plan.data?.savedActions || [],
+      attackRows:   plan.data?.rows || [],
+      srcVillages, jsonVillages,
+      snapshot:     plan.data?.snapshot || null,
+      version: 2, savedAt: new Date(plan.created_at).getTime()
+    };
+    if (state.savedActions.length || state.attackRows.length) {
+      showAutosaveBanner(state);
+    }
+  } catch(e) {}
 }
 
 async function loadPlanFromDB(planId) {
