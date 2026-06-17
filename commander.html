@@ -397,7 +397,6 @@
               <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
               <select id="global-unit" class="unit-select">
                 <option value="ram" selected>Beranidlo</option>
-                <option value="noble">Šlechtic</option>
               </select>
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
@@ -432,7 +431,6 @@
               <input type="datetime-local" id="global-arrival-player" step="1">
               <select id="global-unit-player" class="unit-select">
                 <option value="ram" selected>Beranidlo</option>
-                <option value="noble">Šlechtic</option>
               </select>
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
@@ -578,8 +576,11 @@
         <div style="margin-top:10px;">
           <label style="font-size:13px;">Cílové vesnice</label>
           <textarea id="noble-target-coords" rows="3" placeholder="567|503&#10;568|504&#10;570|501" style="width:100%;margin-top:4px;resize:vertical;" oninput="updateNobleTargetCount()"></textarea>
-          <div style="font-size:11px;color:var(--dim);margin-top:3px;">Každá vesnice na novém řádku nebo oddělená mezerou. Šlechtici se přiřadí nejbližší ke každému cíli.</div>
           <div id="noble-target-count" style="font-size:11px;color:var(--gold);margin-top:4px;font-weight:bold;"></div>
+          <div class="btn-row" style="margin-top:6px;">
+            <button class="btn btn-primary btn-sm" onclick="updateNobleTargetCount()">▶ Načíst</button>
+            <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="document.getElementById('noble-target-coords').value='';document.getElementById('noble-target-count').textContent='';">✕ Smazat</button>
+          </div>
         </div>
 
         <!-- Čas příchodu -->
@@ -623,10 +624,7 @@
           <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;font-weight:normal;" onclick="saveAction()" title="Uloží aktuální akci a odebere použité offky ze zdrojů">💾 Přidat do plánu</button>
           <button class="btn btn-sm btn-blue" onclick="openExport()" style="font-weight:normal;">📤 Export</button>
           <button class="btn btn-sm" style="background:#1a0a2a;border:1px solid #402060;color:#c080ff;font-weight:normal;" onclick="publishToPlayers()" title="Publikuje plán hráčům přes Supabase">🚀 Publikovat hráčům</button>
-          <button class="btn btn-sm" style="background:#0a2a0a;border:1px solid #205020;color:#60c060;font-weight:normal;" onclick="savePlanToFile()" title="Stáhne celý plán jako JSON soubor">💾 Uložit plán</button>
-          <button class="btn btn-sm" style="background:#1a1a0a;border:1px solid #504020;color:#c0c060;font-weight:normal;" onclick="document.getElementById('load-plan-input').click()" title="Načte plán z JSON souboru">📂 Načíst plán</button>
-          <input type="file" id="load-plan-input" accept=".json" style="display:none" onchange="loadPlanFromFile(event)">
-          <button class="btn btn-sm btn-red" onclick="clearResults()" style="font-weight:normal;">✕ Smazat</button>
+          <button class="btn btn-sm btn-red" onclick="clearAll()" style="font-weight:normal;">✕ Smazat</button>
         </div>
       </div>
       <!-- Uložené akce -->
@@ -1298,7 +1296,6 @@ function renderCoordList() {
            onchange="coordTargets[${i}].arrivalTime=this.value?new Date(this.value).getTime():null"></span>
          <span class="ci-unit"><select class="unit-select" onchange="coordTargets[${i}].unit=this.value">
            <option value="ram" ${c.unit==='ram'?'selected':''}>Beranidlo</option>
-           <option value="noble" ${c.unit==='noble'?'selected':''}>Šlechtic</option>
          </select></span>
          <button class="ci-remove" onclick="removeCoord(${i})">✕</button>
        </div>`;
@@ -1766,7 +1763,7 @@ function renderResults(nightWarnings) {
   });
   if (search) {
     visible = visible.filter(r =>
-      `${r.srcX}|${r.srcY} ${r.srcName} ${r.srcPlayer} ${r.tgtX}|${r.tgtY} ${r.tgtName}`.toLowerCase().includes(search)
+      `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''}`.toLowerCase().includes(search)
     );
   }
 
@@ -1951,24 +1948,83 @@ function applySortToVisible(arr) {
     }
   });
 }
-function clearResults() {
+function clearAll() {
+  // Reset výsledků
   attackRows = [];
   lastNightWarnings = [];
+  savedActions = [];
+  srcVillages = [];
+  jsonVillages = [];
+  fakeTargets = [];
+  fakeNobleTargets = [];
+  coordTargets = [];
+
+  // Reset formulářů
+  document.getElementById('coords-paste').value = '';
+  document.getElementById('json-paste') && (document.getElementById('json-paste').value = '');
+  document.getElementById('fake-coords-paste').value = '';
+  document.getElementById('fake-noble-coords-paste').value = '';
+  document.getElementById('noble-target-coords').value = '';
+  document.getElementById('fake-arrival').value = '';
+  document.getElementById('fake-arrival-to').value = '';
+  document.getElementById('noble-arrival').value = '';
+  document.getElementById('noble-arrival-to').value = '';
+  document.getElementById('fake-noble-arrival').value = '';
+  document.getElementById('fake-noble-arrival-to').value = '';
+  document.getElementById('global-arrival').value = '';
+  document.getElementById('global-arrival-to').value = '';
+  document.getElementById('fake-count').value = '0';
+  document.getElementById('fake-noble-count').value = '0';
+  document.getElementById('noble-count-per-target').value = '4';
+  document.getElementById('sharp-count').value = '1';
+  document.getElementById('noble-coord-count').textContent = '';
+  document.getElementById('fake-coord-count') && (document.getElementById('fake-coord-count').textContent = '');
+  document.getElementById('fake-noble-coord-count').textContent = '';
+  document.getElementById('village-list').innerHTML = '';
+  document.getElementById('village-count').textContent = '';
+  document.getElementById('json-village-count') && (document.getElementById('json-village-count').textContent = '');
+
+  // Reset src-filter
+  document.getElementById('filter-full').checked = true;
+  document.getElementById('filter-triq').checked = true;
+  document.getElementById('filter-half').checked = true;
+
+  // Reset src-from-json
+  document.getElementById('src-from-json-wrap').style.display = 'none';
+  document.getElementById('src-from-json-empty').style.display = 'block';
+
+  // Reset noble panel
+  document.getElementById('noble-content').style.display = 'none';
+  document.getElementById('noble-empty').style.display = 'block';
+
+  refreshSavedActionsBar();
   document.getElementById('results-area').innerHTML = '<div class="empty-state"><div class="icon">⚔️</div><div>Smazáno</div></div>';
-  document.getElementById('attack-count').textContent = '';
   document.getElementById('attack-summary').style.display = 'none';
   document.getElementById('uncovered-wrap').style.display = 'none';
-}
 
+  autosave();
+  toast('Plán a formuláře vyčištěny.', 'info');
+}
 // ── EXPORT ─────────────────────────────────────────────────
 function refreshSavedActionsBar() {
   const bar  = document.getElementById('saved-actions-bar');
   const list = document.getElementById('saved-actions-list');
   if (!savedActions.length) { bar.style.display = 'none'; return; }
   bar.style.display = 'block';
-  list.innerHTML = savedActions.map((a,i) =>
-    `<span style="background:#1a2a1a;border:1px solid #305030;border-radius:3px;padding:2px 7px;margin-right:4px;color:#80d080;">${a.label} (${a.rows.length} útoků)</span><button onclick="editAction(${i})" style="background:#2a1a00;border:1px solid #604020;border-radius:3px;padding:1px 7px;color:#d4a84b;cursor:pointer;font-size:11px;margin-right:8px;">✏️ Upravit</button>`
-  ).join('');
+  list.innerHTML = savedActions.map((a, i) => {
+    const sharp  = a.rows.filter(r => !r.isFake && !r.isNoble).length;
+    const fakes  = a.rows.filter(r => r.isFake).length;
+    const nobles = a.rows.filter(r => r.isNoble).length;
+    const times  = a.rows.map(r => r.arrivalTime).filter(Boolean);
+    const minT   = times.length ? new Date(Math.min(...times)) : null;
+    const arrStr = minT ? `Příchod: ${minT.getDate()}.${minT.getMonth()+1}. ${String(minT.getHours()).padStart(2,'0')}:${String(minT.getMinutes()).padStart(2,'0')}` : '';
+    return `<div style="display:inline-flex;align-items:center;gap:6px;background:#0a1a0a;border:1px solid #305030;border-radius:5px;padding:4px 10px;margin-right:6px;margin-bottom:4px;">
+      <span style="color:#80d080;font-weight:600;">Akce ${i+1}</span>
+      <span style="color:var(--dim);font-size:11px;">${arrStr}</span>
+      <span style="color:var(--dim);font-size:11px;">⚔️${sharp} 💨${fakes} 👑${nobles}</span>
+      <button onclick="editAction(${i})" style="background:#2a1a00;border:1px solid #604020;border-radius:3px;padding:2px 8px;color:#d4a84b;cursor:pointer;font-size:11px;">✏️</button>
+    </div>`;
+  }).join('');
 }
 
 function editAction(idx) {
