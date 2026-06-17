@@ -2713,6 +2713,7 @@ function closePublishModal() {
 async function publishSelected() {
   if (!_publishPlan) return;
   const { byPlayer, allProfiles } = _publishPlan;
+  const players = allProfiles?.filter(p => p.role === 'player') || [];
   const assignments = [], sent = [], empty = [];
 
   const selectedPlayers = players.filter(p => {
@@ -2725,10 +2726,11 @@ async function publishSelected() {
     const planKey = [...byPlayer.keys()].find(k => k.toLowerCase() === profile.player_name?.toLowerCase());
     const rows = planKey ? byPlayer.get(planKey) : [];
     if (!rows.length) empty.push(profile.player_name);
-    // Bez plan_id – jen přímé přiřazení řádků hráči
     assignments.push({ player_email: profile.email, player_name: profile.player_name, rows_data: rows });
     sent.push(profile.player_name);
   }
+
+  if (!assignments.length) { toast('Nikdo vybrán.', 'err'); return; }
 
   const { error } = await sb.from('plan_assignments').insert(assignments);
   if (error) { toast('Chyba: ' + error.message, 'err'); return; }
