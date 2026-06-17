@@ -148,8 +148,8 @@ async function loadPlans(email) {
     const firstSend = sendTimes.length ? fixTime(Math.min(...sendTimes)) : null;
     const firstArr  = arrTimes.length  ? fixTime(Math.min(...arrTimes))  : null;
 
-    const label = a.plans?.label || a.plan_label || 'Plán útoku';
     const assignedAt = new Date(a.created_at);
+    const label = a.plans?.label || a.plan_label || `Plán ${assignedAt.getDate()}.${assignedAt.getMonth()+1}. ${pad(assignedAt.getHours())}:${pad(assignedAt.getMinutes())}`;
 
     return `<div class="plan-card">
       <div class="plan-card-header">
@@ -162,6 +162,7 @@ async function loadPlans(email) {
           </div>
         </div>
         <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít plán</button>
+        <button onclick="deletePlan('${a.id}', this)" style="background:transparent;border:1px solid #502020;color:#cc6060;padding:6px 12px;border-radius:5px;border-width:1px;cursor:pointer;font-size:12px;">🗑 Smazat</button>
       </div>
       <div class="plan-stats">
         ${sharp.length  ? `<span class="stat">⚔️ <strong>${sharp.length}</strong> ostrých</span>` : ''}
@@ -185,6 +186,19 @@ async function openPlan(assignmentId) {
   const data = { p: nick, w: a.plans?.world||'cs112', e: Math.floor(Date.now()/1000), rows: a.rows_data||[] };
   const compressed = LZString.compressToBase64(JSON.stringify(data)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   window.location.href = `plan.html#${compressed}`;
+}
+
+async function deletePlan(assignmentId, btn) {
+  btn.textContent = '...';
+  const { error } = await sb.from('plan_assignments').delete().eq('id', assignmentId);
+  if (error) { btn.textContent = '🗑 Smazat'; return; }
+  btn.closest('.plan-card').remove();
+  // Aktualizuj počet
+  const grid = document.getElementById('plans-container');
+  const count = grid.querySelectorAll('.plan-card').length;
+  const title = grid.querySelector('.section-title');
+  if (title) title.textContent = `📋 Přiřazené plány (${count})`;
+  if (!count) grid.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Žádné plány útoků ti zatím nebyly přiřazeny.</p></div>`;
 }
 
 async function doLogout() {
