@@ -72,8 +72,7 @@
     th, td { padding: 5px 6px; }
 
     /* Skryj čas odeslání a cestu */
-    th:nth-child(6), td:nth-child(6),
-    th:nth-child(8), td:nth-child(8)
+    th:nth-child(7), td:nth-child(7)    /* Cesta */
     { display: none; }
 
     .warning-box { margin: 6px; font-size: 11px; }
@@ -225,6 +224,7 @@ function renderTable() {
     <th onclick="setSort('tgt')">Cíl ${sortIndicator('tgt')}</th>
     <th>Jednotka</th>
     <th onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
+    <th onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
     <th onclick="setSort('arrive')">Čas příchodu ${sortIndicator('arrive')}</th>
     <th onclick="setSort('travel')">Cesta ${sortIndicator('travel')}</th>
     <th>Odpočet</th><th>▶</th>
@@ -247,6 +247,7 @@ function renderTable() {
       <td>${typeChip(r)}</td>
       <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
+      <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
       <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
       <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
       <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
