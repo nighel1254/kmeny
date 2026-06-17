@@ -2039,8 +2039,10 @@ function editAction(idx) {
 
 function captureInputSnapshot() {
   const g = id => document.getElementById(id)?.value || '';
-  const gc = id => document.getElementById(id)?.checked ?? true;
   return {
+    // Zdrojové vesnice
+    jsonVillages: JSON.stringify(jsonVillages),
+    srcVillages:  JSON.stringify(srcVillages),
     // Cílové vesnice
     sharpCount:       document.getElementById('sharp-count')?.value || '1',
     coordsPaste:      document.getElementById('coords-paste')?.value || '',
@@ -2070,6 +2072,9 @@ function captureInputSnapshot() {
 
 function restoreInputSnapshot(snap) {
   if (!snap) return;
+  // Zdrojové vesnice
+  if (snap.jsonVillages) { try { jsonVillages = JSON.parse(snap.jsonVillages); applyJsonFilter(); } catch(e){} }
+  if (snap.srcVillages)  { try { srcVillages  = JSON.parse(snap.srcVillages);  } catch(e){} }
   // Cílové vesnice
   if (document.getElementById('sharp-count')) document.getElementById('sharp-count').value = snap.sharpCount || '1';
   if (document.getElementById('coords-paste')) document.getElementById('coords-paste').value = snap.coordsPaste || '';
