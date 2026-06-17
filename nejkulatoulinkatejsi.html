@@ -207,6 +207,7 @@
     #saved-actions-bar { font-size: 11px; overflow-x: auto; }
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 </head>
 <body>
@@ -559,6 +560,7 @@
           <span id="attack-count" style="font-size:11px;color:var(--dim);font-weight:normal;"></span>
           <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;font-weight:normal;" onclick="saveAction()" title="Uloží aktuální akci a odebere použité offky ze zdrojů">💾 Přidat do plánu</button>
           <button class="btn btn-sm btn-blue" onclick="openExport()" style="font-weight:normal;">📤 Export</button>
+          <button class="btn btn-sm" style="background:#1a0a2a;border:1px solid #402060;color:#c080ff;font-weight:normal;" onclick="publishToPlayers()" title="Publikuje plán hráčům přes Supabase">🚀 Publikovat hráčům</button>
           <button class="btn btn-sm" style="background:#0a2a0a;border:1px solid #205020;color:#60c060;font-weight:normal;" onclick="savePlanToFile()" title="Stáhne celý plán jako JSON soubor">💾 Uložit plán</button>
           <button class="btn btn-sm" style="background:#1a1a0a;border:1px solid #504020;color:#c0c060;font-weight:normal;" onclick="document.getElementById('load-plan-input').click()" title="Načte plán z JSON souboru">📂 Načíst plán</button>
           <input type="file" id="load-plan-input" accept=".json" style="display:none" onchange="loadPlanFromFile(event)">
@@ -2110,7 +2112,7 @@ function playerDataToUrl(playerName, rows) {
     w: WORLD,
     e: Math.floor(Date.now()/1000),
     r: rows.map(r => [
-      r.srcId||0, r.srcName||'', r.srcX, r.srcY, r.srcCategory||'',
+      r.srcId||0, r.srcName||'', r.srcX, r.srcY, r.srcCategory||'', r.srcPlayer||'',
       r.tgtX, r.tgtY, r.tgtName||'', r.tgtId||0, r.tgtOwner||'',
       r.unit||'ram', Math.floor(r.sendTime/1000), Math.floor(r.arrivalTime/1000),
       Math.floor(r.travel/1000),
@@ -2241,7 +2243,75 @@ function startAlarm(evt, rowIdx, link) {
   window.open(link, 'tw_game');
 }
 
-// ── UTILS ──────────────────────────────────────────────────
+// ── SUPABASE ────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Při načtení zkontroluj přihlášení
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (!session) { window.location.href = 'dk_login.html'; }
+});
+
+async function publishToPlayers() {
+  const allRows = getAllRows(); // všechny uložené + aktuální
+  if (!allRows.length) { alert('Nejsou žádné útoky k publikování.'); return; }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { alert('Nejsi přihlášen!'); window.location.href = 'dk_login.html'; return; }
+
+  // Seskup podle hráče
+  const byPlayer = new Map();
+  allRows.forEach(r => {
+    const p = r.srcPlayer || 'Neznámý';
+    if (!byPlayer.has(p)) byPlayer.set(p, []);
+    byPlayer.get(p).push(r);
+  });
+
+  const times  = allRows.map(r => r.arrivalTime);
+  const minT   = Math.min(...times), maxT = Math.max(...times);
+  const label  = `Akce ${fmtDT(new Date(minT))}${minT!==maxT?'–'+fmtDT(new Date(maxT)):''}`;
+
+  // Ulož plán do DB
+  const { data: plan, error: planErr } = await sb.from('plans').insert({
+    created_by: session.user.id,
+    label,
+    world: WORLD,
+    data: { rows: allRows, savedActions }
+  }).select().single();
+
+  if (planErr) { alert('Chyba při ukládání plánu: ' + planErr.message); return; }
+
+  // Ulož přiřazení pro každého hráče
+  const assignments = [];
+  for (const [playerName, rows] of byPlayer) {
+    // Pokus o nalezení emailu hráče podle jména
+    const { data: profile } = await sb.from('profiles').select('email').eq('player_name', playerName).single();
+    const playerEmail = profile?.email || '';
+    assignments.push({
+      plan_id: plan.id,
+      player_email: playerEmail,
+      player_name: playerName,
+      rows_data: rows
+    });
+  }
+
+  const { error: assignErr } = await sb.from('plan_assignments').insert(assignments);
+  if (assignErr) { alert('Chyba při přiřazování: ' + assignErr.message); return; }
+
+  const missing = assignments.filter(a => !a.player_email).map(a => a.player_name);
+  let msg = `✓ Plán publikován pro ${byPlayer.size} hráčů!`;
+  if (missing.length) msg += `\n\n⚠️ Tito hráči nemají účet (musí se zaregistrovat):\n${missing.join(', ')}`;
+  alert(msg);
+}
+
+function getAllRows() {
+  const all = [...attackRows];
+  savedActions.forEach(a => all.push(...a.rows));
+  return all;
+}
+
+// ── UTILS (konec souboru) ──────────────────────────────────
 const pad = n => String(Math.floor(n)).padStart(2,'0');
 function fmtDT(dt)    { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`; }
 function fmtDur(ms)   { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; }

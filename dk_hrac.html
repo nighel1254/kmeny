@@ -305,14 +305,14 @@ function decodeData(json) {
     return {
       player: d.p, world: d.w, exported: d.e * 1000,
       rows: d.r.map(a => ({
-        srcId: a[0]||null, srcName: a[1], srcX: a[2], srcY: a[3], srcCategory: a[4],
-        tgtX: a[5], tgtY: a[6], tgtName: a[7]||`${a[5]}|${a[6]}`, tgtId: a[8]||null, tgtOwner: a[9],
-        unit: a[10], sendTime: a[11]*1000, arrivalTime: a[12]*1000, travel: a[13]*1000,
-        isFake:      !!(a[14]&1),
-        isFakeNoble: !!(a[14]&2),
-        isNoble:     !!(a[14]&4),
-        night:       !!(a[14]&8),
-        nobleCount: a[15]||null
+        srcId: a[0]||null, srcName: a[1], srcX: a[2], srcY: a[3], srcCategory: a[4], srcPlayer: a[5]||'',
+        tgtX: a[6], tgtY: a[7], tgtName: a[8]||`${a[6]}|${a[7]}`, tgtId: a[9]||null, tgtOwner: a[10],
+        unit: a[11], sendTime: a[12]*1000, arrivalTime: a[13]*1000, travel: a[14]*1000,
+        isFake:      !!(a[15]&1),
+        isFakeNoble: !!(a[15]&2),
+        isNoble:     !!(a[15]&4),
+        night:       !!(a[15]&8),
+        nobleCount: a[16]||null
       }))
     };
   }
