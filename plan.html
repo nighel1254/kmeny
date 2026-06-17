@@ -85,6 +85,13 @@
 </head>
 <body style="visibility:hidden">
 
+<!-- Audio unlock banner -->
+<div id="audio-banner" style="background:#1a1200;border-bottom:2px solid var(--gold);padding:10px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+  <span style="font-size:20px;">🔔</span>
+  <span style="flex:1;font-size:13px;color:var(--gold2);">Klikni pro zapnutí zvukových upozornění – siréna zazní 2 minuty před odesláním, i když máš stránku na pozadí.</span>
+  <button id="audio-unlock-btn" onclick="unlockAudio()" style="background:var(--gold);color:#1a0e00;border:none;border-radius:6px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">🔔 Zapnout upozornění</button>
+</div>
+
 <div id="app">
   <div style="text-align:center;padding:40px;color:var(--dim);">Načítám plán...</div>
 </div>
@@ -150,25 +157,60 @@ function setSort(col) {
 
 // ── ZVUK SIRÉNY ────────────────────────────────────────────
 let audioCtx = null;
+let audioUnlocked = false;
+
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
 }
 
-function playSiren() {
+function unlockAudio() {
   try {
     const ctx = getAudioCtx();
-    const duration = 3; // sekundy
+    // Přehraj tichý zvuk – tím se odemkne audio context v Safari
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+    if (ctx.state === 'suspended') ctx.resume();
+    audioUnlocked = true;
+    // Aktualizuj banner
+    const banner = document.getElementById('audio-banner');
+    const btn = document.getElementById('audio-unlock-btn');
+    if (banner) {
+      banner.style.background = '#0a1a0a';
+      banner.style.borderBottomColor = 'var(--green)';
+    }
+    if (btn) {
+      btn.textContent = '✓ Upozornění zapnuta';
+      btn.style.background = '#205020';
+      btn.style.color = '#80d080';
+      btn.disabled = true;
+      btn.onclick = null;
+    }
+    // Test siréna na 1/4 hlasitosti
+    setTimeout(() => playSiren(0.15), 200);
+  } catch(e) {
+    console.warn('Audio unlock failed:', e);
+  }
+}
+
+function playSiren(volume = 0.4) {
+  if (!audioUnlocked && !audioCtx) return;
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    const duration = 3;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
-    // Siréna = frekvence osciluje mezi 600 a 1200 Hz
     osc.frequency.setValueAtTime(600, ctx.currentTime);
     for (let i = 0; i < duration * 4; i++) {
       osc.frequency.linearRampToValueAtTime(i%2===0?1200:600, ctx.currentTime + i*0.25 + 0.25);
     }
-    gain.gain.setValueAtTime(0.4, ctx.currentTime);
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + duration);
@@ -178,21 +220,20 @@ function playSiren() {
 // Sleduj odpočty a přehraj sirénu 2 minuty před odesláním
 const siren2minAlerted = new Set();
 function checkSirenAlerts() {
+  if (!audioUnlocked) return;
   const now = Date.now();
-  attackRows.forEach((r, i) => {
+  attackRows.forEach(r => {
     const key = rowKey(r);
     if (playedRows.has(key) || siren2minAlerted.has(key)) return;
     const diff = r.sendTime - now;
-    // 2 minuty = 120 000 ms, tolerance 5s
     if (diff > 0 && diff <= 120000) {
       siren2minAlerted.add(key);
       playSiren();
-      // Zobraz toast
       const tEl = document.createElement('div');
-      tEl.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;';
-      tEl.textContent = `⏰ 2 minuty do odeslání! ${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}`;
+      tEl.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.8);';
+      tEl.innerHTML = `⏰ 2 minuty do odeslání!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</span>`;
       document.body.appendChild(tEl);
-      setTimeout(()=>tEl.remove(), 8000);
+      setTimeout(() => tEl.remove(), 8000);
     }
   });
 }
