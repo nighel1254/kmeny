@@ -2392,7 +2392,9 @@ function refreshRow(rowIdx) {
   const row = attackRows[rowIdx];
   if (!row) return;
 
-  const pool = jsonVillages.length ? jsonVillages : srcVillages;
+  // Pool: pokud je vybraný konkrétní hráč (srcVillages), použij jen jeho vesnice
+  // Jinak použij jsonVillages (celý kmen)
+  const pool = srcVillages.length ? srcVillages : (jsonVillages.length ? jsonVillages : []);
   if (!pool.length) { toast('Nejsou k dispozici žádné zdrojové vesnice.', 'err'); return; }
 
   // Kolik útoků jde z každé vesnice
@@ -2474,7 +2476,9 @@ function showRefreshProposal(rowIdx, original, proposal) {
   }
   if (!targetTr) { toast('Řádek nenalezen.', 'err'); return; }
 
-  targetTr.style.opacity = '0.3';
+  targetTr.dataset.refreshOrigStyle = targetTr.style.cssText;
+  targetTr.style.outline = '2px solid #cc3333';
+  targetTr.style.opacity = '0.5';
   document.getElementById(`proposal-${rowIdx}`)?.remove();
 
   const proposalTr = document.createElement('tr');
@@ -2514,14 +2518,19 @@ function acceptRefresh(rowIdx) {
 
 function cancelRefresh(rowIdx) {
   document.getElementById(`proposal-${rowIdx}`)?.remove();
-  // Obnov opacity původního řádku
   const hideNight = document.getElementById('hide-night').checked;
   const trs = document.querySelectorAll('table.attacks tbody tr:not([id^="proposal-"])');
   let vi = 0;
   for (let i = 0; i < attackRows.length; i++) {
     const r = attackRows[i];
     if (hideNight && r.night && !r.isPast) continue;
-    if (i === rowIdx) { if (trs[vi]) { trs[vi].style.opacity=''; trs[vi].style.background=''; } break; }
+    if (i === rowIdx) {
+      if (trs[vi]) {
+        trs[vi].style.cssText = trs[vi].dataset.refreshOrigStyle || '';
+        delete trs[vi].dataset.refreshOrigStyle;
+      }
+      break;
+    }
     vi++;
   }
   if (attackRows[rowIdx]) delete attackRows[rowIdx]._proposal;
