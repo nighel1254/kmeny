@@ -2019,6 +2019,7 @@ function editAction(idx) {
   if (!action) return;
 
   attackRows = [...action.rows];
+  warnings = [];
 
   const usedCoords = new Set(action.rows.map(r => `${r.srcX}|${r.srcY}`));
   const restored = jsonVillages.filter(v => usedCoords.has(`${v.x}|${v.y}`) && !srcVillages.find(s => s.x===v.x && s.y===v.y));
@@ -2068,14 +2069,12 @@ function captureInputSnapshot() {
 
 function restoreInputSnapshot(snap) {
   if (!snap) return;
-  const s = id => { const el = document.getElementById(id); if (el) el.value = snap[id] !== undefined ? snap[id] : el.value; };
   // Cílové vesnice
   if (document.getElementById('sharp-count')) document.getElementById('sharp-count').value = snap.sharpCount || '1';
   if (document.getElementById('coords-paste')) document.getElementById('coords-paste').value = snap.coordsPaste || '';
   if (document.getElementById('global-arrival')) document.getElementById('global-arrival').value = snap.globalArrival || '';
   if (document.getElementById('global-arrival-to')) document.getElementById('global-arrival-to').value = snap.globalArrivalTo || '';
-  if (snap.arrivalMode) setArrivalMode(snap.arrivalMode);
-  if (snap.coordTargets) { try { coordTargets = JSON.parse(snap.coordTargets); renderCoordList(); } catch(e){} }
+  if (snap.coordTargets) { try { coordTargets = JSON.parse(snap.coordTargets); } catch(e){} }
   const cg = document.getElementById('coord-count-global');
   if (cg) cg.textContent = coordTargets.length ? `✓ Načteno ${coordTargets.length} cílů` : '';
   // Fejky
