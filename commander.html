@@ -2620,11 +2620,12 @@ async function doNavLogout() {
 
 async function publishToPlayers() {
   const allRows = getAllRowsIncludingCurrent();
+  if (!allRows.length) { toast('Nejsou žádné útoky k publikování.', 'err'); return; }
 
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = 'index.html'; return; }
 
-  // Seskup řádky podle hráče z plánu
+  // Seskup řádky podle hráče
   const byPlayer = new Map();
   allRows.forEach(r => {
     const p = r.srcPlayer || 'Neznámý';
@@ -2632,21 +2633,63 @@ async function publishToPlayers() {
     byPlayer.get(p).push(r);
   });
 
-  // Načti VŠECHNY registrované hráče (ne commandery)
+  // Načti VŠECHNY registrované hráče
   const { data: allProfiles } = await sb.from('profiles').select('email, player_name, role');
   const players = allProfiles?.filter(p => p.role === 'player') || [];
 
-  const times = allRows.map(r => r.arrivalTime);
-  const minT  = Math.min(...times), maxT = Math.max(...times);
-  const label = `Akce ${fmtDT(new Date(minT))}${minT!==maxT?'–'+fmtDT(new Date(maxT)):''}`;
+  // Ulož jen byPlayer a allProfiles – plán do DB se uloží až při "Odeslat vybraným"
+  _publishPlan = { byPlayer, allProfiles, session };
 
-  const { data: plan, error: planErr } = await sb.from('plans').insert({
-    created_by: session.user.id, label, world: WORLD,
-    data: { rows: allRows, savedActions }
-  }).select().single();
-  if (planErr) { toast('Chyba při ukládání: ' + planErr.message, 'err'); return; }
+  const listEl = document.getElementById('publish-player-list');
+  listEl.innerHTML = '';
 
-  _publishPlan = { plan, byPlayer, allProfiles };
+  for (const profile of players) {
+    const pName = profile.player_name;
+    const planKey = [...byPlayer.keys()].find(k => k.toLowerCase() === pName?.toLowerCase());
+    const rows = planKey ? byPlayer.get(planKey) : null;
+    const hasPlan = !!rows;
+    const sharp  = rows ? rows.filter(r => !r.isFake && !r.isNoble).length : 0;
+    const fakes  = rows ? rows.filter(r => r.isFake).length : 0;
+    const nobles = rows ? rows.filter(r => r.isNoble).length : 0;
+
+    const el = document.createElement('div');
+    el.style.cssText = `display:flex;align-items:center;gap:10px;padding:8px 10px;background:${hasPlan?'#140e04':'#0a0a0a'};border:1px solid ${hasPlan?'var(--border)':'#333'};border-radius:4px;`;
+    el.innerHTML = `
+      <input type="checkbox" id="pub-${pName}" ${hasPlan?'checked':''}
+        style="width:16px;height:16px;accent-color:var(--gold);flex-shrink:0;"
+        onchange="onPubCheckChange('${pName}', this)">
+      <div style="flex:1;">
+        <div style="font-weight:600;color:${hasPlan?'var(--text)':'var(--dim)'};">${pName}</div>
+        <div style="font-size:11px;color:var(--dim);">
+          ${hasPlan
+            ? `⚔️ ${sharp} ostrých &nbsp;💨 ${fakes} fejků &nbsp;👑 ${nobles} vlaků`
+            : '<span style="color:#888;">⚠️ v tomto plánu nemá útoky</span>'}
+        </div>
+      </div>
+      <span style="font-size:11px;color:${hasPlan?'var(--green)':'var(--dim)'};">
+        ${hasPlan ? '✓ má část' : '– bez části'}
+      </span>`;
+    listEl.appendChild(el);
+  }
+
+  // Hráči z plánu kteří nemají účet
+  for (const [playerName] of byPlayer) {
+    const hasProfile = players.find(p => p.player_name?.toLowerCase() === playerName.toLowerCase());
+    if (!hasProfile) {
+      const el = document.createElement('div');
+      el.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 10px;background:#1a0a0a;border:1px solid #502020;border-radius:4px;';
+      el.innerHTML = `
+        <input type="checkbox" disabled style="width:16px;height:16px;flex-shrink:0;opacity:.4;">
+        <div style="flex:1;">
+          <div style="font-weight:600;color:#cc6060;">${playerName}</div>
+          <div style="font-size:11px;color:#cc6060;">✗ není registrován</div>
+        </div>`;
+      listEl.appendChild(el);
+    }
+  }
+
+  document.getElementById('publish-modal').style.display = 'flex';
+}
 
   const listEl = document.getElementById('publish-player-list');
   listEl.innerHTML = '';
@@ -2715,13 +2758,32 @@ function closePublishModal() {
 
 async function publishSelected() {
   if (!_publishPlan) return;
-  const { plan, byPlayer, allProfiles } = _publishPlan;
+  const { byPlayer, allProfiles, session } = _publishPlan;
   const players = allProfiles?.filter(p => p.role === 'player') || [];
-  const assignments = [], missing = [], sent = [], empty = [];
+  const assignments = [], sent = [], empty = [];
 
-  for (const profile of players) {
-    const cb = document.getElementById(`pub-${profile.player_name}`);
-    if (!cb || !cb.checked) continue;
+  // Zjisti kdo je zaškrtnutý
+  const selectedPlayers = players.filter(p => {
+    const cb = document.getElementById(`pub-${p.player_name}`);
+    return cb && cb.checked;
+  });
+
+  if (!selectedPlayers.length) { toast('Nikdo vybrán.', 'err'); return; }
+
+  // Vytvoř plán v DB pro tuto publish akci
+  const allRows = getAllRowsIncludingCurrent();
+  const times = allRows.map(r => r.arrivalTime).filter(Boolean);
+  const minT = times.length ? Math.min(...times) : Date.now();
+  const maxT = times.length ? Math.max(...times) : Date.now();
+  const label = `Odeslání ${fmtDT(new Date(minT))}${minT!==maxT?'–'+fmtDT(new Date(maxT)):''}`;
+
+  const { data: plan, error: planErr } = await sb.from('plans').insert({
+    created_by: session.user.id, label, world: WORLD,
+    data: { rows: allRows, savedActions }
+  }).select().single();
+  if (planErr) { toast('Chyba při ukládání: ' + planErr.message, 'err'); return; }
+
+  for (const profile of selectedPlayers) {
     const planKey = [...byPlayer.keys()].find(k => k.toLowerCase() === profile.player_name?.toLowerCase());
     const rows = planKey ? byPlayer.get(planKey) : [];
     if (!rows.length) empty.push(profile.player_name);
@@ -2729,12 +2791,11 @@ async function publishSelected() {
     sent.push(profile.player_name);
   }
 
-  if (!assignments.length) { toast('Nikdo vybrán.', 'err'); return; }
   const { error } = await sb.from('plan_assignments').insert(assignments);
   if (error) { toast('Chyba: ' + error.message, 'err'); return; }
   closePublishModal();
   let msg = `✓ Plán odeslán: ${sent.join(', ')}`;
-  if (empty.length) msg += ` &nbsp;|&nbsp; ⚠️ prázdný plán: ${empty.join(', ')}`;
+  if (empty.length) msg += ` &nbsp;|&nbsp; ⚠️ prázdný: ${empty.join(', ')}`;
   toast(msg, 'ok', 6000);
   _publishPlan = null;
 }
@@ -2749,10 +2810,20 @@ function getAllRows() {
 }
 
 function getAllRowsIncludingCurrent() {
-  // Vrátí vše včetně aktuálně zobrazených (pro publish)
-  const all = [...attackRows];
+  // Stejné jako getAllRows – attackRows jsou vždy součástí savedActions
+  // pokud chceme zahrnout i aktuálně nepřidané, přidáme attackRows jen pokud nejsou v savedActions
+  const all = [];
   savedActions.forEach(a => all.push(...a.rows));
-  return all;
+  // Přidej aktuální attackRows jen pokud jsou (nepřidané do plánu)
+  if (attackRows.length) all.push(...attackRows);
+  // Deduplikuj podle srcX|srcY|sendTime
+  const seen = new Set();
+  return all.filter(r => {
+    const k = `${r.srcX}|${r.srcY}|${r.sendTime}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 // ── UTILS (konec souboru) ──────────────────────────────────
