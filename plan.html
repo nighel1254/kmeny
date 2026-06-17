@@ -327,7 +327,6 @@ function renderTable() {
     <th onclick="setSort('tgt')">Cíl ${sortIndicator('tgt')}</th>
     <th>Jednotka</th>
     <th onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
-    <th onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
     <th onclick="setSort('arrive')">Čas příchodu ${sortIndicator('arrive')}</th>
     <th onclick="setSort('travel')">Cesta ${sortIndicator('travel')}</th>
     <th>Odpočet</th><th>▶</th>
@@ -352,7 +351,6 @@ function renderTable() {
       <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
       <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
-      <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
       <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
       <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
       <td><span class="countdown" data-send="${r.sendTime}"></span></td>
@@ -374,9 +372,9 @@ function render(data) {
     <div class="top-bar">
       <h1>⚔️ Plán útoků – ${data.player}</h1>
       <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;">
-        <div class="meta">Svět: ${data.world} &nbsp;|&nbsp; Exportováno: ${fmtDT(new Date(data.exported))}</div>
-        <a href="dashboard.html" style="font-size:12px;color:var(--gold);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;">← Moje plány</a>
-        <button onclick="planLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:4px 10px;border-radius:4px;cursor:pointer;">Odhlásit</button>
+        <div class="meta">Svět: ${data.world||'cs112'} &nbsp;|&nbsp; ${data.exported ? fmtDT(new Date(data.exported > 1e12 ? data.exported : data.exported*1000)) : ''}</div>
+        <a href="dashboard.html" style="font-size:12px;color:var(--gold);text-decoration:none;background:#1e1508;border:1px solid var(--gold);padding:5px 12px;border-radius:4px;font-weight:600;">← Moje plány</a>
+        <button onclick="planLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 12px;border-radius:4px;cursor:pointer;">Odhlásit</button>
       </div>
     </div>
     <div class="summary-bar">
