@@ -100,7 +100,13 @@ function hideMessages() {
 }
 
 async function redirect(userId) {
-  const { data: profile } = await sb.from('profiles').select('role').eq('id', userId).single();
+  // Zkus načíst profil, retry kvůli možnému zpoždění triggeru
+  let profile = null;
+  for (let i = 0; i < 3; i++) {
+    const { data } = await sb.from('profiles').select('role, player_name').eq('id', userId).single();
+    if (data) { profile = data; break; }
+    await new Promise(r => setTimeout(r, 400));
+  }
   window.location.href = profile?.role === 'commander' ? 'commander.html' : 'dashboard.html';
 }
 
