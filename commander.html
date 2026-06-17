@@ -1847,6 +1847,7 @@ function renderResults(nightWarnings) {
            onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')">
           <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
         </a>
+        ${row.isFake || row.isFakeNoble ? `<button onclick="refreshRow(${rowIdx})" title="Najít jiný zdroj (ne v noci)" style="background:none;border:none;cursor:pointer;color:var(--dim);font-size:13px;padding:2px 4px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>` : ''}
       </td>
     </tr>`;
   });
@@ -2381,6 +2382,151 @@ function startAlarm(evt, rowIdx, link) {
 let _publishPlan = null;
 let _currentPlanLabel = '';
 let _currentPlanId = null;
+// ── REFRESH ŘÁDKU ──────────────────────────────────────────
+function isNightSend(sendTimeMs) {
+  const h = new Date(sendTimeMs).getHours();
+  return h >= 0 && h < 6;
+}
+
+function refreshRow(rowIdx) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+
+  const pool = jsonVillages.length ? jsonVillages : srcVillages;
+  if (!pool.length) { toast('Nejsou k dispozici žádné zdrojové vesnice.', 'err'); return; }
+
+  // Kolik útoků jde z každé vesnice
+  const usageCount = {};
+  attackRows.forEach((r, idx) => {
+    if (idx === rowIdx) return;
+    const key = `${r.srcX}|${r.srcY}`;
+    usageCount[key] = (usageCount[key] || 0) + 1;
+  });
+
+  const arrivalMs = row.arrivalTime;
+  const ws = parseFloat(document.getElementById('world-speed')?.value || '1') || 1;
+  const us = parseFloat(document.getElementById('unit-speed')?.value || '1') || 1;
+
+  const candidates = [];
+  for (const v of pool) {
+    const vx = v.x ?? v.srcX;
+    const vy = v.y ?? v.srcY;
+    if (!vx || !vy) continue;
+    if (vx === row.srcX && vy === row.srcY) continue;
+
+    const dx = Math.abs(vx - row.tgtX);
+    const dy = Math.abs(vy - row.tgtY);
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const ramSpeed = 30 / (ws * us);
+    const travelMsNew = Math.round(dist * ramSpeed * 60 * 1000);
+    const newSendMs = arrivalMs - travelMsNew;
+
+    if (newSendMs < Date.now() + 60000) continue;
+    if (isNightSend(newSendMs)) continue;
+
+    const key = `${vx}|${vy}`;
+    candidates.push({
+      srcX: vx, srcY: vy,
+      srcName: v.name || v.srcName || `${vx}|${vy}`,
+      srcPlayer: v.player_name || v.srcPlayer || '',
+      srcId: v.id || v.srcId || null,
+      srcCategory: row.srcCategory,
+      isFake: row.isFake, isFakeNoble: row.isFakeNoble, isNoble: row.isNoble,
+      tgtX: row.tgtX, tgtY: row.tgtY, tgtName: row.tgtName,
+      tgtId: row.tgtId, tgtOwner: row.tgtOwner,
+      unit: row.unit, sendTime: newSendMs, arrivalTime: arrivalMs,
+      travel: travelMsNew, night: false,
+      usage: usageCount[key] || 0
+    });
+  }
+
+  if (!candidates.length) {
+    toast('Žádná vhodná vesnice (vše v noci nebo v minulosti).', 'err', 5000);
+    return;
+  }
+
+  // Nejméně vytížená, pak nejblíže původnímu zdroji
+  candidates.sort((a, b) => {
+    if (a.usage !== b.usage) return a.usage - b.usage;
+    const da = Math.abs(a.srcX - row.srcX) + Math.abs(a.srcY - row.srcY);
+    const db = Math.abs(b.srcX - row.srcX) + Math.abs(b.srcY - row.srcY);
+    return da - db;
+  });
+
+  showRefreshProposal(rowIdx, row, candidates[0]);
+}
+
+function showRefreshProposal(rowIdx, original, proposal) {
+  const fmtL = (ms) => { const d=new Date(ms); return `${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; };
+  const fmtD = (ms) => { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; };
+
+  // Najdi TR podle rowIdx
+  const hideNight = document.getElementById('hide-night').checked;
+  const search = (document.getElementById('table-search')?.value||'').toLowerCase();
+  const trs = document.querySelectorAll('table.attacks tbody tr:not([id^="proposal-"])');
+  let vi = 0, targetTr = null;
+  for (let i = 0; i < attackRows.length; i++) {
+    const r = attackRows[i];
+    if (hideNight && r.night && !r.isPast) continue;
+    if (search && !`${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''}`.toLowerCase().includes(search)) continue;
+    if (i === rowIdx) { targetTr = trs[vi]; break; }
+    vi++;
+  }
+  if (!targetTr) { toast('Řádek nenalezen.', 'err'); return; }
+
+  targetTr.style.opacity = '0.3';
+  document.getElementById(`proposal-${rowIdx}`)?.remove();
+
+  const proposalTr = document.createElement('tr');
+  proposalTr.id = `proposal-${rowIdx}`;
+  proposalTr.style.cssText = 'background:#1a1500;outline:2px solid var(--gold);';
+  const typeLabel = proposal.isFakeNoble ? '↑👑 fejk vlak' : '💨 fejk';
+  proposalTr.innerHTML = `
+    <td colspan="2" style="color:var(--gold);font-size:11px;font-weight:600;">↺ Návrh</td>
+    <td><span class="coords" style="color:var(--gold2)">${proposal.srcX}|${proposal.srcY}</span> <span style="color:var(--dim);font-size:11px;">${proposal.srcName}</span> <span style="font-size:10px;color:var(--dim);">(${proposal.usage}×)</span></td>
+    <td><span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${typeLabel}</span></td>
+    <td><span class="coords">${proposal.tgtX}|${proposal.tgtY}</span> <span style="color:var(--dim);font-size:11px;">${proposal.tgtName||''}</span></td>
+    <td><span style="font-size:12px;">🐏</span></td>
+    <td style="color:var(--gold2);font-weight:600;">${fmtL(proposal.sendTime)}</td>
+    <td>${fmtL(proposal.arrivalTime)}</td>
+    <td style="color:var(--dim);font-size:11px;">${fmtD(proposal.travel)}</td>
+    <td></td>
+    <td style="white-space:nowrap;">
+      <button onclick="acceptRefresh(${rowIdx})" style="background:#205020;border:none;color:#80d080;border-radius:3px;padding:3px 9px;cursor:pointer;font-size:13px;margin-right:3px;">✓</button>
+      <button onclick="cancelRefresh(${rowIdx})" style="background:#502020;border:none;color:#d08080;border-radius:3px;padding:3px 9px;cursor:pointer;font-size:13px;">✗</button>
+    </td>`;
+
+  targetTr.parentNode.insertBefore(proposalTr, targetTr.nextSibling);
+  attackRows[rowIdx]._proposal = proposal;
+  toast(`Návrh: ${proposal.srcX}|${proposal.srcY} – odesílá ${fmtL(proposal.sendTime)}`, 'info', 8000);
+}
+
+function acceptRefresh(rowIdx) {
+  const proposal = attackRows[rowIdx]?._proposal;
+  if (!proposal) return;
+  delete proposal._proposal;
+  attackRows[rowIdx] = proposal;
+  document.getElementById(`proposal-${rowIdx}`)?.remove();
+  renderResults();
+  autosave();
+  toast('✓ Řádek nahrazen.', 'ok');
+}
+
+function cancelRefresh(rowIdx) {
+  document.getElementById(`proposal-${rowIdx}`)?.remove();
+  // Obnov opacity původního řádku
+  const hideNight = document.getElementById('hide-night').checked;
+  const trs = document.querySelectorAll('table.attacks tbody tr:not([id^="proposal-"])');
+  let vi = 0;
+  for (let i = 0; i < attackRows.length; i++) {
+    const r = attackRows[i];
+    if (hideNight && r.night && !r.isPast) continue;
+    if (i === rowIdx) { if (trs[vi]) { trs[vi].style.opacity=''; trs[vi].style.background=''; } break; }
+    vi++;
+  }
+  if (attackRows[rowIdx]) delete attackRows[rowIdx]._proposal;
+}
+
 // ── TOAST ──────────────────────────────────────────────────
 function toast(msg, type='info', duration=3500) {
   const c = document.getElementById('toast-container');
