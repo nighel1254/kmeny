@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DK – Moje plány</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+<style>
+  :root { --bg:#0d0a05;--panel:#1a1208;--border:#3a2a10;--gold:#d4a84b;--gold2:#f0c96a;--text:#e8d5a3;--dim:#8a7a5a;--green:#4a9a4a;--night:#1a0a2a;--gold-night:#8a6aaa; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; min-height:100vh; }
+  .top-bar { background:var(--panel); border-bottom:1px solid var(--border); padding:10px 16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .top-bar h1 { font-size:15px; color:var(--gold2); display:flex; align-items:center; gap:6px; }
+  .top-bar .user-info { font-size:12px; color:var(--dim); display:flex; align-items:center; gap:12px; }
+  .btn { padding:7px 14px; border-radius:4px; border:none; cursor:pointer; font-size:13px; font-weight:600; }
+  .btn-logout { background:transparent; border:1px solid var(--border); color:var(--dim); }
+  .btn-logout:hover { border-color:#cc3333; color:#cc3333; }
+  .plans-grid { padding:16px; display:flex; flex-direction:column; gap:12px; max-width:900px; margin:0 auto; }
+  .plan-card { background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .plan-card-header { padding:12px 16px; background:#1e1508; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .plan-card-header h2 { font-size:14px; color:var(--gold2); }
+  .plan-meta { font-size:11px; color:var(--dim); }
+  .btn-open { background:var(--gold); color:#1a0e00; padding:6px 14px; border-radius:4px; border:none; cursor:pointer; font-size:12px; font-weight:600; }
+  .btn-open:hover { background:var(--gold2); }
+  .plan-stats { padding:10px 16px; display:flex; gap:14px; flex-wrap:wrap; font-size:12px; border-bottom:1px solid var(--border); }
+  .empty { text-align:center; padding:60px 20px; color:var(--dim); font-size:14px; }
+  .loading { text-align:center; padding:40px; color:var(--dim); }
+  .chip { display:inline-flex; align-items:center; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:600; }
+  @media(max-width:600px) { .plan-stats { gap:8px; font-size:11px; } }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>⚔️ DK Plánovač – Moje plány</h1>
+  <div class="user-info">
+    <span id="user-name"></span>
+    <button class="btn btn-logout" onclick="doLogout()">Odhlásit se</button>
+  </div>
+</div>
+
+<div class="plans-grid" id="plans-container">
+  <div class="loading">Načítám plány...</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const API_BASE = 'https://cs112.divokekmeny.cz';
+const API_IMG  = `${API_BASE}/graphic/unit`;
+const SMALL_ICO  = 'https://help.divokekmeny.cz/images/b/b6/Small.png';
+const LARGE_ICO  = 'https://help.divokekmeny.cz/images/7/71/Large.png';
+const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
+const twImg = (url, style='') => `<img src="${url}" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;${style}" onerror="this.style.display='none'">`;
+const NOBLE_NORM = `<img src="${API_IMG}/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'">`;
+
+const pad = n => String(Math.floor(n)).padStart(2,'0');
+function fmtDT(dt) { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}`; }
+
+let currentUser = null;
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+  currentUser = session.user;
+
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (profile?.role === 'commander') { window.location.href = 'commander.html'; return; }
+
+  document.getElementById('user-name').textContent = profile?.player_name || currentUser.email;
+  // Hledej přiřazení case-insensitive podle emailu
+  loadPlans(currentUser.email.toLowerCase());
+}
+
+async function loadPlans(email) {
+  const { data: assignments, error } = await sb
+    .from('plan_assignments')
+    .select('*, plans(label, world, created_at)')
+    .ilike('player_email', email)
+    .order('created_at', { ascending: false });
+
+  const container = document.getElementById('plans-container');
+  if (error || !assignments?.length) {
+    container.innerHTML = '<div class="empty">📭 Žádné plány útoků ti zatím nebyly přiřazeny.</div>';
+    return;
+  }
+
+  container.innerHTML = assignments.map(a => {
+    const rows = a.rows_data || [];
+    const sharp  = rows.filter(r => !r.isFake && !r.isNoble);
+    const nobles = rows.filter(r => r.isNoble);
+    const fakes  = rows.filter(r => r.isFake && !r.isFakeNoble);
+    const fakeN  = rows.filter(r => r.isFakeNoble);
+    const times  = rows.map(r => r.sendTime).filter(Boolean);
+    const minSend = times.length ? new Date(Math.min(...times)) : null;
+
+    return `<div class="plan-card">
+      <div class="plan-card-header">
+        <div>
+          <h2>${a.plans?.label || 'Plán'}</h2>
+          <div class="plan-meta">Svět: ${a.plans?.world || 'cs112'} &nbsp;|&nbsp; Přiřazeno: ${fmtDT(new Date(a.created_at))}${minSend ? ' &nbsp;|&nbsp; První odeslání: <strong>'+fmtDT(minSend)+'</strong>' : ''}</div>
+        </div>
+        <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít plán</button>
+      </div>
+      <div class="plan-stats">
+        <span>⚔️ Ostrých: <strong>${sharp.length}</strong></span>
+        ${sharp.filter(r=>r.srcCategory==='fullka').length ? `<span style="color:#ff4040">${twImg(LARGE_ICO)} Fullek: <strong>${sharp.filter(r=>r.srcCategory==='fullka').length}</strong></span>` : ''}
+        ${sharp.filter(r=>r.srcCategory==='triq_off').length ? `<span style="color:#f0c040">${twImg(SMALL_ICO,'filter:sepia(1) saturate(3) hue-rotate(10deg)')} 3/4: <strong>${sharp.filter(r=>r.srcCategory==='triq_off').length}</strong></span>` : ''}
+        ${sharp.filter(r=>r.srcCategory==='half_off').length ? `<span style="color:#c07840">${twImg(MEDIUM_ICO)} 1/2: <strong>${sharp.filter(r=>r.srcCategory==='half_off').length}</strong></span>` : ''}
+        ${nobles.length ? `<span style="color:#ff80c0">${NOBLE_NORM} Vlaků: <strong>${nobles.length}</strong></span>` : ''}
+        ${fakes.length ? `<span style="color:#40cc40">${twImg(SMALL_ICO)} Fejků: <strong>${fakes.length}</strong></span>` : ''}
+        ${fakeN.length ? `<span style="color:#fff">↑👑 Fejk vlaků: <strong>${fakeN.length}</strong></span>` : ''}
+        <span style="color:var(--dim)">Celkem: <strong>${rows.length}</strong></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openPlan(assignmentId) {
+  const { data: a } = await sb.from('plan_assignments').select('*, plans(label, world)').eq('id', assignmentId).single();
+  if (!a) { alert('Plán nenalezen.'); return; }
+  const data = {
+    p: document.getElementById('user-name').textContent,
+    w: a.plans?.world || 'cs112',
+    e: Math.floor(Date.now()/1000),
+    rows: a.rows_data
+  };
+  const json = JSON.stringify(data);
+  const compressed = LZString.compressToBase64(json).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  window.location.href = `plan.html#${compressed}`;
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>
