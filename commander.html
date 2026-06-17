@@ -623,8 +623,8 @@
           </label>
           <span id="attack-count" style="font-size:11px;color:var(--dim);font-weight:normal;"></span>
           <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;font-weight:normal;" onclick="saveAction()" title="Uloží aktuální akci a odebere použité offky ze zdrojů">💾 Přidat do plánu</button>
-          <button class="btn btn-sm btn-blue" onclick="openExport()" style="font-weight:normal;">📤 Export</button>
-          <button class="btn btn-sm" style="background:#1a0a2a;border:1px solid #402060;color:#c080ff;font-weight:normal;" onclick="publishToPlayers()" title="Publikuje plán hráčům přes Supabase">🚀 Publikovat hráčům</button>
+          <button class="btn btn-sm" style="background:#0a2a0a;border:1px solid #205020;color:#60c060;font-weight:normal;" onclick="savePlanWithName()" title="Uloží plán do kmenových plánů">🏰 Uložit plán</button>
+          <button class="btn btn-sm" style="background:#1a0a2a;border:1px solid #402060;color:#c080ff;font-weight:normal;" onclick="publishToPlayers()" title="Publikuje plán hráčům">🚀 Publikovat hráčům</button>
           <button class="btn btn-sm btn-red" onclick="clearAll()" style="font-weight:normal;">✕ Smazat</button>
         </div>
       </div>
@@ -2004,6 +2004,8 @@ function clearAll() {
   document.getElementById('uncovered-wrap').style.display = 'none';
 
   autosave();
+  // Vymaž i localStorage
+  try { localStorage.removeItem(PLAN_LS_KEY); } catch(e) {}
   toast('Plán a formuláře vyčištěny.', 'info');
 }
 // ── EXPORT ─────────────────────────────────────────────────
@@ -2434,10 +2436,9 @@ async function loadPlansFromDB(type='tribal') {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
   const { data: plans, error } = await sb.from('plans')
-    .select('id, label, created_at, data')
-    .eq('created_by', session.user.id)
+    .select('id, label, created_at, data, created_by, profiles(player_name)')
     .order('created_at', { ascending: false })
-    .limit(30);
+    .limit(50);
   const listEl = document.getElementById('plans-panel-list');
   if (error || !plans?.length) {
     listEl.innerHTML = '<div style="text-align:center;color:var(--dim);padding:20px;font-size:12px;">Žádné uložené plány.</div>';
@@ -2449,7 +2450,7 @@ async function loadPlansFromDB(type='tribal') {
     const actions = p.data?.savedActions || [];
     return `<div class="plan-item">
       <div class="plan-item-label">${p.label}</div>
-      <div class="plan-item-meta">${dt.getDate()}.${dt.getMonth()+1}. ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} &nbsp;|&nbsp; ${actions.length} akcí, ${rows.length} útoků</div>
+      <div class="plan-item-meta">${dt.getDate()}.${dt.getMonth()+1}. ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} &nbsp;|&nbsp; ${actions.length} akcí, ${rows.length} útoků &nbsp;|&nbsp; 👤 ${p.profiles?.player_name||'?'}</div>
       <div class="plan-item-actions">
         <button class="btn-load-plan" onclick="loadPlanFromDB('${p.id}')">↩ Načíst</button>
         <button class="btn-del-plan" onclick="deletePlanFromDB('${p.id}', this)">🗑 Smazat</button>
@@ -2493,22 +2494,51 @@ async function makeCommander(playerName) {
   }
 }
 
-async function saveCurrentPlanToDB() {
+async function savePlanWithName() {
   const allRows = getAllRows();
   if (!allRows.length && !savedActions.length) { toast('Není co uložit – nejprve vytvoř plán.', 'err'); return; }
+
+  // Inline modal pro název
+  const existing = document.getElementById('save-name-modal');
+  if (existing) existing.remove();
+
+  const times = allRows.map(r => r.arrivalTime).filter(Boolean);
+  const dt = new Date();
+  const defaultName = `Kmenový útok ${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+
+  const modal = document.createElement('div');
+  modal.id = 'save-name-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:#1a1208;border:1px solid var(--gold);border-radius:8px;padding:24px;width:100%;max-width:420px;margin:16px;">
+      <h3 style="color:var(--gold2);margin-bottom:14px;">🏰 Uložit kmenový plán</h3>
+      <label style="font-size:12px;color:var(--dim);display:block;margin-bottom:6px;">Název plánu</label>
+      <input id="save-plan-name" type="text" value="${defaultName}"
+        style="width:100%;background:#140e04;border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:4px;font-size:14px;margin-bottom:16px;">
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="doSavePlanWithName()" style="background:var(--gold);color:#1a0e00;border:none;border-radius:4px;padding:8px 20px;font-weight:700;cursor:pointer;font-size:13px;">💾 Uložit</button>
+        <button onclick="document.getElementById('save-name-modal').remove()" style="background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:4px;padding:8px 14px;cursor:pointer;">Zrušit</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('save-plan-name').select();
+  document.getElementById('save-plan-name').onkeydown = e => { if (e.key==='Enter') doSavePlanWithName(); if (e.key==='Escape') modal.remove(); };
+}
+
+async function doSavePlanWithName() {
+  const label = document.getElementById('save-plan-name')?.value?.trim();
+  if (!label) { toast('Zadej název plánu.', 'err'); return; }
+  document.getElementById('save-name-modal')?.remove();
+  const allRows = getAllRows();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
-  const times = allRows.map(r => r.arrivalTime).filter(Boolean);
-  const label = times.length
-    ? `Plán ${new Date().getDate()}.${new Date().getMonth()+1}. ${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`
-    : `Plán ${new Date().toLocaleDateString('cs')}`;
   const { error } = await sb.from('plans').insert({
     created_by: session.user.id, label, world: WORLD,
     data: { rows: allRows, savedActions, snapshot: captureInputSnapshot() }
   });
   if (error) { toast('Chyba při ukládání: ' + error.message, 'err'); return; }
-  toast('Verze plánu uložena!', 'ok');
-  if (_plansOpen) loadPlansFromDB();
+  toast(`✓ Plán "${label}" uložen do kmenových plánů.`, 'ok', 5000);
+  if (_plansOpen) loadPlansFromDB(_plansTab);
 }
 
 async function loadPlanFromDB(planId) {

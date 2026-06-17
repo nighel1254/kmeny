@@ -7,41 +7,67 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <style>
-  :root { --bg:#0d0a05;--panel:#1a1208;--border:#3a2a10;--gold:#d4a84b;--gold2:#f0c96a;--text:#e8d5a3;--dim:#8a7a5a;--green:#4a9a4a;--night:#1a0a2a;--gold-night:#8a6aaa; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; min-height:100vh; }
-  .top-bar { background:var(--panel); border-bottom:1px solid var(--border); padding:10px 16px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
-  .top-bar h1 { font-size:15px; color:var(--gold2); display:flex; align-items:center; gap:6px; }
-  .top-bar .user-info { font-size:12px; color:var(--dim); display:flex; align-items:center; gap:12px; }
-  .btn { padding:7px 14px; border-radius:4px; border:none; cursor:pointer; font-size:13px; font-weight:600; }
-  .btn-logout { background:transparent; border:1px solid var(--border); color:var(--dim); }
-  .btn-logout:hover { border-color:#cc3333; color:#cc3333; }
-  .plans-grid { padding:16px; display:flex; flex-direction:column; gap:12px; max-width:900px; margin:0 auto; }
-  .plan-card { background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
-  .plan-card-header { padding:12px 16px; background:#1e1508; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
-  .plan-card-header h2 { font-size:14px; color:var(--gold2); }
-  .plan-meta { font-size:11px; color:var(--dim); }
-  .btn-open { background:var(--gold); color:#1a0e00; padding:6px 14px; border-radius:4px; border:none; cursor:pointer; font-size:12px; font-weight:600; }
-  .btn-open:hover { background:var(--gold2); }
-  .plan-stats { padding:10px 16px; display:flex; gap:14px; flex-wrap:wrap; font-size:12px; border-bottom:1px solid var(--border); }
-  .empty { text-align:center; padding:60px 20px; color:var(--dim); font-size:14px; }
-  .loading { text-align:center; padding:40px; color:var(--dim); }
-  .chip { display:inline-flex; align-items:center; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:600; }
-  @media(max-width:600px) { .plan-stats { gap:8px; font-size:11px; } }
+  :root{--bg:#0d0a05;--panel:#1a1208;--border:#3a2a10;--gold:#d4a84b;--gold2:#f0c96a;--text:#e8d5a3;--dim:#8a7a5a;--green:#4a9a4a;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh;}
+
+  /* Header */
+  .header{background:var(--panel);border-bottom:2px solid var(--gold);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .header-left{display:flex;align-items:center;gap:10px;}
+  .header-left h1{font-size:16px;color:var(--gold2);font-weight:700;}
+  .world-badge{background:#1e1508;border:1px solid var(--border);border-radius:10px;padding:2px 10px;font-size:11px;color:var(--dim);}
+  .header-right{display:flex;align-items:center;gap:10px;}
+  .user-pill{display:flex;align-items:center;gap:6px;background:#1e1508;border:1px solid var(--gold);border-radius:20px;padding:4px 12px;}
+  .user-pill span{font-size:13px;font-weight:600;color:var(--gold2);}
+  .btn-nav{font-size:12px;padding:5px 12px;border-radius:4px;border:none;cursor:pointer;font-weight:600;}
+  .btn-logout{background:transparent;border:1px solid var(--border);color:var(--dim);}
+  .btn-logout:hover{border-color:#cc3333;color:#cc3333;}
+
+  /* Plans */
+  .plans-grid{padding:20px;display:flex;flex-direction:column;gap:14px;max-width:860px;margin:0 auto;}
+  .section-title{font-size:13px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+  .plan-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .15s;}
+  .plan-card:hover{border-color:var(--gold);}
+  .plan-card-header{padding:14px 18px;background:#1e1508;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .plan-card-title{font-size:15px;color:var(--gold2);font-weight:700;}
+  .plan-card-meta{font-size:11px;color:var(--dim);margin-top:3px;}
+  .plan-card-meta strong{color:var(--text);}
+  .btn-open{background:var(--gold);color:#1a0e00;padding:8px 18px;border-radius:5px;border:none;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;}
+  .btn-open:hover{background:var(--gold2);}
+  .plan-stats{padding:12px 18px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;align-items:center;}
+  .stat{display:flex;align-items:center;gap:5px;}
+  .stat strong{font-size:14px;}
+  .empty{text-align:center;padding:80px 20px;color:var(--dim);}
+  .empty-icon{font-size:48px;margin-bottom:12px;}
+  .empty p{font-size:14px;}
+
+  @media(max-width:600px){
+    .header{padding:8px 12px;}
+    .plans-grid{padding:12px;}
+    .plan-stats{gap:10px;font-size:11px;}
+    .btn-open{padding:6px 12px;font-size:12px;}
+  }
 </style>
 </head>
 <body style="visibility:hidden">
 
-<div class="top-bar">
-  <h1>⚔️ DK Plánovač – Moje plány</h1>
-  <div class="user-info">
-    <span id="user-name"></span>
-    <button class="btn btn-logout" onclick="doLogout()">Odhlásit se</button>
+<div class="header">
+  <div class="header-left">
+    <span style="font-size:20px;">⚔️</span>
+    <h1>DK Plánovač</h1>
+    <div class="world-badge">cs112 – Divoké kmeny</div>
+  </div>
+  <div class="header-right">
+    <div class="user-pill">
+      <span>⚔️</span>
+      <span id="user-name">...</span>
+    </div>
+    <button class="btn-nav btn-logout" onclick="doLogout()">Odhlásit se</button>
   </div>
 </div>
 
 <div class="plans-grid" id="plans-container">
-  <div class="loading">Načítám plány...</div>
+  <div class="empty"><div class="empty-icon">⏳</div><p>Načítám plány...</p></div>
 </div>
 
 <script>
@@ -49,16 +75,24 @@ const SUPABASE_URL = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const API_BASE = 'https://cs112.divokekmeny.cz';
-const API_IMG  = `${API_BASE}/graphic/unit`;
-const SMALL_ICO  = 'https://help.divokekmeny.cz/images/b/b6/Small.png';
-const LARGE_ICO  = 'https://help.divokekmeny.cz/images/7/71/Large.png';
-const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
-const twImg = (url, style='') => `<img src="${url}" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;${style}" onerror="this.style.display='none'">`;
-const NOBLE_NORM = `<img src="${API_IMG}/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'">`;
+const API_BASE  = 'https://cs112.divokekmeny.cz';
+const API_IMG   = `${API_BASE}/graphic/unit`;
+const SMALL_ICO = 'https://help.divokekmeny.cz/images/b/b6/Small.png';
+const LARGE_ICO = 'https://help.divokekmeny.cz/images/7/71/Large.png';
+const MEDIUM_ICO= 'https://help.divokekmeny.cz/images/9/96/Medium.png';
+const NOBLE_IMG = `<img src="${API_IMG}/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;" onerror="this.style.display='none'">`;
+const twImg = (url,s='') => `<img src="${url}" style="width:16px;height:16px;vertical-align:middle;${s}" onerror="this.style.display='none'">`;
 
 const pad = n => String(Math.floor(n)).padStart(2,'0');
-function fmtDT(dt) { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}`; }
+function fmtDT(dt) {
+  if (!dt || isNaN(dt.getTime())) return '–';
+  return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+}
+function fmtDur(ms) {
+  if (!ms || isNaN(ms)) return '–';
+  const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60);
+  return h ? `${h}h ${m}m` : `${m}m`;
+}
 
 let currentUser = null;
 
@@ -67,27 +101,14 @@ async function init() {
   if (!session) { window.location.href = 'index.html'; return; }
   currentUser = session.user;
 
-  // Načti profil
-  const { data: profile, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
 
-  // Debug – odstraň po opravě
-  console.log('Profile:', profile, 'Error:', error, 'User ID:', currentUser.id);
-
-  // Pokud je commander, přesměruj
   if (profile?.role === 'commander') { window.location.href = 'commander.html'; return; }
-
-  // Záloha – zkontroluj email přímo
-  if (!profile) {
-    console.error('Profil nenačten! Zkouším zálohu...');
-    // Zkus přes email
-    const { data: byEmail } = await sb.from('profiles').select('*').eq('email', currentUser.email).single();
-    console.log('By email:', byEmail);
-    if (byEmail?.role === 'commander') { window.location.href = 'commander.html'; return; }
-  }
 
   document.body.style.visibility = 'visible';
   const nick = profile?.player_name || currentUser.email?.split('@')[0] || '?';
   document.getElementById('user-name').textContent = nick;
+
   const email = profile?.email || currentUser.email;
   loadPlans(email.toLowerCase());
 }
@@ -101,36 +122,57 @@ async function loadPlans(email) {
 
   const container = document.getElementById('plans-container');
   if (error || !assignments?.length) {
-    container.innerHTML = '<div class="empty">📭 Žádné plány útoků ti zatím nebyly přiřazeny.</div>';
+    container.innerHTML = `<div class="empty">
+      <div class="empty-icon">📭</div>
+      <p>Žádné plány útoků ti zatím nebyly přiřazeny.<br><span style="font-size:12px;color:var(--dim);margin-top:8px;display:block;">Velitel kmene ti pošle plán jakmile bude připraven.</span></p>
+    </div>`;
     return;
   }
 
-  container.innerHTML = assignments.map(a => {
-    const rows = a.rows_data || [];
+  container.innerHTML = `<div class="section-title">📋 Přiřazené plány (${assignments.length})</div>` +
+  assignments.map(a => {
+    const rows   = a.rows_data || [];
     const sharp  = rows.filter(r => !r.isFake && !r.isNoble);
     const nobles = rows.filter(r => r.isNoble);
     const fakes  = rows.filter(r => r.isFake && !r.isFakeNoble);
     const fakeN  = rows.filter(r => r.isFakeNoble);
-    const times  = rows.map(r => r.sendTime).filter(Boolean);
-    const minSend = times.length ? new Date(Math.min(...times)) : null;
+
+    // Čas prvního odeslání
+    const sendTimes = rows.map(r => r.sendTime).filter(t => t && !isNaN(t));
+    const minSend   = sendTimes.length ? new Date(Math.min(...sendTimes)*1000) : null;
+    const arrTimes  = rows.map(r => r.arrivalTime).filter(t => t && !isNaN(t));
+    const minArr    = arrTimes.length ? new Date(Math.min(...arrTimes)*1000) : null;
+
+    // Oprava – sendTime může být v ms nebo s
+    const fixTime = (t) => t > 1e12 ? new Date(t) : new Date(t*1000);
+    const firstSend = sendTimes.length ? fixTime(Math.min(...sendTimes)) : null;
+    const firstArr  = arrTimes.length  ? fixTime(Math.min(...arrTimes))  : null;
+
+    const label = a.plans?.label || 'Plán útoku';
+    const assignedAt = new Date(a.created_at);
 
     return `<div class="plan-card">
       <div class="plan-card-header">
         <div>
-          <h2>${a.plans?.label || 'Plán'}</h2>
-          <div class="plan-meta">Svět: ${a.plans?.world || 'cs112'} &nbsp;|&nbsp; Přiřazeno: ${fmtDT(new Date(a.created_at))}${minSend ? ' &nbsp;|&nbsp; První odeslání: <strong>'+fmtDT(minSend)+'</strong>' : ''}</div>
+          <div class="plan-card-title">⚔️ ${label}</div>
+          <div class="plan-card-meta">
+            Přiřazeno: <strong>${fmtDT(assignedAt)}</strong>
+            ${firstSend ? ` &nbsp;·&nbsp; První odeslání: <strong style="color:var(--gold2)">${fmtDT(firstSend)}</strong>` : ''}
+            ${firstArr  ? ` &nbsp;·&nbsp; Příchod: <strong>${fmtDT(firstArr)}</strong>` : ''}
+          </div>
         </div>
         <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít plán</button>
       </div>
       <div class="plan-stats">
-        <span>⚔️ Ostrých: <strong>${sharp.length}</strong></span>
-        ${sharp.filter(r=>r.srcCategory==='fullka').length ? `<span style="color:#ff4040">${twImg(LARGE_ICO)} Fullek: <strong>${sharp.filter(r=>r.srcCategory==='fullka').length}</strong></span>` : ''}
-        ${sharp.filter(r=>r.srcCategory==='triq_off').length ? `<span style="color:#f0c040">${twImg(SMALL_ICO,'filter:sepia(1) saturate(3) hue-rotate(10deg)')} 3/4: <strong>${sharp.filter(r=>r.srcCategory==='triq_off').length}</strong></span>` : ''}
-        ${sharp.filter(r=>r.srcCategory==='half_off').length ? `<span style="color:#c07840">${twImg(MEDIUM_ICO)} 1/2: <strong>${sharp.filter(r=>r.srcCategory==='half_off').length}</strong></span>` : ''}
-        ${nobles.length ? `<span style="color:#ff80c0">${NOBLE_NORM} Vlaků: <strong>${nobles.length}</strong></span>` : ''}
-        ${fakes.length ? `<span style="color:#40cc40">${twImg(SMALL_ICO)} Fejků: <strong>${fakes.length}</strong></span>` : ''}
-        ${fakeN.length ? `<span style="color:#fff">↑👑 Fejk vlaků: <strong>${fakeN.length}</strong></span>` : ''}
-        <span style="color:var(--dim)">Celkem: <strong>${rows.length}</strong></span>
+        ${sharp.length  ? `<span class="stat">⚔️ <strong>${sharp.length}</strong> ostrých</span>` : ''}
+        ${sharp.filter(r=>r.srcCategory==='fullka').length  ? `<span class="stat" style="color:#ff4040">${twImg(LARGE_ICO)} <strong>${sharp.filter(r=>r.srcCategory==='fullka').length}</strong></span>` : ''}
+        ${sharp.filter(r=>r.srcCategory==='triq_off').length? `<span class="stat" style="color:#f0c040">${twImg(SMALL_ICO,'filter:sepia(1) saturate(3) hue-rotate(10deg)')} <strong>${sharp.filter(r=>r.srcCategory==='triq_off').length}</strong></span>` : ''}
+        ${sharp.filter(r=>r.srcCategory==='half_off').length? `<span class="stat" style="color:#c07840">${twImg(MEDIUM_ICO)} <strong>${sharp.filter(r=>r.srcCategory==='half_off').length}</strong></span>` : ''}
+        ${nobles.length ? `<span class="stat" style="color:#ff80c0">${NOBLE_IMG} <strong>${nobles.length}</strong> vlaků</span>` : ''}
+        ${fakes.length  ? `<span class="stat" style="color:#40cc40">${twImg(SMALL_ICO)} <strong>${fakes.length}</strong> fejků</span>` : ''}
+        ${fakeN.length  ? `<span class="stat" style="color:#fff">↑👑 <strong>${fakeN.length}</strong></span>` : ''}
+        ${!rows.length  ? `<span style="color:var(--dim);font-size:12px;">Prázdný plán</span>` : ''}
+        <span class="stat" style="color:var(--dim);margin-left:auto;">Celkem: <strong>${rows.length}</strong></span>
       </div>
     </div>`;
   }).join('');
@@ -139,14 +181,9 @@ async function loadPlans(email) {
 async function openPlan(assignmentId) {
   const { data: a } = await sb.from('plan_assignments').select('*, plans(label, world)').eq('id', assignmentId).single();
   if (!a) { alert('Plán nenalezen.'); return; }
-  const data = {
-    p: document.getElementById('user-name').textContent,
-    w: a.plans?.world || 'cs112',
-    e: Math.floor(Date.now()/1000),
-    rows: a.rows_data
-  };
-  const json = JSON.stringify(data);
-  const compressed = LZString.compressToBase64(json).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  const nick = document.getElementById('user-name').textContent;
+  const data = { p: nick, w: a.plans?.world||'cs112', e: Math.floor(Date.now()/1000), rows: a.rows_data||[] };
+  const compressed = LZString.compressToBase64(JSON.stringify(data)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   window.location.href = `plan.html#${compressed}`;
 }
 
@@ -155,7 +192,7 @@ async function doLogout() {
   window.location.href = 'index.html';
 }
 
-init();
+window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
