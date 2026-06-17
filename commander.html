@@ -206,6 +206,33 @@
     /* Saved actions bar */
     #saved-actions-bar { font-size: 11px; overflow-x: auto; }
   }
+  /* ── TOAST ───────────────────────────────────────────────── */
+  #toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+  .toast{background:#1e1508;border:1px solid var(--border);border-radius:6px;padding:10px 16px;font-size:13px;color:var(--text);max-width:320px;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:auto;display:flex;align-items:center;gap:8px;}
+  .toast.show{opacity:1;transform:translateY(0);}
+  .toast.ok{border-color:var(--green);background:#0a1a0a;}
+  .toast.err{border-color:#8b2020;background:#2a0a0a;color:#ff8080;}
+  .toast.info{border-color:var(--gold);background:#1e1508;}
+
+  /* ── AUTOSAVE BANNER ─────────────────────────────────────── */
+  #autosave-banner{display:none;background:#1a1a00;border:1px solid var(--gold);border-radius:6px;padding:10px 14px;margin:8px 12px;font-size:13px;align-items:center;gap:10px;flex-wrap:wrap;}
+  #autosave-banner span{flex:1;color:var(--gold2);}
+  #autosave-banner button{padding:5px 12px;border-radius:4px;border:none;cursor:pointer;font-size:12px;font-weight:600;}
+
+  /* ── PLANS PANEL ─────────────────────────────────────────── */
+  #plans-panel{display:none;position:fixed;top:0;right:0;width:340px;height:100vh;background:#120e06;border-left:1px solid var(--border);z-index:500;flex-direction:column;overflow:hidden;}
+  #plans-panel.open{display:flex;}
+  .plans-panel-header{padding:14px 16px;background:#1e1508;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .plans-panel-header h2{font-size:14px;color:var(--gold2);}
+  .plans-panel-list{flex:1;overflow-y:auto;padding:8px;}
+  .plan-item{background:#1a1208;border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:border-color .15s;}
+  .plan-item:hover{border-color:var(--gold);}
+  .plan-item-label{font-size:13px;font-weight:600;color:var(--text);}
+  .plan-item-meta{font-size:11px;color:var(--dim);margin-top:3px;}
+  .plan-item-actions{display:flex;gap:6px;margin-top:8px;}
+  .plan-item-actions button{flex:1;padding:5px;border-radius:3px;border:none;cursor:pointer;font-size:11px;font-weight:600;}
+  .btn-load-plan{background:#0a2a0a;color:#60c060;border:1px solid #205020!important;}
+  .btn-del-plan{background:#2a0a0a;color:#c06060;border:1px solid #502020!important;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
@@ -220,7 +247,32 @@
   <div style="display:flex;align-items:center;gap:10px;margin-left:12px;">
     <span style="font-size:12px;color:var(--dim);" id="nav-user-name"></span>
     <a href="dashboard.html" style="font-size:12px;color:var(--gold);text-decoration:none;border:1px solid var(--border);padding:4px 10px;border-radius:4px;" title="Přejít na dashboard hráče">📋 Moje plány</a>
-    <button onclick="doNavLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:4px 10px;border-radius:4px;cursor:pointer;" title="Odhlásit se">Odhlásit</button>
+    <button onclick="openPlansPanel()" style="font-size:12px;background:#0a1a0a;border:1px solid #205020;color:#60c060;padding:4px 10px;border-radius:4px;cursor:pointer;" title="Uložené verze plánů">🗄 Verze plánů</button>
+    <button onclick="doNavLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:4px 10px;border-radius:4px;cursor:pointer;">Odhlásit</button>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Autosave banner -->
+<div id="autosave-banner" style="display:flex;">
+  <span id="autosave-banner-text"></span>
+  <button onclick="restoreAutosave()" style="background:var(--gold);color:#1a0e00;">↩ Obnovit</button>
+  <button onclick="dismissAutosave()" style="background:transparent;border:1px solid var(--border);color:var(--dim);">✕</button>
+</div>
+
+<!-- Plans panel -->
+<div id="plans-panel">
+  <div class="plans-panel-header">
+    <h2>📋 Moje plány</h2>
+    <button onclick="closePlansPanel()" style="background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer;">✕</button>
+  </div>
+  <div style="padding:8px 12px;border-bottom:1px solid var(--border);">
+    <button onclick="saveCurrentPlanToDB()" style="width:100%;padding:8px;background:var(--gold);color:#1a0e00;border:none;border-radius:4px;font-weight:600;cursor:pointer;font-size:13px;">💾 Uložit aktuální verzi</button>
+  </div>
+  <div class="plans-panel-list" id="plans-panel-list">
+    <div style="text-align:center;color:var(--dim);padding:20px;font-size:12px;">Načítám plány...</div>
   </div>
 </div>
 
@@ -853,7 +905,7 @@ function importJson() {
 
 function loadPlayerFromJson() {
   const playerName = document.getElementById('src-player-select').value;
-  if (!playerName) { alert('Vyber hráče ze seznamu!'); return; }
+  if (!playerName) { toast('Vyber hráče ze seznamu!', 'err'); return; }
 
   const wantFull = document.getElementById('filter-full').checked;
   const wantTriq = document.getElementById('filter-triq').checked;
@@ -932,10 +984,10 @@ function calculateNobles(rows) {
   const raw = document.getElementById('noble-target-coords').value.trim();
   if (!raw) return;
   const coordLines = raw.split(/[\n\s]+/).filter(l => /^\d+\|\d+/.test(l.trim()));
-  if (!coordLines.length) { alert('Neplatné souřadnice cíle šlechticů!'); return; }
+  if (!coordLines.length) { toast('Neplatné souřadnice cíle šlechticů!', 'err'); return; }
 
   const arrStr = document.getElementById('noble-arrival').value;
-  if (!arrStr) { alert('Nastav čas příchodu šlechticů!'); return; }
+  if (!arrStr) { toast('Nastav čas příchodu šlechticů!', 'err'); return; }
   const arrFrom = new Date(arrStr).getTime();
   const arrToStr = document.getElementById('noble-arrival-to').value;
   const arrTo = arrToStr ? new Date(arrToStr).getTime() : null;
@@ -947,7 +999,7 @@ function calculateNobles(rows) {
   const pool = jsonVillages
     .filter(v => (v.noble || (v.units && v.units.noble)) > 0)
     .filter(v => !noblePlayerSel || v.player_name === noblePlayerSel);
-  if (!pool.length) { alert('Žádní šlechtici v importu!'); return; }
+  if (!pool.length) { toast('Žádní šlechtici v importu!', 'err'); return; }
 
   // Pracovní kopie – počet celých vlaků které může každá vesnice poslat
   // vlak = noblePerTarget šlechticů, takže vlaky = floor(remaining / noblePerTarget)
@@ -981,7 +1033,7 @@ function calculateNobles(rows) {
       });
 
     if (!sorted.length) {
-      alert(`⚠️ Cíl ${tgtX}|${tgtY}: žádné dostupné vlaky šlechticů!`);
+      toast(`⚠️ Cíl ${tgtX}|${tgtY}: žádné dostupné vlaky šlechticů!`, 'err');
       continue;
     }
 
@@ -1328,7 +1380,7 @@ function bestArrivalTime(from, to, srcList, tgt, unit) {
 
 // ── CALCULATE ──────────────────────────────────────────────
 async function calculate() {
-  if (!srcVillages.length) { alert('Nejprve načti zdrojového hráče nebo importuj JSON!'); return; }
+  if (!srcVillages.length) { toast('Nejprve načti zdrojového hráče nebo importuj JSON!', 'err'); return; }
 
   // Načti allVillages pokud ještě nemáme (potřeba pro body cílů)
   if (!allVillages.length) {
@@ -1342,9 +1394,9 @@ async function calculate() {
     if (coordTargets.length) {
       if (arrivalMode === 'global') {
         const arrStr = document.getElementById('global-arrival').value;
-        if (!arrStr) { alert('Nastav čas příchodu!'); return; }
+        if (!arrStr) { toast('Nastav čas příchodu!', 'err'); return; }
         const af = new Date(arrStr).getTime();
-        if (isNaN(af)) { alert('Neplatný čas příchodu!'); return; }
+        if (isNaN(af)) { toast('Neplatný čas příchodu!', 'err'); return; }
         const arrToStr = document.getElementById('global-arrival-to').value;
         const at = arrToStr ? new Date(arrToStr).getTime() : null;
         const unit = getUnitSelectValue('global-unit');
@@ -1352,14 +1404,14 @@ async function calculate() {
         targets = coordTargets.map(c => ({ ...c, unit, _arrFrom: af, _arrTo: at, arrivalTime: af }));
       } else {
         const missing = coordTargets.filter(c => !c.arrivalTime);
-        if (missing.length) { alert(`${missing.length} cílů nemá nastaven čas příchodu!`); return; }
+        if (missing.length) { toast(`${missing.length} cílů nemá nastaven čas příchodu!`, 'err'); return; }
         targets = coordTargets.map(c => ({ ...c }));
       }
     }
   } else {
     if (tgtVillages.length) {
       const arrStr = document.getElementById('global-arrival-player').value;
-      if (!arrStr) { alert('Nastav čas příchodu!'); return; }
+      if (!arrStr) { toast('Nastav čas příchodu!', 'err'); return; }
       const af = new Date(arrStr).getTime();
       const arrToStr = document.getElementById('global-arrival-player-to').value;
       const at = arrToStr ? new Date(arrToStr).getTime() : null;
@@ -1376,7 +1428,7 @@ async function calculate() {
 
   // Pokud nejsou ani cíle ani fejky, nemá co počítat
   if (!targets.length && fakeCount === 0 && fakeNobleCount === 0) {
-    alert('Zadej cílové vesnice nebo nastav fejky!');
+    toast('Zadej cílové vesnice nebo nastav fejky!', 'err');
     return;
   }
   const sharpCount = parseInt(document.getElementById('sharp-count').value) || 1;
@@ -1391,12 +1443,12 @@ async function calculate() {
   const fakeNobleArrTo   = fakeNobleArrToStr ? new Date(fakeNobleArrToStr).getTime() : null;
 
   if (fakeCount > 0 && !fakeTargets.length) {
-    alert(currentFakeTab === 'player' ? 'Načti hráče pro fejk cíle!' : 'Zadej fejk vesnice!');
+    toast(currentFakeTab === 'player' ? 'Načti hráče pro fejk cíle!' : 'Zadej fejk vesnice!', 'err');
     return;
   }
-  if (fakeCount > 0 && !fakeArrivalFrom) { alert('Nastav čas příchodu fejků!'); return; }
-  if (fakeNobleCount > 0 && !fakeNobleTargets.length) { alert('Zadej cíle pro fejk vlaky!'); return; }
-  if (fakeNobleCount > 0 && !fakeNobleArrFrom) { alert('Nastav čas příchodu fejk vlaků!'); return; }
+  if (fakeCount > 0 && !fakeArrivalFrom) { toast('Nastav čas příchodu fejků!', 'err'); return; }
+  if (fakeNobleCount > 0 && !fakeNobleTargets.length) { toast('Zadej cíle pro fejk vlaky!', 'err'); return; }
+  if (fakeNobleCount > 0 && !fakeNobleArrFrom) { toast('Nastav čas příchodu fejk vlaků!', 'err'); return; }
 
   const rows = [];
   const now  = Date.now();
@@ -1932,7 +1984,7 @@ function editAction(idx) {
 
   renderResults();
   autosave();
-  alert(`✏️ Akce "${action.label}" obnovena k úpravě.\nPo změnách znovu klikni "💾 Přidat do plánu".`);
+  toast(`Akce obnovena k úpravě – po změnách klikni 💾 Přidat do plánu.`, 'info', 5000);
 }
 
 function captureInputSnapshot() {
@@ -2001,7 +2053,7 @@ function restoreInputSnapshot(snap) {
 }
 
 function saveAction() {
-  if (!attackRows.length) { alert('Nejprve vypočítej plán!'); return; }
+  if (!attackRows.length) { toast('Nejprve vypočítej plán!', 'err'); return; }
 
   const times = attackRows.map(r => r.arrivalTime);
   const minT  = Math.min(...times), maxT = Math.max(...times);
@@ -2024,7 +2076,7 @@ function saveAction() {
   document.getElementById('uncovered-wrap').style.display = 'none';
 
   autosave();
-  alert(`✓ Akce uložena: ${label}\nZbývá ${srcVillages.length} offek pro další akci.`);
+  toast(`✓ Akce uložena: ${label} &nbsp;|&nbsp; zbývá ${srcVillages.length} offek`, 'ok', 5000);
 }
 
 // ── ULOŽENÍ / NAČTENÍ PLÁNU ────────────────────────────────
@@ -2043,7 +2095,7 @@ function getPlanState() {
 }
 
 function applyPlanState(state) {
-  if (!state || state.version !== 2) { alert('Neplatný nebo zastaralý soubor plánu.'); return false; }
+  if (!state || state.version !== 2) { toast('Neplatný nebo zastaralý soubor plánu.', 'err'); return false; }
   savedActions = state.savedActions || [];
   attackRows   = state.attackRows   || [];
   srcVillages  = state.srcVillages  || [];
@@ -2077,9 +2129,9 @@ function loadPlanFromFile(evt) {
   reader.onload = e => {
     try {
       const state = JSON.parse(e.target.result);
-      if (applyPlanState(state)) alert(`✓ Plán načten: ${savedActions.length} akcí, ${attackRows.length} útoků ve výsledcích.`);
+      if (applyPlanState(state)) toast(`Plán načten: ${savedActions.length} akcí, ${attackRows.length} útoků.`, 'ok');
     } catch(err) {
-      alert('❌ Nepodařilo se načíst soubor: ' + err.message);
+      toast('Nepodařilo se načíst soubor: ' + err.message, 'err');
     }
     evt.target.value = '';
   };
@@ -2099,9 +2151,7 @@ function loadAutosave() {
     if (!raw) return;
     const state = JSON.parse(raw);
     if (!state || state.version !== 2) return;
-    const dt = new Date(state.savedAt);
-    const msg = `Nalezen automaticky uložený plán z ${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}.\n${(state.savedActions||[]).length} akcí, ${(state.attackRows||[]).length} útoků.\n\nChceš ho obnovit?`;
-    if (confirm(msg)) applyPlanState(state);
+    showAutosaveBanner(state);
   } catch(e) {}
 }
 
@@ -2135,7 +2185,7 @@ function playerDataToUrl(playerName, rows) {
 
 function openExport() {
   const allRows = [...savedActions.flatMap(a => a.rows), ...attackRows];
-  if (!allRows.length) { alert('Nejprve vypočítej plán nebo ulož akci!'); return; }
+  if (!allRows.length) { toast('Nejprve vypočítej plán nebo ulož akci!', 'err'); return; }
 
   const hideNight = document.getElementById('hide-night').checked;
   const now = Date.now();
@@ -2249,7 +2299,129 @@ function startAlarm(evt, rowIdx, link) {
 }
 
 let _publishPlan = null;
-// ── SUPABASE ────────────────────────────────────────────────
+// ── TOAST ──────────────────────────────────────────────────
+function toast(msg, type='info', duration=3500) {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${type==='ok'?'✓':type==='err'?'✗':'ℹ'}</span> ${msg}`;
+  c.appendChild(el);
+  requestAnimationFrame(() => { requestAnimationFrame(() => el.classList.add('show')); });
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
+
+// ── AUTOSAVE BANNER ────────────────────────────────────────
+let _autosaveState = null;
+
+function showAutosaveBanner(state) {
+  _autosaveState = state;
+  const dt = new Date(state.savedAt);
+  const pad = n => String(Math.floor(n)).padStart(2,'0');
+  document.getElementById('autosave-banner-text').textContent =
+    `Nalezen uložený plán z ${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())} – ${(state.savedActions||[]).length} akcí, ${(state.attackRows||[]).length} útoků.`;
+  document.getElementById('autosave-banner').style.display = 'flex';
+}
+
+function restoreAutosave() {
+  if (_autosaveState && applyPlanState(_autosaveState)) {
+    toast('Plán obnoven z automatického uložení.', 'ok');
+  }
+  dismissAutosave();
+}
+
+function dismissAutosave() {
+  document.getElementById('autosave-banner').style.display = 'none';
+  _autosaveState = null;
+}
+
+// ── PLANS PANEL ────────────────────────────────────────────
+let _plansOpen = false;
+
+function openPlansPanel() {
+  document.getElementById('plans-panel').classList.add('open');
+  _plansOpen = true;
+  loadPlansFromDB();
+}
+
+function closePlansPanel() {
+  document.getElementById('plans-panel').classList.remove('open');
+  _plansOpen = false;
+}
+
+async function loadPlansFromDB() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  const { data: plans, error } = await sb.from('plans')
+    .select('id, label, created_at, data')
+    .eq('created_by', session.user.id)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  const listEl = document.getElementById('plans-panel-list');
+  if (error || !plans?.length) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--dim);padding:20px;font-size:12px;">Žádné uložené plány.</div>';
+    return;
+  }
+  listEl.innerHTML = plans.map(p => {
+    const dt = new Date(p.created_at);
+    const rows = p.data?.rows || [];
+    const actions = p.data?.savedActions || [];
+    return `<div class="plan-item">
+      <div class="plan-item-label">${p.label}</div>
+      <div class="plan-item-meta">${dt.getDate()}.${dt.getMonth()+1}. ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} &nbsp;|&nbsp; ${actions.length} akcí, ${rows.length} útoků</div>
+      <div class="plan-item-actions">
+        <button class="btn-load-plan" onclick="loadPlanFromDB('${p.id}')">↩ Načíst</button>
+        <button class="btn-del-plan" onclick="deletePlanFromDB('${p.id}', this)">🗑 Smazat</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function saveCurrentPlanToDB() {
+  const allRows = getAllRows();
+  if (!allRows.length && !savedActions.length) { toast('Není co uložit – nejprve vytvoř plán.', 'err'); return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  const times = allRows.map(r => r.arrivalTime).filter(Boolean);
+  const label = times.length
+    ? `Plán ${new Date().getDate()}.${new Date().getMonth()+1}. ${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`
+    : `Plán ${new Date().toLocaleDateString('cs')}`;
+  const { error } = await sb.from('plans').insert({
+    created_by: session.user.id, label, world: WORLD,
+    data: { rows: allRows, savedActions, snapshot: captureInputSnapshot() }
+  });
+  if (error) { toast('Chyba při ukládání: ' + error.message, 'err'); return; }
+  toast('Verze plánu uložena!', 'ok');
+  if (_plansOpen) loadPlansFromDB();
+}
+
+async function loadPlanFromDB(planId) {
+  const { data: plan } = await sb.from('plans').select('data, label').eq('id', planId).single();
+  if (!plan) { toast('Plán nenalezen.', 'err'); return; }
+  const state = {
+    savedActions: plan.data?.savedActions || [],
+    attackRows:   plan.data?.rows || [],
+    srcVillages, jsonVillages,
+    snapshot:     plan.data?.snapshot || null,
+    version: 2, savedAt: Date.now()
+  };
+  if (applyPlanState(state)) {
+    toast(`Načten: ${plan.label}`, 'ok');
+    closePlansPanel();
+  }
+}
+
+async function deletePlanFromDB(planId, btn) {
+  btn.textContent = '...';
+  const { error } = await sb.from('plans').delete().eq('id', planId);
+  if (error) { toast('Chyba při mazání.', 'err'); btn.textContent = '🗑 Smazat'; return; }
+  toast('Plán smazán.', 'info');
+  loadPlansFromDB();
+}
+
+// ── PŘEPIS ALERTŮ ──────────────────────────────────────────
 const SUPABASE_URL = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -2269,7 +2441,7 @@ async function doNavLogout() {
 
 async function publishToPlayers() {
   const allRows = getAllRows();
-  if (!allRows.length) { alert('Nejsou žádné útoky k publikování.'); return; }
+  if (!allRows.length) { toast('Nejsou žádné útoky k publikování.', 'err'); return; }
 
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = 'index.html'; return; }
@@ -2291,7 +2463,7 @@ async function publishToPlayers() {
     created_by: session.user.id, label, world: WORLD,
     data: { rows: allRows, savedActions }
   }).select().single();
-  if (planErr) { alert('Chyba při ukládání plánu: ' + planErr.message); return; }
+  if (planErr) { toast('Chyba při ukládání: ' + planErr.message, 'err'); return; }
 
   _publishPlan = { plan, byPlayer, allProfiles };
 
@@ -2339,13 +2511,13 @@ async function publishSelected() {
     assignments.push({ plan_id: plan.id, player_email: profile.email, player_name: playerName, rows_data: rows });
     sent.push(playerName);
   }
-  if (!assignments.length) { alert('Nikdo vybrán nebo žádný hráč nemá účet.'); return; }
+  if (!assignments.length) { toast('Nikdo vybrán nebo žádný hráč nemá účet.', 'err'); return; }
   const { error } = await sb.from('plan_assignments').insert(assignments);
-  if (error) { alert('Chyba: ' + error.message); return; }
+  if (error) { toast('Chyba: ' + error.message, 'err'); return; }
   closePublishModal();
   let msg = `✓ Plán odeslán: ${sent.join(', ')}`;
   if (missing.length) msg += `\n⚠️ Přeskočeni (bez účtu): ${missing.join(', ')}`;
-  alert(msg);
+  toast(msg, 'ok', 6000);
   _publishPlan = null;
 }
 
