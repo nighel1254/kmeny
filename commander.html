@@ -731,8 +731,7 @@ let cdInterval = null;
 // ── INIT ───────────────────────────────────────────────────
 // ── CUSTOM UNIT SELECT ────────────────────────────────────
 const UNIT_OPTIONS = [
-  { value: 'ram',   label: 'Beranidlo', key: 'ram'   },
-  { value: 'noble', label: 'Šlechtic',  key: 'noble' },
+  { value: 'ram', label: 'Beranidlo', key: 'ram' },
 ];
 const UNIT_OPTIONS_COORD = UNIT_OPTIONS; // stejné pro per-cíl
 
@@ -2379,6 +2378,7 @@ function startAlarm(evt, rowIdx, link) {
 }
 
 let _publishPlan = null;
+let _currentPlanLabel = '';
 // ── TOAST ──────────────────────────────────────────────────
 function toast(msg, type='info', duration=3500) {
   const c = document.getElementById('toast-container');
@@ -2606,6 +2606,7 @@ async function loadPlanFromDB(planId) {
     version: 2, savedAt: Date.now()
   };
   if (applyPlanState(state)) {
+    _currentPlanLabel = plan.label || '';
     toast(`Načten: ${plan.label}`, 'ok');
     closePlansPanel();
   }
@@ -2673,7 +2674,7 @@ async function publishToPlayers() {
   const players = allProfiles?.filter(p => p.role === 'player') || [];
 
   // Ulož jen byPlayer a allProfiles
-  _publishPlan = { byPlayer, allProfiles, allRows };
+  _publishPlan = { byPlayer, allProfiles, allRows, planLabel: _currentPlanLabel || 'Plán útoku' };
 
   const listEl = document.getElementById('publish-player-list');
   listEl.innerHTML = '';
@@ -2761,7 +2762,7 @@ async function publishSelected() {
     const planKey = [...byPlayer.keys()].find(k => k.toLowerCase() === profile.player_name?.toLowerCase());
     const rows = planKey ? byPlayer.get(planKey) : [];
     if (!rows.length) empty.push(profile.player_name);
-    assignments.push({ player_email: profile.email, player_name: profile.player_name, rows_data: rows });
+    assignments.push({ player_email: profile.email, player_name: profile.player_name, rows_data: rows, plan_label: _publishPlan.planLabel || 'Plán útoku' });
     sent.push(profile.player_name);
   }
 

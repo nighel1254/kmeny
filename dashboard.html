@@ -148,7 +148,7 @@ async function loadPlans(email) {
     const firstSend = sendTimes.length ? fixTime(Math.min(...sendTimes)) : null;
     const firstArr  = arrTimes.length  ? fixTime(Math.min(...arrTimes))  : null;
 
-    const label = a.plans?.label || 'Plán útoku';
+    const label = a.plans?.label || a.plan_label || 'Plán útoku';
     const assignedAt = new Date(a.created_at);
 
     return `<div class="plan-card">
