@@ -87,6 +87,8 @@
   table.attacks tr.night-row td{background:#1c1025}
   table.attacks tr.past-row td{opacity:.3;text-decoration:line-through;text-decoration-color:rgba(255,255,255,.15);}
   table.attacks tr.past-row{background:#070503!important;border-left:3px solid #333!important;}
+  table.attacks tr.played-row td{opacity:.4;text-decoration:line-through;text-decoration-color:rgba(80,200,80,.3);}
+  table.attacks tr.played-row{background:#040a04!important;border-left:3px solid var(--green)!important;}
   .coords{font-family:monospace;color:var(--blue)}
   .send-time{font-family:monospace;color:var(--green);font-weight:bold}
   .send-time.night{color:#c080e0}
@@ -1819,7 +1821,8 @@ function renderResults(nightWarnings) {
           ? `${API_BASE}/game.php?village=${row.srcId}&screen=place&target=${row.tgtId}`
           : `${API_BASE}/game.php?village=${row.srcId}&screen=place&x=${row.tgtX}&y=${row.tgtY}`)
       : `${API_BASE}/game.php?screen=place&x=${row.tgtX}&y=${row.tgtY}`;
-    const rowClass  = past ? 'past-row' : row.night ? 'night-row' : '';
+    const played   = playedRows.has(rowKey(row));
+    const rowClass  = played ? 'played-row' : past ? 'past-row' : row.night ? 'night-row' : '';
     const sendClass = row.night ? 'send-time night' : 'send-time';
     const rowIdx    = attackRows.indexOf(row);
 
@@ -2357,8 +2360,24 @@ function updateCountdowns() {
 }
 
 // ── ALARM ──────────────────────────────────────────────────
+// Set of played row fingerprints (srcX|srcY|sendTime)
+const playedRows = new Set(JSON.parse(localStorage.getItem('dk_played_rows') || '[]'));
+
+function rowKey(r) { return `${r.srcX}|${r.srcY}|${r.sendTime}`; }
+
 function startAlarm(evt, rowIdx, link) {
   evt.preventDefault();
+  const row = attackRows[rowIdx];
+  if (row) {
+    const diff = row.sendTime - Date.now();
+    if (diff < 60000) {
+      const key = rowKey(row);
+      playedRows.add(key);
+      try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
+      const tr = evt.target.closest('tr');
+      if (tr) tr.classList.add('played-row');
+    }
+  }
   window.open(link, 'tw_game');
 }
 
@@ -2600,8 +2619,7 @@ async function doNavLogout() {
 }
 
 async function publishToPlayers() {
-  const allRows = getAllRows();
-  if (!allRows.length) { toast('Nejsou žádné útoky k publikování.', 'err'); return; }
+  const allRows = getAllRowsIncludingCurrent();
 
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = 'index.html'; return; }
@@ -2723,6 +2741,15 @@ async function publishSelected() {
 
 
 function getAllRows() {
+  // Vrátí POUZE uložené akce (přes "Přidat do plánu")
+  // attackRows jsou rozpracované a nezahrnují se
+  const all = [];
+  savedActions.forEach(a => all.push(...a.rows));
+  return all;
+}
+
+function getAllRowsIncludingCurrent() {
+  // Vrátí vše včetně aktuálně zobrazených (pro publish)
   const all = [...attackRows];
   savedActions.forEach(a => all.push(...a.rows));
   return all;

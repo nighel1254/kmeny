@@ -34,7 +34,10 @@
   th:hover{color:var(--gold2);}
   td{padding:6px 10px;border-bottom:1px solid #1e1608;vertical-align:middle;}
   tr:hover td{background:#1e1a0e}
-  .past-row td{opacity:.45}
+  .past-row td{opacity:.3;text-decoration:line-through;text-decoration-color:rgba(255,255,255,.15);}
+  .past-row{background:#070503!important;border-left:3px solid #333!important;}
+  .played-row td{opacity:.4;text-decoration:line-through;text-decoration-color:rgba(80,200,80,.3);}
+  .played-row{background:#040a04!important;border-left:3px solid #4a9a4a!important;}
   .night-row td{background:var(--night)!important}
   .coords{font-family:monospace;color:var(--gold2);font-weight:bold}
   .chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600;white-space:nowrap;gap:3px;}
@@ -145,9 +148,72 @@ function setSort(col) {
   renderTable();
 }
 
+// ── ZVUK SIRÉNY ────────────────────────────────────────────
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playSiren() {
+  try {
+    const ctx = getAudioCtx();
+    const duration = 3; // sekundy
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    // Siréna = frekvence osciluje mezi 600 a 1200 Hz
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    for (let i = 0; i < duration * 4; i++) {
+      osc.frequency.linearRampToValueAtTime(i%2===0?1200:600, ctx.currentTime + i*0.25 + 0.25);
+    }
+    gain.gain.setValueAtTime(0.4, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  } catch(e) { console.warn('Audio error:', e); }
+}
+
+// Sleduj odpočty a přehraj sirénu 2 minuty před odesláním
+const siren2minAlerted = new Set();
+function checkSirenAlerts() {
+  const now = Date.now();
+  attackRows.forEach((r, i) => {
+    const key = rowKey(r);
+    if (playedRows.has(key) || siren2minAlerted.has(key)) return;
+    const diff = r.sendTime - now;
+    // 2 minuty = 120 000 ms, tolerance 5s
+    if (diff > 0 && diff <= 120000) {
+      siren2minAlerted.add(key);
+      playSiren();
+      // Zobraz toast
+      const tEl = document.createElement('div');
+      tEl.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;';
+      tEl.textContent = `⏰ 2 minuty do odeslání! ${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}`;
+      document.body.appendChild(tEl);
+      setTimeout(()=>tEl.remove(), 8000);
+    }
+  });
+}
+
+const playedRows = new Set(JSON.parse(localStorage.getItem('dk_played_rows') || '[]'));
+function rowKey(r) { return `${r.srcX}|${r.srcY}|${r.sendTime}`; }
+
 function startAlarm(evt, rowIdx, link) {
   evt.preventDefault();
-  window.open(link,'tw_game');
+  const row = attackRows[rowIdx];
+  if (row) {
+    const diff = row.sendTime - Date.now();
+    // Označ jako odeslané jen pokud zbývá méně než 1 minuta
+    if (diff < 60000) {
+      playedRows.add(rowKey(row));
+      try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
+      const tr = evt.target.closest('tr');
+      if (tr) tr.classList.add('played-row');
+    }
+  }
+  window.open(link, 'tw_game');
 }
 
 function updateCountdowns() {
@@ -233,7 +299,8 @@ function renderTable() {
 
   visible.forEach((r, i) => {
     const past     = r.sendTime < now;
-    const rowClass = past ? 'past-row' : r.night ? 'night-row' : '';
+    const played   = playedRows.has(rowKey(r));
+    const rowClass = played ? 'played-row' : past ? 'past-row' : r.night ? 'night-row' : '';
     const sendCls  = r.night ? 'send-time night' : 'send-time';
     const gameLink = r.srcId
       ? (r.tgtId
@@ -301,7 +368,10 @@ function render(data) {
 
   renderTable();
   clearInterval(cdInterval);
-  cdInterval = setInterval(updateCountdowns, 500);
+  cdInterval = setInterval(() => {
+    updateCountdowns();
+    checkSirenAlerts();
+  }, 500);
 }
 
 function decodeData(json) {
