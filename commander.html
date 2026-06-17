@@ -2511,19 +2511,25 @@ function showRefreshProposal(rowIdx, original, proposal) {
 function acceptRefresh(rowIdx) {
   const proposal = attackRows[rowIdx]?._proposal;
   if (!proposal) return;
+  // Ulož původní identifikátory PŘED nahrazením
+  const origSrcX = attackRows[rowIdx].srcX;
+  const origSrcY = attackRows[rowIdx].srcY;
+  const origSendTime = attackRows[rowIdx].sendTime;
+  const origTgtX = attackRows[rowIdx].tgtX;
+  const origTgtY = attackRows[rowIdx].tgtY;
+
   delete proposal._proposal;
   attackRows[rowIdx] = proposal;
   document.getElementById(`proposal-${rowIdx}`)?.remove();
 
-  // Aktualizuj i v savedActions – hledej podle původního zdroje + cíle + typu
-  const origRow = attackRows[rowIdx]; // už nahrazeno proposal
+  // Aktualizuj v savedActions – hledej podle původního src+tgt+sendTime
   savedActions.forEach(action => {
     for (let i = 0; i < action.rows.length; i++) {
       const r = action.rows[i];
-      if (r.tgtX === proposal.tgtX && r.tgtY === proposal.tgtY &&
-          r.isFake === proposal.isFake && r.isFakeNoble === proposal.isFakeNoble &&
-          !r._alreadyRefreshed) {
-        action.rows[i] = { ...proposal, _alreadyRefreshed: true };
+      if (r.srcX === origSrcX && r.srcY === origSrcY &&
+          r.tgtX === origTgtX && r.tgtY === origTgtY &&
+          r.sendTime === origSendTime) {
+        action.rows[i] = { ...proposal };
         break;
       }
     }
