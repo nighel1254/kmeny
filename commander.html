@@ -384,9 +384,8 @@
               <label>⏰ Čas příchodu (pro všechny cíle)</label>
               <div class="arrival-row">
                 <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
-                <select id="global-unit" class="unit-select">
-                  <option value="ram" selected>Beranidlo</option>
-                </select>
+                <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><img id="global-unit-img" src="" style="width:20px;height:20px;" onerror="this.style.display='none'"> Beranidlo</span>
+                <input type="hidden" id="global-unit" value="ram">
               </div>
               <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
                 <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
@@ -412,9 +411,8 @@
             <label>⏰ Čas příchodu (pro všechny cíle)</label>
             <div class="arrival-row">
               <input type="datetime-local" id="global-arrival-player" step="1">
-              <select id="global-unit-player" class="unit-select">
-                <option value="ram" selected>Beranidlo</option>
-              </select>
+              <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><img id="global-unit-player-img" src="" style="width:20px;height:20px;" onerror="this.style.display='none'"> Beranidlo</span>
+              <input type="hidden" id="global-unit-player" value="ram">
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
               <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
@@ -787,8 +785,12 @@ function initUnitSelects() {
   // Nastav obrázky statických spanů
   const fakeImg = document.getElementById('fake-unit-img');
   const nobleImg = document.getElementById('noble-unit-img');
+  const globalImg = document.getElementById('global-unit-img');
+  const globalPlayerImg = document.getElementById('global-unit-player-img');
   if (fakeImg) fakeImg.outerHTML = unitImg('ram');
   if (nobleImg) nobleImg.outerHTML = unitImg('noble');
+  if (globalImg) globalImg.outerHTML = unitImg('ram');
+  if (globalPlayerImg) globalPlayerImg.outerHTML = unitImg('ram');
   // Zavři dropdown při kliknutí mimo
   document.addEventListener('click', () => {
     document.querySelectorAll('.unit-select-dropdown.open').forEach(d => d.classList.remove('open'));
@@ -2379,6 +2381,7 @@ function startAlarm(evt, rowIdx, link) {
 
 let _publishPlan = null;
 let _currentPlanLabel = '';
+let _currentPlanId = null;
 // ── TOAST ──────────────────────────────────────────────────
 function toast(msg, type='info', duration=3500) {
   const c = document.getElementById('toast-container');
@@ -2607,6 +2610,7 @@ async function loadPlanFromDB(planId) {
   };
   if (applyPlanState(state)) {
     _currentPlanLabel = plan.label || '';
+    _currentPlanId = planId;
     toast(`Načten: ${plan.label}`, 'ok');
     closePlansPanel();
   }
@@ -2762,7 +2766,9 @@ async function publishSelected() {
     const planKey = [...byPlayer.keys()].find(k => k.toLowerCase() === profile.player_name?.toLowerCase());
     const rows = planKey ? byPlayer.get(planKey) : [];
     if (!rows.length) empty.push(profile.player_name);
-    assignments.push({ player_email: profile.email, player_name: profile.player_name, rows_data: rows, plan_label: _publishPlan.planLabel || 'Plán útoku' });
+    const assignment = { player_email: profile.email, player_name: profile.player_name, rows_data: rows };
+    if (_currentPlanId) assignment.plan_id = _currentPlanId;
+    assignments.push(assignment);
     sent.push(profile.player_name);
   }
 
