@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DK – Plán útoků</title>
+<link rel="icon" href="/kmeny/icon-192.png">
+<link rel="apple-touch-icon" href="/kmeny/icon-192.png">
+<link rel="manifest" href="/kmeny/manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DK Plán">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <style>
@@ -472,10 +477,9 @@ function startAlarm(evt, rowIdx, link) {
   const row = attackRows[rowIdx];
   if (row) {
     const diff = row.sendTime - Date.now();
-    if (diff < 300000) { // 5 minut
+    if (diff < 300000) {
       markRowPlayed(row);
-      const tr = document.querySelector(`tr[data-rowidx="${rowIdx}"]`);
-      if (tr) tr.classList.add('played-row');
+      setTimeout(() => renderTable(), 300);
     }
   }
   window.open(link, 'tw_' + Date.now());
