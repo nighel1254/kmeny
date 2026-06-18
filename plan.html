@@ -545,7 +545,7 @@ function renderTable() {
     return true;
   });
   if (search) visible = visible.filter(r =>
-    `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''}`.toLowerCase().includes(search)
+    `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''}`.toLowerCase().includes(search)
   );
 
   // Sort
