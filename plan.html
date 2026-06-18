@@ -194,23 +194,25 @@ function unlockAudio() {
 function playSiren(volume = 0.4) {
   if (!audioUnlocked) return;
   try {
-    // Vytvoř nový AudioContext pokaždé kvůli Safari který ho pozastaví na pozadí
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume();
-    const duration = 3;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    for (let i = 0; i < duration * 4; i++) {
-      osc.frequency.linearRampToValueAtTime(i%2===0?1200:600, ctx.currentTime + i*0.25 + 0.25);
-    }
-    gain.gain.setValueAtTime(volume, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + duration);
-    osc.onended = () => ctx.close();
+    // Budík – 3x krátký beep vzor (beep-beep-beep)
+    const beepTimes = [0, 0.4, 0.8, 1.4, 1.8, 2.2];
+    beepTimes.forEach(t => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880; // klasické A5
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0, ctx.currentTime + t);
+      gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + t + 0.01);
+      gain.gain.setValueAtTime(volume, ctx.currentTime + t + 0.15);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + 0.2);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.25);
+    });
+    setTimeout(() => ctx.close(), 3000);
   } catch(e) { console.warn('Audio error:', e); }
 }
 
@@ -276,7 +278,7 @@ function startAlarm(evt, rowIdx, link) {
       if (tr) tr.classList.add('played-row');
     }
   }
-  window.open(link, '_blank');
+  window.open(link, 'tw_' + Date.now());
 }
 
 function updateCountdowns() {
@@ -386,7 +388,10 @@ function renderTable() {
       <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
       <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
       <td><span class="countdown" data-send="${r.sendTime}"></span></td>
-      <td><a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a></td>
+      <td>
+        <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
+        <a href="#" onclick="createAlarm(event,${r.sendTime},'${(r.tgtX+'|'+r.tgtY).replace(/'/g,"\\'")}','${(r.srcX+'|'+r.srcY).replace(/'/g,"\\'")}')" title="Přidat budík do kalendáře (-2 min před odesláním)" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:#1a1208;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--gold);text-decoration:none;font-size:14px;margin-left:3px;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">⏰</a>
+      </td>
     </tr>`;
   });
 
@@ -505,6 +510,42 @@ function init() {
 }
 
 window.addEventListener('DOMContentLoaded', init);
+
+function createAlarm(evt, sendTimeMs, tgt, src) {
+  evt.preventDefault();
+  // Budík 2 minuty před odesláním
+  const alarmTime = new Date(sendTimeMs - 2 * 60 * 1000);
+  const sendTime  = new Date(sendTimeMs);
+
+  const fmt = d => d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+  const uid = `dk-alarm-${sendTimeMs}-${Math.random().toString(36).slice(2)}@dk.cs112`;
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//DK Plánovač//cs',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTART:${fmt(alarmTime)}`,
+    `DTEND:${fmt(sendTime)}`,
+    `SUMMARY:⚔️ Odeslat útok ${src} → ${tgt}`,
+    `DESCRIPTION:Čas odeslání: ${sendTime.toLocaleTimeString('cs')}\\nCíl: ${tgt}\\nZdroj: ${src}`,
+    'BEGIN:VALARM',
+    'TRIGGER:PT0S',
+    'ACTION:AUDIO',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+
+  const blob = new Blob([ics], { type: 'text/calendar' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `utok_${tgt.replace('|','_')}_${alarmTime.getHours()}${String(alarmTime.getMinutes()).padStart(2,'0')}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 async function planLogout() {
   const { createClient } = supabase;

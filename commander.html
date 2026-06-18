@@ -2441,7 +2441,7 @@ function startAlarm(evt, rowIdx, link) {
       if (tr) tr.classList.add('played-row');
     }
   }
-  window.open(link, '_blank');
+  window.open(link, 'tw_' + Date.now());
 }
 
 let _publishPlan = null;
