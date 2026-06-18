@@ -229,23 +229,30 @@ function playSiren(volume = 0.4) {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume();
-    // Budík – 3x krátký beep vzor (beep-beep-beep)
-    const beepTimes = [0, 0.4, 0.8, 1.4, 1.8, 2.2];
-    beepTimes.forEach(t => {
+    // Veselá fanfára – vzestupná melodie
+    const notes = [
+      { freq: 523, t: 0,    dur: 0.12 },  // C5
+      { freq: 659, t: 0.13, dur: 0.12 },  // E5
+      { freq: 784, t: 0.26, dur: 0.12 },  // G5
+      { freq: 1047,t: 0.39, dur: 0.25 },  // C6
+      { freq: 784, t: 0.65, dur: 0.12 },  // G5
+      { freq: 1047,t: 0.78, dur: 0.4  },  // C6 (dlouhé)
+    ];
+    notes.forEach(({ freq, t, dur }) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.frequency.value = 880; // klasické A5
-      osc.type = 'square';
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
       gain.gain.setValueAtTime(0, ctx.currentTime + t);
       gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + t + 0.01);
-      gain.gain.setValueAtTime(volume, ctx.currentTime + t + 0.15);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + 0.2);
+      gain.gain.setValueAtTime(volume, ctx.currentTime + t + dur - 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + dur);
       osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.25);
+      osc.stop(ctx.currentTime + t + dur + 0.05);
     });
-    setTimeout(() => ctx.close(), 3000);
+    setTimeout(() => ctx.close(), 1500);
   } catch(e) { console.warn('Audio error:', e); }
 }
 
@@ -278,67 +285,73 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ── WEB PUSH NOTIFIKACE ────────────────────────────────────
+const VAPID_PUBLIC = 'BHrpp7MbdTooRg22UB1ePAGUfmJR2oHhH_BTqhzDKxGnrsJLpprM9vJdz914Nqcy5NCBJsjtAUvJoN5NUo4OzOY';
 let swRegistration = null;
 
 async function initServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
+  if (!('serviceWorker' in navigator)) return null;
   try {
     swRegistration = await navigator.serviceWorker.register('/kmeny/sw.js');
-    console.log('SW registered');
-  } catch(e) { console.warn('SW registration failed:', e); }
+    await navigator.serviceWorker.ready;
+    return swRegistration;
+  } catch(e) { console.warn('SW failed:', e); return null; }
 }
 
-async function requestNotificationPermission() {
-  if (!('Notification' in window)) {
-    toast('Tvůj prohlížeč nepodporuje notifikace.', 'err');
-    return false;
-  }
-  if (Notification.permission === 'granted') return true;
-  if (Notification.permission === 'denied') {
-    toast('Notifikace jsou zakázané – povol je v nastavení prohlížeče.', 'err', 6000);
-    return false;
-  }
-  const result = await Notification.requestPermission();
-  return result === 'granted';
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
 }
 
-async function scheduleNotifications(rows) {
-  if (!swRegistration) await initServiceWorker();
-  if (!swRegistration) return;
-
-  const now = Date.now();
-  const alarms = rows
-    .filter(r => !playedRows.has(rowKey(r)))
-    .map(r => {
-      const alarmTime = r.sendTime - 2 * 60 * 1000; // 2 min před
-      if (alarmTime <= now) return null;
-      return {
-        time: alarmTime,
-        title: `⏰ Odeslat útok za 2 minuty!`,
-        body: `${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY} · Odeslání: ${new Date(r.sendTime).toLocaleTimeString('cs')}`,
-        tag: `dk-alarm-${r.srcX}-${r.srcY}-${r.sendTime}`,
-        url: window.location.href
-      };
-    })
-    .filter(Boolean);
-
-  if (!alarms.length) return;
-
-  const sw = swRegistration.active || swRegistration.installing || swRegistration.waiting;
-  if (sw) {
-    sw.postMessage({ type: 'SCHEDULE_ALARMS', alarms });
-    console.log(`Naplánováno ${alarms.length} notifikací`);
-  }
-}
-
-// Tlačítko pro povolení notifikací
 async function enableNotifications() {
-  const granted = await requestNotificationPermission();
-  if (!granted) return;
-  localStorage.setItem('dk_notif_enabled', '1');
-  updateNotifButton(true);
-  if (attackRows.length) scheduleNotifications(attackRows);
-  toast('✓ Notifikace povoleny! Dostaneš upozornění 2 min před odesláním.', 'ok', 5000);
+  if (!('Notification' in window)) { toast('Prohlížeč nepodporuje notifikace.', 'err'); return; }
+
+  const reg = await initServiceWorker();
+  if (!reg) { toast('Service Worker se nepodařilo spustit.', 'err'); return; }
+
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') { toast('Notifikace nebyly povoleny.', 'err'); return; }
+
+  try {
+    // Vytvoř push subscription
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC)
+      });
+    }
+
+    // Ulož subscription + naplánované časy do Supabase
+    const { data: { session } } = await sbP.auth.getSession();
+    if (!session) { toast('Nejsi přihlášen.', 'err'); return; }
+
+    const alarms = attackRows
+      .filter(r => !playedRows.has(rowKey(r)))
+      .map(r => ({
+        send_time: r.sendTime,
+        src: `${r.srcX}|${r.srcY}`,
+        tgt: `${r.tgtX}|${r.tgtY}`,
+        row_key: rowKey(r)
+      }))
+      .filter(a => a.send_time - Date.now() > 60000); // jen budoucí
+
+    const subJson = JSON.stringify(sub.toJSON());
+    await sbP.from('push_subscriptions').upsert({
+      user_id: session.user.id,
+      subscription: subJson,
+      alarms: JSON.stringify(alarms),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+
+    localStorage.setItem('dk_notif_enabled', '1');
+    updateNotifButton(true);
+    toast(`✓ Notifikace zapnuty! Naplánováno ${alarms.length} upozornění.`, 'ok', 5000);
+  } catch(e) {
+    console.error('Push subscription failed:', e);
+    toast('Nepodařilo se aktivovat notifikace: ' + e.message, 'err', 6000);
+  }
 }
 
 function updateNotifButton(enabled) {
@@ -357,7 +370,28 @@ function updateNotifButton(enabled) {
   }
 }
 
-// Init SW při načtení
+async function scheduleNotifications(rows) {
+  // Při každém načtení aktualizuj alarmy v DB
+  if (localStorage.getItem('dk_notif_enabled') !== '1') return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    const reg = await initServiceWorker();
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    const { data: { session } } = await sbP.auth.getSession();
+    if (!session) return;
+    const alarms = rows
+      .filter(r => !playedRows.has(rowKey(r)))
+      .map(r => ({ send_time: r.sendTime, src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r) }))
+      .filter(a => a.send_time - Date.now() > 60000);
+    await sbP.from('push_subscriptions').update({
+      alarms: JSON.stringify(alarms),
+      updated_at: new Date().toISOString()
+    }).eq('user_id', session.user.id);
+  } catch(e) { console.warn('Schedule update failed:', e); }
+}
+
 initServiceWorker();
 const SUPABASE_URL_P = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
 const SUPABASE_KEY_P = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
