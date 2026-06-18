@@ -627,7 +627,6 @@ function render(data) {
         <div class="meta">Svět: ${data.world||'cs112'} &nbsp;|&nbsp; ${data.exported ? fmtDT(new Date(data.exported > 1e12 ? data.exported : data.exported*1000)) : ''}</div>
         <a href="dashboard.html" style="font-size:12px;color:var(--gold);text-decoration:none;background:#1e1508;border:1px solid var(--gold);padding:5px 12px;border-radius:4px;font-weight:600;">← Moje plány</a>
         <button id="notif-btn" onclick="enableNotifications()" style="font-size:12px;background:transparent;border:1px solid var(--gold);color:var(--gold);padding:5px 12px;border-radius:4px;cursor:pointer;">🔔 Povolit notifikace</button>
-        <button onclick="resetNotifications()" style="font-size:11px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 8px;border-radius:4px;cursor:pointer;" title="Reset notifikací">↺</button>
         <button onclick="planLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 12px;border-radius:4px;cursor:pointer;">Odhlásit</button>
       </div>
     </div>
