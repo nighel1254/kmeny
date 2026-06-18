@@ -80,9 +80,6 @@
     table { font-size: 11px; }
     th, td { padding: 5px 6px; }
 
-    /* Na mobilu skryj méně důležité sloupce */
-    .col-unit, .col-send, .col-arrive, .col-travel { display: none; }
-
     .warning-box { margin: 6px; font-size: 11px; }
   }
 </style>
@@ -589,16 +586,14 @@ function renderTable() {
   // Table
   let html = `<table><thead><tr>
     <th onclick="setSort('idx')">#</th>
-    <th class="col-num">#</th>
-    <th class="col-play">▶</th>
-    <th class="col-countdown">Odpočet</th>
-    <th class="col-src" onclick="setSort('src')">Zdroj ${sortIndicator('src')}</th>
-    <th class="col-type" onclick="setSort('type')">Typ ${sortIndicator('type')}</th>
-    <th class="col-tgt" onclick="setSort('tgt')">Cíl ${sortIndicator('tgt')}</th>
-    <th class="col-unit">Jednotka</th>
-    <th class="col-send" onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
-    <th class="col-arrive" onclick="setSort('arrive')">Čas příchodu ${sortIndicator('arrive')}</th>
-    <th class="col-travel" onclick="setSort('travel')">Cesta ${sortIndicator('travel')}</th>
+    <th onclick="setSort('src')">Zdroj ${sortIndicator('src')}</th>
+    <th onclick="setSort('type')">Typ ${sortIndicator('type')}</th>
+    <th onclick="setSort('tgt')">Cíl ${sortIndicator('tgt')}</th>
+    <th>Jednotka</th>
+    <th onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
+    <th onclick="setSort('arrive')">Čas příchodu ${sortIndicator('arrive')}</th>
+    <th onclick="setSort('travel')">Cesta ${sortIndicator('travel')}</th>
+    <th>Odpočet</th><th>▶</th>
   </tr></thead><tbody>`;
 
   visible.forEach((r, i) => {
@@ -614,18 +609,16 @@ function renderTable() {
     const rowIdx = attackRows.indexOf(r);
 
     html += `<tr class="${rowClass}" data-rowidx="${i}">
-      <td class="col-num" style="color:var(--dim);font-size:11px;">${i+1}</td>
-      <td class="col-play">
-        <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
-      </td>
-      <td class="col-countdown"><span class="countdown" data-send="${r.sendTime}"></span></td>
-      <td class="col-src"><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span></td>
-      <td class="col-type">${typeChip(r)}</td>
-      <td class="col-tgt"><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
-      <td class="col-unit"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
-      <td class="col-send ${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
-      <td class="col-arrive arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
-      <td class="col-travel" style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
+      <td style="color:var(--dim);font-size:11px;">${i+1}</td>
+      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span></td>
+      <td>${typeChip(r)}</td>
+      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
+      <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
+      <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
+      <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
+      <td><span class="countdown" data-send="${r.sendTime}"></span></td>
+      <td><a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a></td>
     </tr>`;
   });
 
