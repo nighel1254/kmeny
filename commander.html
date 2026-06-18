@@ -1443,6 +1443,7 @@ async function calculate() {
   if (fakeNobleCount > 0 && !fakeNobleArrFrom) { toast('Nastav čas příchodu fejk vlaků!', 'err'); return; }
 
   const rows = [];
+  const usedSendTimesGlobal = new Set(); // globální sledování časů odeslání
   const now  = Date.now();
 
   // ── Společná logika přiřazení ostrých ──────────────────────
@@ -1594,8 +1595,7 @@ async function calculate() {
     const maxFakeTargets = Math.floor(srcVillages.length / fakeCount);
     const coveredFakes   = Math.min(maxFakeTargets, fakeTargets.length);
 
-    // fakeAssign: src → fejk cíl
-    const fakeAssign = new Map();
+    // Seřaď zdroje pro fejky
     const sortedSrcForFake = [...srcVillages].sort((a,b) => (ORDER[a.category]??9)-(ORDER[b.category]??9));
     for (let fi = 0; fi < coveredFakes; fi++) {
       const ft = fakeTargets[fi];
@@ -1617,6 +1617,7 @@ async function calculate() {
       for (const tgt of tgts) {
         const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
         const sendTime = tgt.arrivalTime - travel;
+        usedSendTimesGlobal.add(sendTime);
         rows.push({
           srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
@@ -1643,20 +1644,32 @@ async function calculate() {
       }
     }
 
-    for (const sv of sortedSrcForFake) {
-      const fakeTgt = fakeAssign.get(sv);
-      if (!fakeTgt) continue;
-      const arrivalTime = fakeTgtArrival.get(`${fakeTgt.x}|${fakeTgt.y}`) || fakeArrivalFrom;
-      const travel   = travelMs(sv.x, sv.y, fakeTgt.x, fakeTgt.y, fakeUnit);
-      const sendTime = arrivalTime - travel;
-      rows.push({
-        srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
-        srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
-        tgtX:fakeTgt.x, tgtY:fakeTgt.y, tgtName:fakeTgt.name, tgtId:fakeTgt.id, tgtOwner:fakeTgt.owner||(allPlayers.get((allVillages.find(v=>v.x===fakeTgt.x&&v.y===fakeTgt.y)||{}).playerId)||''),
-        unit:fakeUnit, arrivalTime, sendTime, travel,
-        night:isNight(sendTime), isPast:sendTime<now,
-        isFake:true, forced_night:false
-      });
+    // Generuj řádky – fejky s kontrolou duplicitních sendTime
+    const fakeTgtArrivalMap = fakeTgtArrival; // alias
+    // Sestavíme přiřazení znovu s kontrolou sendTime
+    const usedFakeSrcs = new Set();
+    for (let fi = 0; fi < coveredFakes; fi++) {
+      const ft = fakeTargets[fi];
+      const arrivalTime = fakeTgtArrivalMap.get(`${ft.x}|${ft.y}`) || fakeArrivalFrom;
+      let assigned = 0;
+      for (const sv of sortedSrcForFake) {
+        if (assigned >= fakeCount) break;
+        if (usedFakeSrcs.has(`${sv.x}|${sv.y}`)) continue;
+        const travel = travelMs(sv.x, sv.y, ft.x, ft.y, fakeUnit);
+        const sendTime = arrivalTime - travel;
+        if (usedSendTimesGlobal.has(sendTime)) continue; // duplicitní čas – přeskočit
+        usedFakeSrcs.add(`${sv.x}|${sv.y}`);
+        usedSendTimesGlobal.add(sendTime);
+        rows.push({
+          srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
+          tgtX:ft.x, tgtY:ft.y, tgtName:ft.name, tgtId:ft.id, tgtOwner:ft.owner||(allPlayers.get((allVillages.find(v=>v.x===ft.x&&v.y===ft.y)||{}).playerId)||''),
+          unit:fakeUnit, arrivalTime, sendTime, travel,
+          night:isNight(sendTime), isPast:sendTime<now,
+          isFake:true, forced_night:false
+        });
+        assigned++;
+      }
     }
   }
 
@@ -1686,20 +1699,29 @@ async function calculate() {
         fakeNobleTgtArrival.set(key, arrTime);
       }
     }
-    for (const sv of sortedSrcForFakeNoble) {
-      const fakeTgt = fakeNobleAssign.get(sv);
-      if (!fakeTgt) continue;
-      const arrivalTime = fakeNobleTgtArrival.get(`${fakeTgt.x}|${fakeTgt.y}`) || fakeNobleArrFrom;
-      const travel = travelMs(sv.x, sv.y, fakeTgt.x, fakeTgt.y, 'ram');
-      const sendTime = arrivalTime - travel;
-      rows.push({
-        srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
-        srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
-        tgtX:fakeTgt.x, tgtY:fakeTgt.y, tgtName:fakeTgt.name, tgtId:fakeTgt.id, tgtOwner:fakeTgt.owner||(allPlayers.get((allVillages.find(v=>v.x===fakeTgt.x&&v.y===fakeTgt.y)||{}).playerId)||''),
-        unit:'ram', arrivalTime, sendTime, travel,
-        night:isNight(sendTime), isPast:sendTime<now,
-        isFake:true, isFakeNoble:true, forced_night:false
-      });
+    const usedFakeNobleSrcs = new Set();
+    for (let fi = 0; fi < coveredFakeNoble; fi++) {
+      const ft = fakeNobleTargets[fi];
+      const arrivalTime = fakeNobleTgtArrival.get(`${ft.x}|${ft.y}`) || fakeNobleArrFrom;
+      let assigned = 0;
+      for (const sv of sortedSrcForFakeNoble) {
+        if (assigned >= fakeNobleCount) break;
+        if (usedFakeNobleSrcs.has(`${sv.x}|${sv.y}`)) continue;
+        const travel = travelMs(sv.x, sv.y, ft.x, ft.y, 'ram');
+        const sendTime = arrivalTime - travel;
+        if (usedSendTimesGlobal.has(sendTime)) continue;
+        usedFakeNobleSrcs.add(`${sv.x}|${sv.y}`);
+        usedSendTimesGlobal.add(sendTime);
+        rows.push({
+          srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
+          tgtX:ft.x, tgtY:ft.y, tgtName:ft.name, tgtId:ft.id, tgtOwner:ft.owner||(allPlayers.get((allVillages.find(v=>v.x===ft.x&&v.y===ft.y)||{}).playerId)||''),
+          unit:'ram', arrivalTime, sendTime, travel,
+          night:isNight(sendTime), isPast:sendTime<now,
+          isFake:true, isFakeNoble:true, forced_night:false
+        });
+        assigned++;
+      }
     }
   }
   if (document.getElementById('noble-target-coords').value.trim().match(/\d+\|\d+/)) {
@@ -1707,14 +1729,6 @@ async function calculate() {
   }
 
   rows.sort((a,b)=>a.sendTime-b.sendTime);
-
-  // Oprav duplicitní časy odeslání – nikdy 2 útoky ve stejný čas
-  const usedSendTimes = new Set();
-  rows.forEach(r => {
-    while (usedSendTimes.has(r.sendTime)) r.sendTime += 1000; // +1s
-    usedSendTimes.add(r.sendTime);
-  });
-
   attackRows = rows;
 
   // ── VAROVÁNÍ – noční útoky bez denní alternativy ──────────
@@ -2373,7 +2387,14 @@ function updateCountdowns() {
   const now = Date.now();
   document.querySelectorAll('.countdown[data-send]').forEach(el => {
     const diff = +el.dataset.send - now;
-    if (diff < 0) { el.textContent='Odešlo'; el.className='countdown past'; return; }
+    if (diff < 0) {
+      // Zkontroluj jestli byl řádek odeslán
+      const tr = el.closest('tr');
+      const isPlayed = tr && tr.classList.contains('played-row');
+      el.textContent = isPlayed ? 'Odešlo' : 'Zmeškal';
+      el.className = 'countdown past';
+      return;
+    }
     el.textContent = fmtHMS(diff);
     el.className = 'countdown '+(diff<60000?'urgent':diff<600000?'soon':'ok');
   });
@@ -2414,7 +2435,7 @@ function startAlarm(evt, rowIdx, link) {
   const row = attackRows[rowIdx];
   if (row) {
     const diff = row.sendTime - Date.now();
-    if (diff < 60000) {
+    if (diff < 300000) { // 5 minut před odesláním
       markRowPlayed(row);
       const tr = document.querySelector(`table.attacks tbody tr[data-rowidx="${rowIdx}"]`);
       if (tr) tr.classList.add('played-row');

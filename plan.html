@@ -270,7 +270,7 @@ function startAlarm(evt, rowIdx, link) {
   const row = attackRows[rowIdx];
   if (row) {
     const diff = row.sendTime - Date.now();
-    if (diff < 60000) {
+    if (diff < 300000) { // 5 minut
       markRowPlayed(row);
       const tr = document.querySelector(`tr[data-rowidx="${rowIdx}"]`);
       if (tr) tr.classList.add('played-row');
@@ -283,7 +283,12 @@ function updateCountdowns() {
   const now = Date.now();
   document.querySelectorAll('.countdown[data-send]').forEach(el => {
     const diff = +el.dataset.send - now;
-    if (diff < 0) { el.textContent='Odešlo'; el.className='countdown past'; return; }
+    if (diff < 0) {
+      const tr = el.closest('tr');
+      const isPlayed = tr && tr.classList.contains('played-row');
+      el.textContent = isPlayed ? 'Odešlo' : 'Zmeškal';
+      el.className = 'countdown past'; return;
+    }
     const s=Math.floor(diff/1000);
     el.textContent=`${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`;
     el.className='countdown '+(diff<60000?'urgent':diff<600000?'soon':'ok');
