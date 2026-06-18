@@ -156,40 +156,73 @@ function setSort(col) {
 }
 
 // ── ZVUK SIRÉNY ────────────────────────────────────────────
-let audioCtx = null;
-let audioUnlocked = false;
+let audioUnlocked = localStorage.getItem('dk_audio_unlocked') === '1';
+let _audioResumeInterval = null;
 
 function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
+  // Vždy vytvoř nový context – Safari pozastaví starý na pozadí
+  return new (window.AudioContext || window.webkitAudioContext)();
 }
 
 function unlockAudio() {
   if (audioUnlocked) {
     // Toggle OFF
     audioUnlocked = false;
+    localStorage.removeItem('dk_audio_unlocked');
+    if (_audioResumeInterval) { clearInterval(_audioResumeInterval); _audioResumeInterval = null; }
     const btn = document.getElementById('audio-unlock-btn');
     const banner = document.getElementById('audio-banner');
     if (banner) { banner.style.background='#1a1200'; banner.style.borderBottomColor='var(--gold)'; }
-    if (btn) { btn.textContent='🔔 Zapnout upozornění'; btn.style.background='var(--gold)'; btn.style.color='#1a0e00'; btn.disabled=false; }
+    if (btn) { btn.textContent='🔔 Zapnout upozornění'; btn.style.background='var(--gold)'; btn.style.color='#1a0e00'; }
     return;
   }
   try {
-    const ctx = getAudioCtx();
+    // Odemkni audio kliknutím
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const buf = ctx.createBuffer(1, 1, 22050);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(ctx.destination);
     src.start(0);
-    if (ctx.state === 'suspended') ctx.resume();
+    ctx.close();
+
     audioUnlocked = true;
+    localStorage.setItem('dk_audio_unlocked', '1');
+
     const banner = document.getElementById('audio-banner');
     const btn = document.getElementById('audio-unlock-btn');
     if (banner) { banner.style.background='#0a1a0a'; banner.style.borderBottomColor='var(--green)'; }
-    if (btn) { btn.textContent='🔕 Vypnout upozornění'; btn.style.background='#205020'; btn.style.color='#80d080'; btn.disabled=false; }
+    if (btn) { btn.textContent='🔕 Vypnout upozornění'; btn.style.background='#205020'; btn.style.color='#80d080'; }
+
+    // Test zvuk
     setTimeout(() => playSiren(0.15), 200);
+
+    // Na Safari mobile – pravidelně "keepalive" audio aby se nesuspendoval
+    _audioResumeInterval = setInterval(() => {
+      if (!audioUnlocked) return;
+      try {
+        const ctx2 = new (window.AudioContext || window.webkitAudioContext)();
+        const buf2 = ctx2.createBuffer(1, 1, 22050);
+        const src2 = ctx2.createBufferSource();
+        src2.buffer = buf2;
+        src2.connect(ctx2.destination);
+        src2.start(0);
+        setTimeout(() => ctx2.close(), 100);
+      } catch(e) {}
+    }, 25000); // každých 25s tichý ping
+
   } catch(e) { console.warn('Audio unlock failed:', e); }
 }
+
+// Obnov stav tlačítka po načtení stránky
+document.addEventListener('DOMContentLoaded', () => {
+  if (audioUnlocked) {
+    const banner = document.getElementById('audio-banner');
+    const btn = document.getElementById('audio-unlock-btn');
+    if (banner) { banner.style.background='#0a1a0a'; banner.style.borderBottomColor='var(--green)'; }
+    if (btn) { btn.textContent='🔕 Vypnout upozornění'; btn.style.background='#205020'; btn.style.color='#80d080'; }
+  }
+});
 
 function playSiren(volume = 0.4) {
   if (!audioUnlocked) return;
@@ -237,7 +270,95 @@ function checkSirenAlerts() {
   });
 }
 
-// ── ODESLANÉ PŘÍKAZY – sync přes Supabase ──────────────────
+// Na Safari – zkontroluj alerty když se stránka vrátí do popředí
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && audioUnlocked) {
+    checkSirenAlerts();
+  }
+});
+
+// ── WEB PUSH NOTIFIKACE ────────────────────────────────────
+let swRegistration = null;
+
+async function initServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    swRegistration = await navigator.serviceWorker.register('/kmeny/sw.js');
+    console.log('SW registered');
+  } catch(e) { console.warn('SW registration failed:', e); }
+}
+
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    toast('Tvůj prohlížeč nepodporuje notifikace.', 'err');
+    return false;
+  }
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') {
+    toast('Notifikace jsou zakázané – povol je v nastavení prohlížeče.', 'err', 6000);
+    return false;
+  }
+  const result = await Notification.requestPermission();
+  return result === 'granted';
+}
+
+async function scheduleNotifications(rows) {
+  if (!swRegistration) await initServiceWorker();
+  if (!swRegistration) return;
+
+  const now = Date.now();
+  const alarms = rows
+    .filter(r => !playedRows.has(rowKey(r)))
+    .map(r => {
+      const alarmTime = r.sendTime - 2 * 60 * 1000; // 2 min před
+      if (alarmTime <= now) return null;
+      return {
+        time: alarmTime,
+        title: `⏰ Odeslat útok za 2 minuty!`,
+        body: `${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY} · Odeslání: ${new Date(r.sendTime).toLocaleTimeString('cs')}`,
+        tag: `dk-alarm-${r.srcX}-${r.srcY}-${r.sendTime}`,
+        url: window.location.href
+      };
+    })
+    .filter(Boolean);
+
+  if (!alarms.length) return;
+
+  const sw = swRegistration.active || swRegistration.installing || swRegistration.waiting;
+  if (sw) {
+    sw.postMessage({ type: 'SCHEDULE_ALARMS', alarms });
+    console.log(`Naplánováno ${alarms.length} notifikací`);
+  }
+}
+
+// Tlačítko pro povolení notifikací
+async function enableNotifications() {
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
+  localStorage.setItem('dk_notif_enabled', '1');
+  updateNotifButton(true);
+  if (attackRows.length) scheduleNotifications(attackRows);
+  toast('✓ Notifikace povoleny! Dostaneš upozornění 2 min před odesláním.', 'ok', 5000);
+}
+
+function updateNotifButton(enabled) {
+  const btn = document.getElementById('notif-btn');
+  if (!btn) return;
+  if (enabled) {
+    btn.textContent = '🔔 Notifikace zapnuty';
+    btn.style.background = '#205020';
+    btn.style.color = '#80d080';
+    btn.style.borderColor = '#205020';
+  } else {
+    btn.textContent = '🔔 Povolit notifikace';
+    btn.style.background = 'transparent';
+    btn.style.color = 'var(--gold)';
+    btn.style.borderColor = 'var(--gold)';
+  }
+}
+
+// Init SW při načtení
+initServiceWorker();
 const SUPABASE_URL_P = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
 const SUPABASE_KEY_P = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
 const sbP = supabase.createClient(SUPABASE_URL_P, SUPABASE_KEY_P);
@@ -411,6 +532,7 @@ function render(data) {
       <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;">
         <div class="meta">Svět: ${data.world||'cs112'} &nbsp;|&nbsp; ${data.exported ? fmtDT(new Date(data.exported > 1e12 ? data.exported : data.exported*1000)) : ''}</div>
         <a href="dashboard.html" style="font-size:12px;color:var(--gold);text-decoration:none;background:#1e1508;border:1px solid var(--gold);padding:5px 12px;border-radius:4px;font-weight:600;">← Moje plány</a>
+        <button id="notif-btn" onclick="enableNotifications()" style="font-size:12px;background:transparent;border:1px solid var(--gold);color:var(--gold);padding:5px 12px;border-radius:4px;cursor:pointer;">🔔 Povolit notifikace</button>
         <button onclick="planLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 12px;border-radius:4px;cursor:pointer;">Odhlásit</button>
       </div>
     </div>
@@ -508,6 +630,12 @@ function init() {
     const data = decodeData(json);
     if (!data || !data.rows) throw new Error('Chybí data rows');
     render(data);
+    // Naplánuj notifikace pokud jsou povoleny
+    const notifEnabled = localStorage.getItem('dk_notif_enabled') === '1';
+    if (notifEnabled && Notification.permission === 'granted') {
+      updateNotifButton(true);
+      setTimeout(() => scheduleNotifications(attackRows), 500);
+    }
   } catch(e) {
     document.getElementById('app').innerHTML = `<div class="error">⚠️ Nepodařilo se načíst plán útoků. Odkaz je poškozený nebo neplatný.<br><small style="opacity:.6">${e.message}</small></div>`;
     console.error(e);
