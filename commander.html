@@ -2422,7 +2422,8 @@ async function syncPlayedRows() {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return;
-    const { data } = await sb.from('played_rows').select('row_key').eq('user_id', session.user.id);
+    // Commander načte VŠECHNY odeslané příkazy (všech hráčů)
+    const { data } = await sb.from('played_rows').select('row_key');
     if (data?.length) {
       data.forEach(r => playedRows.add(r.row_key));
       try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
