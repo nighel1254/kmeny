@@ -603,6 +603,7 @@
           </label>
           <span id="attack-count" style="font-size:11px;color:var(--dim);font-weight:normal;"></span>
           <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;font-weight:normal;" onclick="saveAction()" title="Uloží aktuální akci a odebere použité offky ze zdrojů">💾 Přidat do plánu</button>
+          <button class="btn btn-sm" style="background:#1a0a2a;border:1px solid #402060;color:#c080ff;font-weight:normal;" onclick="recalcFakeNobles()" title="Přepočítá fejk vlaky s rychlostí beranidla">🔄 Přepočítat fejk vlaky</button>
           <button class="btn btn-sm" style="background:#0a2a0a;border:1px solid #205020;color:#60c060;font-weight:normal;" onclick="savePlanWithName()" title="Uloží plán do kmenových plánů">🏰 Uložit plán</button>
           <button class="btn btn-sm" style="background:#1a0a2a;border:1px solid #402060;color:#c080ff;font-weight:normal;" onclick="publishToPlayers()" title="Publikuje plán hráčům">🚀 Publikovat hráčům</button>
           <button class="btn btn-sm btn-red" onclick="clearAll()" style="font-weight:normal;">✕ Smazat</button>
@@ -1675,7 +1676,7 @@ async function calculate() {
       if (!fakeNobleTgtArrival.has(key)) {
         const srcsForThis = sortedSrcForFakeNoble.filter(sv => fakeNobleAssign.get(sv) === ft);
         const arrTime = (fakeNobleArrTo && fakeNobleArrTo > fakeNobleArrFrom)
-          ? bestArrivalTime(fakeNobleArrFrom, fakeNobleArrTo, srcsForThis, ft, 'noble')
+          ? bestArrivalTime(fakeNobleArrFrom, fakeNobleArrTo, srcsForThis, ft, 'ram')
           : fakeNobleArrFrom;
         fakeNobleTgtArrival.set(key, arrTime);
       }
@@ -1684,7 +1685,7 @@ async function calculate() {
       const fakeTgt = fakeNobleAssign.get(sv);
       if (!fakeTgt) continue;
       const arrivalTime = fakeNobleTgtArrival.get(`${fakeTgt.x}|${fakeTgt.y}`) || fakeNobleArrFrom;
-      const travel = travelMs(sv.x, sv.y, fakeTgt.x, fakeTgt.y, 'noble');
+      const travel = travelMs(sv.x, sv.y, fakeTgt.x, fakeTgt.y, 'ram');
       const sendTime = arrivalTime - travel;
       rows.push({
         srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
@@ -2387,6 +2388,34 @@ function startAlarm(evt, rowIdx, link) {
 let _publishPlan = null;
 let _currentPlanLabel = '';
 let _currentPlanId = null;
+// ── PŘEPOČET FEJK VLAKŮ ────────────────────────────────────
+function recalcFakeNobles() {
+  let fixed = 0;
+  const fixRow = r => {
+    if (!r.isFakeNoble) return;
+    const correctTravel = travelMs(r.srcX, r.srcY, r.tgtX, r.tgtY, 'ram');
+    const correctSend   = r.arrivalTime - correctTravel;
+    if (Math.abs(r.travel - correctTravel) > 1000) { // rozdíl > 1s
+      r.travel    = correctTravel;
+      r.sendTime  = correctSend;
+      r.night     = isNight(correctSend);
+      r.isPast    = correctSend < Date.now();
+      fixed++;
+    }
+  };
+  attackRows.forEach(fixRow);
+  savedActions.forEach(a => a.rows.forEach(fixRow));
+  if (fixed > 0) {
+    attackRows.sort((a,b) => a.sendTime - b.sendTime);
+    savedActions.forEach(a => a.rows.sort((a,b) => a.sendTime - b.sendTime));
+    renderResults();
+    autosave();
+    toast(`✓ Přepočítáno ${fixed} fejk vlaků (beranidlo místo šlechtice).`, 'ok', 6000);
+  } else {
+    toast('Žádné fejk vlaky k přepočítání.', 'info');
+  }
+}
+
 // ── REFRESH ŘÁDKU ──────────────────────────────────────────
 function isNightSend(sendTimeMs) {
   const h = new Date(sendTimeMs).getHours();
