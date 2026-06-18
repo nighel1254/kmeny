@@ -330,20 +330,28 @@ async function enableNotifications() {
     const alarms = attackRows
       .filter(r => !playedRows.has(rowKey(r)))
       .map(r => ({
-        send_time: r.sendTime,
+        send_time: Math.round(r.sendTime),
         src: `${r.srcX}|${r.srcY}`,
         tgt: `${r.tgtX}|${r.tgtY}`,
         row_key: rowKey(r)
       }))
       .filter(a => a.send_time - Date.now() > 60000); // jen budoucí
 
+    // Unikátní ID zařízení (uložené v localStorage)
+    let deviceId = localStorage.getItem('dk_device_id');
+    if (!deviceId) {
+      deviceId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem('dk_device_id', deviceId);
+    }
+
     const subJson = JSON.stringify(sub.toJSON());
     await sbP.from('push_subscriptions').upsert({
       user_id: session.user.id,
+      device_id: deviceId,
       subscription: subJson,
       alarms: JSON.stringify(alarms),
       updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' });
+    }, { onConflict: 'user_id,device_id' });
 
     localStorage.setItem('dk_notif_enabled', '1');
     updateNotifButton(true);
@@ -383,12 +391,13 @@ async function scheduleNotifications(rows) {
     if (!session) return;
     const alarms = rows
       .filter(r => !playedRows.has(rowKey(r)))
-      .map(r => ({ send_time: r.sendTime, src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r) }))
+      .map(r => ({ send_time: Math.round(r.sendTime), src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r) }))
       .filter(a => a.send_time - Date.now() > 60000);
+    const deviceId = localStorage.getItem('dk_device_id') || 'default';
     await sbP.from('push_subscriptions').update({
       alarms: JSON.stringify(alarms),
       updated_at: new Date().toISOString()
-    }).eq('user_id', session.user.id);
+    }).eq('user_id', session.user.id).eq('device_id', deviceId);
   } catch(e) { console.warn('Schedule update failed:', e); }
 }
 
