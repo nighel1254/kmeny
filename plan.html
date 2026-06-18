@@ -305,6 +305,19 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function enableNotifications() {
+  // Toggle OFF
+  if (localStorage.getItem('dk_notif_enabled') === '1') {
+    localStorage.removeItem('dk_notif_enabled');
+    updateNotifButton(false);
+    try {
+      const { data: { session } } = await sbP.auth.getSession();
+      const deviceId = localStorage.getItem('dk_device_id') || 'default';
+      if (session) await sbP.from('push_subscriptions').delete().eq('user_id', session.user.id).eq('device_id', deviceId);
+    } catch(e) {}
+    toast('Notifikace vypnuty.', 'info');
+    return;
+  }
+
   if (!('Notification' in window)) { toast('Prohlížeč nepodporuje notifikace.', 'err'); return; }
 
   const reg = await initServiceWorker();
