@@ -791,38 +791,37 @@ function createAlarm(evt, sendTimeMs, tgt, src) {
 async function markRowPlayedFromEl(el) {
   const tr = el.closest('tr');
   if (!tr) return;
-  const rowidx = parseInt(tr.dataset.rowidx);
-  const row = attackRows[rowidx];
+  const sendTime = parseInt(el.closest('td')?.previousElementSibling?.querySelector('.countdown')?.dataset?.send || tr.querySelector('.countdown')?.dataset?.send);
+  const row = attackRows.find(r => r.sendTime === sendTime);
   if (!row) return;
   await markRowPlayed(row);
   tr.classList.add('played-row');
+  tr.classList.remove('past-row');
   el.textContent = 'Odešlo';
   el.title = 'Klikni pro označení jako Zmeškal';
   el.onclick = () => unmarkRowPlayed(el);
-  if (document.getElementById('hide-played')?.checked) renderTable();
+  if (document.getElementById('hide-played')?.checked) setTimeout(() => renderTable(), 300);
 }
 
 async function unmarkRowPlayed(el) {
   const tr = el.closest('tr');
   if (!tr) return;
-  const rowidx = parseInt(tr.dataset.rowidx);
-  const row = attackRows[rowidx];
+  const sendTime = parseInt(tr.querySelector('.countdown')?.dataset?.send);
+  const row = attackRows.find(r => r.sendTime === sendTime);
   if (!row) return;
   const key = rowKey(row);
   playedRows.delete(key);
   try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
-  // Odstraň z DB
   try {
     const { data: { session } } = await sbP.auth.getSession();
     if (session) await sbP.from('played_rows').delete().eq('user_id', session.user.id).eq('row_key', key);
   } catch(e) {}
   tr.classList.remove('played-row');
   el.textContent = 'Zmeškal';
-  el.style.cursor = '';
-  el.onclick = null;
-  el.title = '';
-  // Pokud je hide-played zapnuto, skryj řádek
-  if (document.getElementById('hide-played')?.checked) renderTable();
+  el.style.cursor = 'pointer';
+  el.title = 'Klikni pro označení jako Odešlo';
+  el.onclick = () => markRowPlayedFromEl(el);
+  if (document.getElementById('hide-played')?.checked) setTimeout(() => renderTable(), 300);
 }
 
 async function planLogout() {
