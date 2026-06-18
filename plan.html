@@ -23,17 +23,39 @@
   input[type="datetime-local"]{color-scheme:dark;}
   input[type="datetime-local"]::-webkit-calendar-picker-indicator{filter:invert(0.8);cursor:pointer;opacity:0.8;}
 
+  /* Audio banner – tenký proužek */
+  #audio-banner { background:#0f0c02; border-bottom:1px solid #2a1e00; padding:5px 16px; display:flex; align-items:center; gap:10px; font-size:11px; color:var(--dim); }
+  #audio-banner.active { background:#061006; border-color:#1a3a1a; }
+  #audio-unlock-btn { background:#1e1200; color:var(--gold); border:1px solid #3a2800; border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; white-space:nowrap; }
+  #audio-unlock-btn.active { background:#0a1a0a; color:#60d060; border-color:#1a4a1a; }
+
+  /* Toggle přepínač místo checkboxu */
+  .toggle-wrap { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+  .toggle-wrap input { display:none; }
+  .toggle-track { width:32px; height:18px; background:#2a2010; border-radius:9px; position:relative; transition:.2s; border:1px solid var(--border); flex-shrink:0; }
+  .toggle-track::after { content:''; position:absolute; left:2px; top:2px; width:12px; height:12px; background:var(--dim); border-radius:50%; transition:.2s; }
+  input:checked + .toggle-track { background:#205020; border-color:#305030; }
+  input:checked + .toggle-track::after { left:16px; background:#80d080; }
+
   /* Header */
-  .top-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-  .top-bar h1{font-size:15px;color:var(--gold2);display:flex;align-items:center;gap:6px;}
+  .top-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .top-bar h1{font-size:16px;color:var(--gold2);font-weight:700;}
   .top-bar .meta{font-size:11px;color:var(--dim);}
+  .nav-btn { font-size:12px; text-decoration:none; background:#1e1508; border:1px solid var(--border); color:var(--dim); padding:5px 12px; border-radius:4px; cursor:pointer; transition:.15s; white-space:nowrap; }
+  .nav-btn:hover { border-color:var(--gold); color:var(--gold); }
+  .nav-btn.primary { border-color:var(--gold); color:var(--gold); }
 
   /* Summary */
-  .summary-bar{background:#1a1208;border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;align-items:center;}
+  .summary-bar{background:#131008;border-bottom:1px solid var(--border);padding:7px 16px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;align-items:center;}
+
+  /* Filter bar */
+  .filter-bar { padding:8px 14px; background:#0f0c05; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .filter-bar input { background:#1a1208; border:1px solid var(--border); color:var(--text); padding:5px 12px; border-radius:20px; font-size:12px; flex:1; min-width:150px; outline:none; }
+  .filter-bar input:focus { border-color:var(--gold); }
+  .filter-label { font-size:12px; color:var(--dim); white-space:nowrap; }
 
   /* Table */
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;margin:12px;overflow:hidden;}
-  .panel-header{padding:8px 14px;background:#1e1508;border-bottom:1px solid var(--border);font-weight:bold;color:var(--gold);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
   table{width:100%;border-collapse:collapse;font-size:12px;}
   th{background:#1a1208;color:var(--gold);font-weight:600;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
   th:hover{color:var(--gold2);}
@@ -51,7 +73,7 @@
   .send-time{font-family:monospace;white-space:nowrap;}
   .send-time.night{color:var(--gold-night)}
   .arrival-time{font-family:monospace;white-space:nowrap;color:var(--dim)}
-  .countdown{font-family:monospace;font-weight:bold;font-size:13px;}
+  .countdown{font-family:monospace;font-weight:bold;font-size:13px;cursor:pointer;}
   .countdown.ok{color:var(--green)}
   .countdown.soon{color:#c08020}
   .countdown.urgent{color:var(--urgent)}
@@ -60,36 +82,25 @@
   .play-btn svg{width:14px;height:14px;fill:currentColor}
   .play-btn:hover{background:#2a2010;border-color:var(--gold)}
   .error{background:#2a0a0a;border:1px solid #8b2020;border-radius:8px;padding:20px;text-align:center;color:#ff8080;margin:40px auto;max-width:500px}
-  .night-toggle{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--dim);}
-  .table-filter input{background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:12px;width:200px;}
-  .warning-box{background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:8px 14px;margin:8px 12px;font-size:12px;color:#ff9955;}
-  .warning-box.bold{font-size:13px;font-weight:bold;}
+  .warning-box{background:#1a0800;border-left:3px solid #6b2000;padding:6px 12px;margin:6px 12px;font-size:11px;color:#cc7733;border-radius:0 4px 4px 0;}
   /* ── MOBILE ──────────────────────────────────────────────── */
   @media (max-width: 480px) {
     .top-bar { padding: 8px 12px; gap: 6px; }
-    .top-bar h1 { font-size: 13px; }
+    .top-bar h1 { font-size: 14px; }
     .summary-bar { overflow-x: auto; flex-wrap: nowrap; gap: 10px; font-size: 11px; padding: 6px 10px; white-space: nowrap; }
     .panel { margin: 6px; }
-    .panel-header { flex-wrap: wrap; gap: 6px; font-size: 12px; }
-    .panel-header > div { flex-wrap: wrap; gap: 5px; }
-    .table-filter input { width: 130px; font-size: 11px; }
-    .night-toggle { font-size: 11px; }
-
-    /* Tabulka scroll */
     #tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table { font-size: 11px; }
     th, td { padding: 5px 6px; }
-
-    .warning-box { margin: 6px; font-size: 11px; }
   }
 </style>
 </head>
 <body style="visibility:hidden">
 
 <!-- Audio unlock banner -->
-<div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #3a2a00;padding:6px 16px;display:flex;align-items:center;gap:10px;">
-  <span style="font-size:13px;color:var(--dim);flex:1;">🔔 Zapni zvuková upozornění – siréna 2 min před odesláním</span>
-  <button id="audio-unlock-btn" onclick="unlockAudio()" style="background:#2a1e00;color:var(--gold);border:1px solid #5a3a00;border-radius:4px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Zapnout</button>
+<div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #2a1e00;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);">
+  <span style="flex:1;">🔔 Zvukové upozornění 2 min před odesláním</span>
+  <button id="audio-unlock-btn" onclick="unlockAudio()" class="">Zapnout</button>
 </div>
 
 <div id="app">
@@ -416,15 +427,13 @@ function updateNotifButton(enabled) {
   const btn = document.getElementById('notif-btn');
   if (!btn) return;
   if (enabled) {
-    btn.textContent = '🔔 Notifikace zapnuty';
-    btn.style.background = '#205020';
-    btn.style.color = '#80d080';
-    btn.style.borderColor = '#205020';
+    btn.textContent = '🔔 Notifikace ✓';
+    btn.style.color = '#60d060';
+    btn.style.borderColor = '#1a4a1a';
   } else {
-    btn.textContent = '🔔 Povolit notifikace';
-    btn.style.background = 'transparent';
-    btn.style.color = 'var(--gold)';
-    btn.style.borderColor = 'var(--gold)';
+    btn.textContent = '🔔 Notifikace';
+    btn.style.color = '';
+    btn.style.borderColor = '';
   }
 }
 
@@ -633,35 +642,41 @@ function render(data) {
 
   document.getElementById('app').innerHTML = `
     <div class="top-bar">
-      <div style="display:flex;flex-direction:column;gap:2px;">
+      <div>
         <h1>⚔️ ${data.label || 'Plán útoků'}</h1>
-        <span class="meta">👤 ${data.player} &nbsp;·&nbsp; Svět: ${data.world||'cs112'} &nbsp;·&nbsp; ${data.exported ? fmtDT(new Date(data.exported > 1e12 ? data.exported : data.exported*1000)) : ''}</span>
+        <div class="meta">👤 ${data.player} &nbsp;·&nbsp; ${data.world||'cs112'} &nbsp;·&nbsp; ${data.exported ? fmtDT(new Date(data.exported > 1e12 ? data.exported : data.exported*1000)) : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;">
-        <a href="dashboard.html" style="font-size:12px;color:var(--gold);text-decoration:none;background:#1e1508;border:1px solid var(--gold);padding:5px 12px;border-radius:4px;font-weight:600;">← Moje plány</a>
-        <button id="notif-btn" onclick="enableNotifications()" style="font-size:12px;background:transparent;border:1px solid var(--gold);color:var(--gold);padding:5px 12px;border-radius:4px;cursor:pointer;">🔔 Povolit notifikace</button>
-        <button onclick="planLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 12px;border-radius:4px;cursor:pointer;">Odhlásit</button>
+        <a href="dashboard.html" class="nav-btn primary">← Moje plány</a>
+        <button id="notif-btn" onclick="enableNotifications()" class="nav-btn">🔔 Notifikace</button>
+        <button onclick="planLogout()" class="nav-btn">Odhlásit</button>
       </div>
     </div>
     <div class="summary-bar">
-      <span>⚔️ Ostrých: <strong id="sum-sharp">0</strong></span>
-      <span style="color:#f5c842">🟡 Fullek: <strong id="sum-full">0</strong></span>
-      <span style="color:#50d0d0">🔵 3/4 off: <strong id="sum-triq">0</strong></span>
-      <span style="color:#a0c8ff">🔷 1/2 off: <strong id="sum-half">0</strong></span>
-      <span style="color:#80d080">👑 Vlaků: <strong id="sum-noble">0</strong></span>
-      <span style="color:#ffffff">↑👑 Fejk vlaků: <strong id="sum-fake-noble">0</strong></span>
-      <span style="color:#40cc40">💨 Fejků: <strong id="sum-fake">0</strong></span>
-      <span style="color:var(--dim)">Celkem: <strong id="sum-total">0</strong></span>
+      <span>⚔️ <strong id="sum-sharp">0</strong></span>
+      <span style="color:#f5c842">🟡 <strong id="sum-full">0</strong></span>
+      <span style="color:#50d0d0">🔵 <strong id="sum-triq">0</strong></span>
+      <span style="color:#a0c8ff">🔷 <strong id="sum-half">0</strong></span>
+      <span style="color:#80d080">👑 <strong id="sum-noble">0</strong></span>
+      <span style="color:#ffffff">↑👑 <strong id="sum-fake-noble">0</strong></span>
+      <span style="color:#40cc40">💨 <strong id="sum-fake">0</strong></span>
+      <span style="color:var(--dim);margin-left:4px;">Celkem: <strong id="sum-total">0</strong></span>
     </div>
     <div id="warnings-wrap" style="display:none;"></div>
     <div class="panel">
-      <div class="panel-header">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
-          <div class="table-filter" style="flex:1;min-width:150px;"><input type="text" id="tbl-search" placeholder="🔍 Filtr (vesnice, hráč…)" oninput="renderTable()" style="width:100%;"></div>
-          <label class="night-toggle"><input type="checkbox" id="hide-night" onchange="renderTable()"> 🌙 Noční</label>
-          <label class="night-toggle"><input type="checkbox" id="hide-played" onchange="renderTable()" checked> ✅ Odeslané</label>
-          <span id="sum-count" style="font-size:11px;color:var(--dim);white-space:nowrap;"></span>
-        </div>
+      <div class="filter-bar">
+        <input type="text" id="tbl-search" placeholder="🔍 Filtr – vesnice, hráč, typ…" oninput="renderTable()">
+        <label class="toggle-wrap" title="Skrýt noční útoky">
+          <input type="checkbox" id="hide-night" onchange="renderTable()">
+          <div class="toggle-track"></div>
+          <span class="filter-label">🌙 Noční</span>
+        </label>
+        <label class="toggle-wrap" title="Skrýt odeslané">
+          <input type="checkbox" id="hide-played" onchange="renderTable()" checked>
+          <div class="toggle-track"></div>
+          <span class="filter-label">✅ Odeslané</span>
+        </label>
+        <span id="sum-count" style="font-size:11px;color:var(--dim);white-space:nowrap;margin-left:auto;"></span>
       </div>
       <div id="tbl-wrap"></div>
     </div>`;
