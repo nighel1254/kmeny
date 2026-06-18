@@ -368,12 +368,14 @@ async function enableNotifications() {
       localStorage.setItem('dk_device_id', deviceId);
     }
 
+    console.log(`Saving ${alarms.length} alarms, attackRows: ${attackRows.length}`);
+
     const subJson = JSON.stringify(sub.toJSON());
     await sbP.from('push_subscriptions').upsert({
       user_id: session.user.id,
       device_id: deviceId,
       subscription: subJson,
-      alarms: JSON.stringify(alarms),
+      alarms: alarms,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id,device_id' });
 
@@ -418,8 +420,9 @@ async function scheduleNotifications(rows) {
       .map(r => ({ send_time: Math.round(r.sendTime), src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r) }))
       .filter(a => a.send_time - Date.now() > 60000);
     const deviceId = localStorage.getItem('dk_device_id') || 'default';
+    console.log(`Updating ${alarms.length} alarms`);
     await sbP.from('push_subscriptions').update({
-      alarms: JSON.stringify(alarms),
+      alarms: alarms,
       updated_at: new Date().toISOString()
     }).eq('user_id', session.user.id).eq('device_id', deviceId);
   } catch(e) { console.warn('Schedule update failed:', e); }
