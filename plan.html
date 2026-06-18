@@ -304,6 +304,15 @@ function urlBase64ToUint8Array(base64String) {
   return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
 }
 
+function toast(msg, type='info', ms=3000) {
+  const t = document.createElement('div');
+  const colors = {ok:'#205020', err:'#502020', info:'#1a1a40'};
+  t.style.cssText = `position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:${colors[type]||colors.info};color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;z-index:9999;box-shadow:0 2px 12px rgba(0,0,0,.5);`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
 async function resetNotifications() {
   localStorage.removeItem('dk_notif_enabled');
   localStorage.removeItem('dk_device_id');
