@@ -666,13 +666,13 @@ function render(data) {
     <div class="panel">
       <div class="filter-bar">
         <input type="text" id="tbl-search" placeholder="🔍 Filtr – vesnice, hráč, typ…" oninput="renderTable()">
-        <label class="toggle-wrap" title="Skrýt noční útoky">
-          <input type="checkbox" id="hide-night" onchange="renderTable()">
+        <label class="toggle-wrap" title="Skrýt noční útoky" onclick="setTimeout(()=>renderTable(),10)">
+          <input type="checkbox" id="hide-night">
           <div class="toggle-track"></div>
           <span class="filter-label">🌙 Noční</span>
         </label>
-        <label class="toggle-wrap" title="Skrýt odeslané">
-          <input type="checkbox" id="hide-played" onchange="renderTable()" checked>
+        <label class="toggle-wrap" title="Skrýt odeslané" onclick="setTimeout(()=>renderTable(),10)">
+          <input type="checkbox" id="hide-played" checked>
           <div class="toggle-track"></div>
           <span class="filter-label">✅ Odeslané</span>
         </label>
