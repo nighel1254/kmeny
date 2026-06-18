@@ -13,8 +13,12 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('push', e => {
-  if (!e.data) return;
-  const data = e.data.json();
+  let data = { title: '⚔️ DK útok!', body: 'Čas odeslat útok!', tag: 'dk-alarm', url: '/kmeny/plan.html' }
+  if (e.data) {
+    try { data = { ...data, ...e.data.json() } } catch(err) {
+      try { data.body = e.data.text() } catch(e2) {}
+    }
+  }
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
@@ -25,8 +29,8 @@ self.addEventListener('push', e => {
       requireInteraction: true,
       data: { url: data.url || '/kmeny/plan.html' }
     })
-  );
-});
+  )
+})
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
