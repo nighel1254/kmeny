@@ -603,7 +603,6 @@
           </label>
           <span id="attack-count" style="font-size:11px;color:var(--dim);font-weight:normal;"></span>
           <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;font-weight:normal;" onclick="saveAction()" title="Uloží aktuální akci a odebere použité offky ze zdrojů">💾 Přidat do plánu</button>
-          <button class="btn btn-sm" style="background:#1a0a2a;border:1px solid #402060;color:#c080ff;font-weight:normal;" onclick="recalcFakeNobles()" title="Přepočítá fejk vlaky s rychlostí beranidla">🔄 Přepočítat fejk vlaky</button>
           <button class="btn btn-sm" style="background:#0a2a0a;border:1px solid #205020;color:#60c060;font-weight:normal;" onclick="savePlanWithName()" title="Uloží plán do kmenových plánů">🏰 Uložit plán</button>
           <button class="btn btn-sm" style="background:#1a0a2a;border:1px solid #402060;color:#c080ff;font-weight:normal;" onclick="publishToPlayers()" title="Publikuje plán hráčům">🚀 Publikovat hráčům</button>
           <button class="btn btn-sm btn-red" onclick="clearAll()" style="font-weight:normal;">✕ Smazat</button>
@@ -2374,15 +2373,17 @@ function startAlarm(evt, rowIdx, link) {
   const row = attackRows[rowIdx];
   if (row) {
     const diff = row.sendTime - Date.now();
+    // Označ jako odeslané jen pokud zbývá méně než 1 minuta
     if (diff < 60000) {
       const key = rowKey(row);
       playedRows.add(key);
       try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
-      const tr = evt.target.closest('tr');
+      const tr = document.querySelector(`table.attacks tbody tr[data-rowidx="${rowIdx}"]`);
       if (tr) tr.classList.add('played-row');
     }
   }
-  window.open(link, 'tw_game');
+  // Otevři vždy na nové kartě
+  window.open(link, '_blank');
 }
 
 let _publishPlan = null;
@@ -2749,12 +2750,15 @@ async function doSavePlanWithName() {
   const allRows = getAllRows();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
-  const { error } = await sb.from('plans').insert({
+  const { data: newPlan, error } = await sb.from('plans').insert({
     created_by: session.user.id, label, world: WORLD, type: 'tribal',
     data: { rows: allRows, savedActions, snapshot: captureInputSnapshot() }
-  });
+  }).select('id, label').single();
   if (error) { toast('Chyba při ukládání: ' + error.message, 'err'); return; }
-  toast(`✓ Plán "${label}" uložen do kmenových plánů.`, 'ok', 5000);
+  // Automaticky nastav jako aktuální plán pro publish
+  _currentPlanId = newPlan.id;
+  _currentPlanLabel = newPlan.label;
+  toast(`✓ Plán "${label}" uložen. Teď můžeš rovnou publikovat.`, 'ok', 5000);
   if (_plansOpen) loadPlansFromDB(_plansTab);
 }
 

@@ -192,9 +192,10 @@ function unlockAudio() {
 }
 
 function playSiren(volume = 0.4) {
-  if (!audioUnlocked && !audioCtx) return;
+  if (!audioUnlocked) return;
   try {
-    const ctx = getAudioCtx();
+    // Vytvoř nový AudioContext pokaždé kvůli Safari který ho pozastaví na pozadí
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume();
     const duration = 3;
     const osc = ctx.createOscillator();
@@ -209,6 +210,7 @@ function playSiren(volume = 0.4) {
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + duration);
+    osc.onended = () => ctx.close();
   } catch(e) { console.warn('Audio error:', e); }
 }
 
@@ -241,15 +243,14 @@ function startAlarm(evt, rowIdx, link) {
   const row = attackRows[rowIdx];
   if (row) {
     const diff = row.sendTime - Date.now();
-    // Označ jako odeslané jen pokud zbývá méně než 1 minuta
     if (diff < 60000) {
       playedRows.add(rowKey(row));
       try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
-      const tr = evt.target.closest('tr');
+      const tr = document.querySelector(`tr[data-rowidx="${rowIdx}"]`);
       if (tr) tr.classList.add('played-row');
     }
   }
-  window.open(link, 'tw_game');
+  window.open(link, '_blank');
 }
 
 function updateCountdowns() {
@@ -344,7 +345,7 @@ function renderTable() {
       : `${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
     const rowIdx = attackRows.indexOf(r);
 
-    html += `<tr class="${rowClass}">
+    html += `<tr class="${rowClass}" data-rowidx="${i}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span></td>
       <td>${typeChip(r)}</td>
