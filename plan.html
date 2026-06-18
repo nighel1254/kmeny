@@ -790,9 +790,13 @@ function createAlarm(evt, sendTimeMs, tgt, src) {
 
 async function markRowPlayedFromEl(el) {
   const tr = el.closest('tr');
-  if (!tr) return;
-  const sendTime = parseInt(el.closest('td')?.previousElementSibling?.querySelector('.countdown')?.dataset?.send || tr.querySelector('.countdown')?.dataset?.send);
+  if (!tr) { console.log('no tr'); return; }
+  const cd = tr.querySelector('.countdown');
+  console.log('countdown el:', cd, 'data-send:', cd?.dataset?.send);
+  const sendTime = parseInt(cd?.dataset?.send);
+  console.log('sendTime:', sendTime, 'attackRows.length:', attackRows.length);
   const row = attackRows.find(r => r.sendTime === sendTime);
+  console.log('row found:', row);
   if (!row) return;
   await markRowPlayed(row);
   tr.classList.add('played-row');
