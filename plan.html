@@ -304,6 +304,17 @@ function urlBase64ToUint8Array(base64String) {
   return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
 }
 
+async function resetNotifications() {
+  localStorage.removeItem('dk_notif_enabled');
+  localStorage.removeItem('dk_device_id');
+  try {
+    const { data: { session } } = await sbP.auth.getSession();
+    if (session) await sbP.from('push_subscriptions').delete().eq('user_id', session.user.id);
+  } catch(e) {}
+  updateNotifButton(false);
+  toast('Notifikace resetovány – klikni znovu pro zapnutí.', 'info', 4000);
+}
+
 async function enableNotifications() {
   // Toggle OFF
   if (localStorage.getItem('dk_notif_enabled') === '1') {
@@ -474,8 +485,9 @@ function updateCountdowns() {
       } else {
         el.textContent = 'Zmeškal';
         el.className = 'countdown past';
-        el.style.cursor = '';
-        el.onclick = null;
+        el.title = 'Klikni pro označení jako Odešlo';
+        el.style.cursor = 'pointer';
+        el.onclick = () => markRowPlayedFromEl(el);
       }
       return;
     }
@@ -603,6 +615,7 @@ function render(data) {
         <div class="meta">Svět: ${data.world||'cs112'} &nbsp;|&nbsp; ${data.exported ? fmtDT(new Date(data.exported > 1e12 ? data.exported : data.exported*1000)) : ''}</div>
         <a href="dashboard.html" style="font-size:12px;color:var(--gold);text-decoration:none;background:#1e1508;border:1px solid var(--gold);padding:5px 12px;border-radius:4px;font-weight:600;">← Moje plány</a>
         <button id="notif-btn" onclick="enableNotifications()" style="font-size:12px;background:transparent;border:1px solid var(--gold);color:var(--gold);padding:5px 12px;border-radius:4px;cursor:pointer;">🔔 Povolit notifikace</button>
+        <button onclick="resetNotifications()" style="font-size:11px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 8px;border-radius:4px;cursor:pointer;" title="Reset notifikací">↺</button>
         <button onclick="planLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 12px;border-radius:4px;cursor:pointer;">Odhlásit</button>
       </div>
     </div>
@@ -750,6 +763,20 @@ function createAlarm(evt, sendTimeMs, tgt, src) {
   a.download = `utok_${tgt.replace('|','_')}_${alarmTime.getHours()}${String(alarmTime.getMinutes()).padStart(2,'0')}.ics`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+async function markRowPlayedFromEl(el) {
+  const tr = el.closest('tr');
+  if (!tr) return;
+  const rowidx = parseInt(tr.dataset.rowidx);
+  const row = attackRows[rowidx];
+  if (!row) return;
+  await markRowPlayed(row);
+  tr.classList.add('played-row');
+  el.textContent = 'Odešlo';
+  el.title = 'Klikni pro označení jako Zmeškal';
+  el.onclick = () => unmarkRowPlayed(el);
+  if (document.getElementById('hide-played')?.checked) renderTable();
 }
 
 async function unmarkRowPlayed(el) {
