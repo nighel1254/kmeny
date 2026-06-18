@@ -77,12 +77,11 @@
 
     /* Tabulka scroll */
     #tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { font-size: 11px; min-width: 600px; }
+    table { font-size: 11px; }
     th, td { padding: 5px 6px; }
 
-    /* Skryj čas odeslání a cestu */
-    th:nth-child(7), td:nth-child(7)    /* Cesta */
-    { display: none; }
+    /* Na mobilu skryj méně důležité sloupce */
+    .col-unit, .col-send, .col-arrive, .col-travel { display: none; }
 
     .warning-box { margin: 6px; font-size: 11px; }
   }
@@ -575,14 +574,16 @@ function renderTable() {
   // Table
   let html = `<table><thead><tr>
     <th onclick="setSort('idx')">#</th>
-    <th onclick="setSort('src')">Zdroj ${sortIndicator('src')}</th>
-    <th onclick="setSort('type')">Typ ${sortIndicator('type')}</th>
-    <th onclick="setSort('tgt')">Cíl ${sortIndicator('tgt')}</th>
-    <th>Jednotka</th>
-    <th onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
-    <th onclick="setSort('arrive')">Čas příchodu ${sortIndicator('arrive')}</th>
-    <th onclick="setSort('travel')">Cesta ${sortIndicator('travel')}</th>
-    <th>Odpočet</th><th>▶</th>
+    <th class="col-num">#</th>
+    <th class="col-play">▶</th>
+    <th class="col-countdown">Odpočet</th>
+    <th class="col-src" onclick="setSort('src')">Zdroj ${sortIndicator('src')}</th>
+    <th class="col-type" onclick="setSort('type')">Typ ${sortIndicator('type')}</th>
+    <th class="col-tgt" onclick="setSort('tgt')">Cíl ${sortIndicator('tgt')}</th>
+    <th class="col-unit">Jednotka</th>
+    <th class="col-send" onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
+    <th class="col-arrive" onclick="setSort('arrive')">Čas příchodu ${sortIndicator('arrive')}</th>
+    <th class="col-travel" onclick="setSort('travel')">Cesta ${sortIndicator('travel')}</th>
   </tr></thead><tbody>`;
 
   visible.forEach((r, i) => {
@@ -598,19 +599,18 @@ function renderTable() {
     const rowIdx = attackRows.indexOf(r);
 
     html += `<tr class="${rowClass}" data-rowidx="${i}">
-      <td style="color:var(--dim);font-size:11px;">${i+1}</td>
-      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span></td>
-      <td>${typeChip(r)}</td>
-      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
-      <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
-      <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
-      <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
-      <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
-      <td><span class="countdown" data-send="${r.sendTime}"></span></td>
-      <td>
+      <td class="col-num" style="color:var(--dim);font-size:11px;">${i+1}</td>
+      <td class="col-play">
         <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
-        <a href="#" onclick="createAlarm(event,${r.sendTime},'${(r.tgtX+'|'+r.tgtY).replace(/'/g,"\\'")}','${(r.srcX+'|'+r.srcY).replace(/'/g,"\\'")}')" title="Přidat budík do kalendáře (-2 min před odesláním)" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:#1a1208;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--gold);text-decoration:none;font-size:14px;margin-left:3px;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">⏰</a>
       </td>
+      <td class="col-countdown"><span class="countdown" data-send="${r.sendTime}"></span></td>
+      <td class="col-src"><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span></td>
+      <td class="col-type">${typeChip(r)}</td>
+      <td class="col-tgt"><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td class="col-unit"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
+      <td class="col-send ${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
+      <td class="col-arrive arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
+      <td class="col-travel" style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
     </tr>`;
   });
 
