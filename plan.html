@@ -235,8 +235,35 @@ function checkSirenAlerts() {
   });
 }
 
+// ── ODESLANÉ PŘÍKAZY – sync přes Supabase ──────────────────
+const SUPABASE_URL_P = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
+const SUPABASE_KEY_P = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
+const sbP = supabase.createClient(SUPABASE_URL_P, SUPABASE_KEY_P);
+
 const playedRows = new Set(JSON.parse(localStorage.getItem('dk_played_rows') || '[]'));
 function rowKey(r) { return `${r.srcX}|${r.srcY}|${r.sendTime}`; }
+
+async function markRowPlayed(row) {
+  const key = rowKey(row);
+  playedRows.add(key);
+  try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
+  try {
+    const { data: { session } } = await sbP.auth.getSession();
+    if (session) await sbP.from('played_rows').upsert({ user_id: session.user.id, row_key: key });
+  } catch(e) {}
+}
+
+async function syncPlayedRows() {
+  try {
+    const { data: { session } } = await sbP.auth.getSession();
+    if (!session) return;
+    const { data } = await sbP.from('played_rows').select('row_key').eq('user_id', session.user.id);
+    if (data?.length) {
+      data.forEach(r => playedRows.add(r.row_key));
+      try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
+    }
+  } catch(e) {}
+}
 
 function startAlarm(evt, rowIdx, link) {
   evt.preventDefault();
@@ -244,8 +271,7 @@ function startAlarm(evt, rowIdx, link) {
   if (row) {
     const diff = row.sendTime - Date.now();
     if (diff < 60000) {
-      playedRows.add(rowKey(row));
-      try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
+      markRowPlayed(row);
       const tr = document.querySelector(`tr[data-rowidx="${rowIdx}"]`);
       if (tr) tr.classList.add('played-row');
     }
@@ -436,6 +462,7 @@ function decodeData(json) {
 }
 
 function init() {
+  syncPlayedRows().then(() => {
   const hash = location.hash.slice(1);
   if (!hash) {
     document.getElementById('app').innerHTML = '<div class="error">⚠️ Neplatný odkaz – chybí data plánu.</div>';
@@ -469,6 +496,7 @@ function init() {
     document.getElementById('app').innerHTML = `<div class="error">⚠️ Nepodařilo se načíst plán útoků. Odkaz je poškozený nebo neplatný.<br><small style="opacity:.6">${e.message}</small></div>`;
     console.error(e);
   }
+  }); // end syncPlayedRows.then
 }
 
 window.addEventListener('DOMContentLoaded', init);

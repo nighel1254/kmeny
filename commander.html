@@ -626,7 +626,13 @@
         <span style="color:var(--dim)">Celkem: <strong id="sum-total">0</strong></span>
         <span id="sum-coverage" style="color:var(--green);margin-left:8px;"></span>
       </div>
-      <!-- Nepokryté vesnice spoiler -->
+      <!-- Replan bar -->
+      <div id="replan-bar" style="display:none;padding:8px 14px;border-bottom:1px solid var(--gold);background:#1a1500;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--gold2);">↺ Vybráno: <strong id="replan-count">0</strong> řádků</span>
+        <span id="replan-summary" style="font-size:11px;color:var(--dim);"></span>
+        <button onclick="replanSelected()" style="background:var(--gold);color:#1a0e00;border:none;border-radius:4px;padding:5px 14px;font-weight:600;cursor:pointer;font-size:12px;">↺ Přeplánovat</button>
+        <button onclick="clearReplanSelection()" style="background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:4px;padding:5px 10px;cursor:pointer;font-size:12px;">✕ Zrušit výběr</button>
+      </div>
       <div id="uncovered-wrap" style="display:none;padding:6px 14px;border-bottom:1px solid var(--border);background:#1a1208;">
         <details>
           <summary style="cursor:pointer;font-size:12px;color:var(--dim);user-select:none;">⚠️ Nepokryté cíle – <span id="uncovered-count">0</span> vesnic bez ostrého útoku</summary>
@@ -1701,6 +1707,14 @@ async function calculate() {
   }
 
   rows.sort((a,b)=>a.sendTime-b.sendTime);
+
+  // Oprav duplicitní časy odeslání – nikdy 2 útoky ve stejný čas
+  const usedSendTimes = new Set();
+  rows.forEach(r => {
+    while (usedSendTimes.has(r.sendTime)) r.sendTime += 1000; // +1s
+    usedSendTimes.add(r.sendTime);
+  });
+
   attackRows = rows;
 
   // ── VAROVÁNÍ – noční útoky bez denní alternativy ──────────
@@ -1843,6 +1857,9 @@ function renderResults(nightWarnings) {
       <td style="color:var(--dim);font-size:11px;">${fmtDur(row.travel)}</td>
       <td><span class="countdown" id="cd-${i}" data-send="${row.sendTime}"></span></td>
       <td>
+        <input type="checkbox" class="replan-cb" data-rowidx="${rowIdx}"
+          style="width:15px;height:15px;accent-color:var(--gold);vertical-align:middle;margin-right:2px;"
+          onchange="updateReplanBar()">
         <a class="play-btn" id="play-${i}" href="#" title="Spustit odpočet"
            onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')">
           <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
@@ -2363,26 +2380,46 @@ function updateCountdowns() {
 }
 
 // ── ALARM ──────────────────────────────────────────────────
-// Set of played row fingerprints (srcX|srcY|sendTime)
+// ── ODESLANÉ PŘÍKAZY – sync přes Supabase ──────────────────
 const playedRows = new Set(JSON.parse(localStorage.getItem('dk_played_rows') || '[]'));
-
 function rowKey(r) { return `${r.srcX}|${r.srcY}|${r.sendTime}`; }
+
+async function markRowPlayed(row) {
+  const key = rowKey(row);
+  playedRows.add(key);
+  try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
+  // Sync do DB
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      await sb.from('played_rows').upsert({ user_id: session.user.id, row_key: key });
+    }
+  } catch(e) {}
+}
+
+async function syncPlayedRows() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const { data } = await sb.from('played_rows').select('row_key').eq('user_id', session.user.id);
+    if (data?.length) {
+      data.forEach(r => playedRows.add(r.row_key));
+      try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
+    }
+  } catch(e) {}
+}
 
 function startAlarm(evt, rowIdx, link) {
   evt.preventDefault();
   const row = attackRows[rowIdx];
   if (row) {
     const diff = row.sendTime - Date.now();
-    // Označ jako odeslané jen pokud zbývá méně než 1 minuta
     if (diff < 60000) {
-      const key = rowKey(row);
-      playedRows.add(key);
-      try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
+      markRowPlayed(row);
       const tr = document.querySelector(`table.attacks tbody tr[data-rowidx="${rowIdx}"]`);
       if (tr) tr.classList.add('played-row');
     }
   }
-  // Otevři vždy na nové kartě
   window.open(link, '_blank');
 }
 
@@ -2417,7 +2454,236 @@ function recalcFakeNobles() {
   }
 }
 
-// ── REFRESH ŘÁDKU ──────────────────────────────────────────
+// ── HROMADNÉ PŘEPLÁNOVÁNÍ ──────────────────────────────────
+function updateReplanBar() {
+  const checked = [...document.querySelectorAll('.replan-cb:checked')];
+  const bar = document.getElementById('replan-bar');
+  document.getElementById('replan-count').textContent = checked.length;
+  if (!checked.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  // Souhrn kategorií
+  const idxs = checked.map(cb => parseInt(cb.dataset.rowidx));
+  const rows = idxs.map(i => attackRows[i]).filter(Boolean);
+  const cats = {};
+  rows.forEach(r => {
+    const c = r.srcCategory || 'other';
+    cats[c] = (cats[c]||0) + 1;
+  });
+  document.getElementById('replan-summary').textContent =
+    Object.entries(cats).map(([k,v]) => `${v}× ${k==='fullka'?'fullka':k==='triq_off'?'3/4':k==='half_off'?'1/2':k}`).join(', ');
+}
+
+function clearReplanSelection() {
+  document.querySelectorAll('.replan-cb:checked').forEach(cb => cb.checked = false);
+  document.getElementById('replan-bar').style.display = 'none';
+  // Odstraň všechny návrhy
+  document.querySelectorAll('[id^="replan-proposal-"]').forEach(el => el.remove());
+  document.querySelectorAll('tr[data-replan-orig]').forEach(tr => {
+    tr.style.outline = '';
+    tr.style.opacity = '';
+    delete tr.dataset.replanOrig;
+  });
+}
+
+async function replanSelected() {
+  const checked = [...document.querySelectorAll('.replan-cb:checked')];
+  if (!checked.length) return;
+  const now = Date.now();
+
+  const idxs = checked.map(cb => parseInt(cb.dataset.rowidx));
+  const selectedRows = idxs.map(i => ({ idx: i, row: attackRows[i] })).filter(r => r.row);
+
+  // Pool vesnic
+  const pool = srcVillages.length ? srcVillages : (jsonVillages.length ? jsonVillages : []);
+  if (!pool.length) { toast('Nejsou k dispozici zdrojové vesnice.', 'err'); return; }
+
+  const ws = parseFloat(document.getElementById('world-speed')?.value || '1') || 1;
+  const us = parseFloat(document.getElementById('unit-speed')?.value || '1') || 1;
+
+  // Kolik útoků jde z každé vesnice (mimo vybrané řádky)
+  const usageCount = {};
+  attackRows.forEach((r, i) => {
+    if (idxs.includes(i)) return;
+    const key = `${r.srcX}|${r.srcY}`;
+    usageCount[key] = (usageCount[key]||0) + 1;
+  });
+
+  // Pro každý vybraný řádek najdi kandidáty
+  const catPriority = { fullka: 3, triq_off: 2, half_off: 1 };
+
+  function findCandidates(origRow, excludeSrcs = new Set()) {
+    const arrivalMs = origRow.arrivalTime;
+    const origCatVal = catPriority[origRow.srcCategory] || 0;
+    const candidates = [];
+
+    for (const v of pool) {
+      const vx = v.x ?? v.srcX;
+      const vy = v.y ?? v.srcY;
+      if (!vx || !vy) continue;
+      if (excludeSrcs.has(`${vx}|${vy}`)) continue;
+
+      // Kategorie vesnice
+      const vCat = v.category || v.srcCategory || 'other';
+      const vCatVal = catPriority[vCat] || 0;
+      // Musí být stejná nebo lepší kategorie
+      if (vCatVal < origCatVal && origCatVal > 0) continue;
+
+      const dx = Math.abs(vx - origRow.tgtX);
+      const dy = Math.abs(vy - origRow.tgtY);
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const unitSpeed = origRow.unit === 'noble' ? 2100 : 1800;
+      const travelMsNew = Math.round(dist * (unitSpeed / (ws * us)) * 1000);
+      const newSendMs = arrivalMs - travelMsNew;
+
+      // Nesmí být v minulosti
+      if (newSendMs < now + 60000) continue;
+      // Ideálně ne v noci
+      const h = new Date(newSendMs).getHours();
+      const isNightTime = h >= 0 && h < 6;
+
+      candidates.push({
+        srcX: vx, srcY: vy,
+        srcName: v.name || v.srcName || `${vx}|${vy}`,
+        srcPlayer: v.player_name || v.srcPlayer || '',
+        srcId: v.id || v.srcId || null,
+        srcCategory: vCat,
+        isFake: origRow.isFake, isFakeNoble: origRow.isFakeNoble, isNoble: origRow.isNoble,
+        tgtX: origRow.tgtX, tgtY: origRow.tgtY,
+        tgtName: origRow.tgtName, tgtId: origRow.tgtId, tgtOwner: origRow.tgtOwner,
+        unit: origRow.unit, sendTime: newSendMs, arrivalTime: arrivalMs,
+        travel: travelMsNew, night: isNightTime, isPast: false,
+        usage: usageCount[`${vx}|${vy}`] || 0,
+        isNightTime
+      });
+    }
+
+    // Seřaď: ne noc napřed, pak nejméně vytížené, pak nejblíže
+    candidates.sort((a, b) => {
+      if (a.isNightTime !== b.isNightTime) return a.isNightTime ? 1 : -1;
+      if (a.usage !== b.usage) return a.usage - b.usage;
+      const da = Math.abs(a.srcX - origRow.srcX) + Math.abs(a.srcY - origRow.srcY);
+      const db = Math.abs(b.srcX - origRow.srcX) + Math.abs(b.srcY - origRow.srcY);
+      return da - db;
+    });
+    return candidates;
+  }
+
+  // Přiřaď kandidáty greedy algoritmem
+  const usedSrcs = new Set();
+  const proposals = [];
+
+  for (const { idx, row } of selectedRows) {
+    const candidates = findCandidates(row, usedSrcs);
+    if (!candidates.length) {
+      proposals.push({ idx, row, proposal: null });
+      continue;
+    }
+    const best = candidates[0];
+    usedSrcs.add(`${best.srcX}|${best.srcY}`);
+    proposals.push({ idx, row, proposal: best });
+  }
+
+  // Zkontroluj jestli jsou nějaké nemožné
+  const impossible = proposals.filter(p => !p.proposal);
+  if (impossible.length === proposals.length) {
+    toast('Žádná kombinace není možná – všechny časy vycházejí v minulosti.', 'err', 6000);
+    return;
+  }
+
+  // Zobraz návrhy
+  const fmtL = ms => { const d=new Date(ms); return `${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; };
+  const fmtD = ms => { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; };
+  const catLabel = c => c==='fullka'?'🔴 fullka':c==='triq_off'?'🟡 3/4':c==='half_off'?'🔵 1/2':'off';
+
+  // Ulož proposals do attackRows pro accept
+  proposals.forEach(({ idx, proposal }) => {
+    if (proposal) attackRows[idx]._replanProposal = proposal;
+  });
+
+  for (const { idx, row, proposal } of proposals) {
+    const origTr = document.querySelector(`table.attacks tbody tr[data-rowidx="${idx}"]`);
+    if (!origTr) continue;
+    origTr.style.outline = '2px solid #cc3333';
+    origTr.style.opacity = '0.4';
+    origTr.dataset.replanOrig = '1';
+
+    document.getElementById(`replan-proposal-${idx}`)?.remove();
+    const pTr = document.createElement('tr');
+    pTr.id = `replan-proposal-${idx}`;
+    pTr.style.cssText = 'background:#1a1500;outline:2px solid var(--gold);';
+
+    if (!proposal) {
+      pTr.innerHTML = `
+        <td colspan="9" style="color:#ff8080;font-size:12px;padding:6px 12px;">
+          ⚠️ Pro cíl ${row.tgtX}|${row.tgtY} (${catLabel(row.srcCategory)}) nebyl nalezen vhodný zdroj.
+          Potřebuješ další příkaz pro realizaci.
+        </td>
+        <td><button onclick="cancelReplanRow(${idx})" style="background:#502020;border:none;color:#d08080;border-radius:3px;padding:3px 9px;cursor:pointer;">✗</button></td>`;
+    } else {
+      pTr.innerHTML = `
+        <td colspan="2" style="color:var(--gold);font-size:11px;font-weight:600;">↺ Návrh ${proposal.isNightTime ? '🌙' : ''}</td>
+        <td><span class="coords" style="color:var(--gold2)">${proposal.srcX}|${proposal.srcY}</span> <span style="color:var(--dim);font-size:11px;">${proposal.srcName}</span> <span style="font-size:10px;color:var(--dim);">(${proposal.usage}×)</span></td>
+        <td><span class="chip">${catLabel(proposal.srcCategory)}</span></td>
+        <td><span class="coords">${proposal.tgtX}|${proposal.tgtY}</span> <span style="color:var(--dim);font-size:11px;">${proposal.tgtName||''}</span></td>
+        <td><span style="font-size:12px;">🐏</span></td>
+        <td style="color:${proposal.isNightTime?'#aa80ff':'var(--gold2)'};font-weight:600;">${fmtL(proposal.sendTime)}</td>
+        <td>${fmtL(proposal.arrivalTime)}</td>
+        <td style="color:var(--dim);font-size:11px;">${fmtD(proposal.travel)}</td>
+        <td style="white-space:nowrap;">
+          <button onclick="acceptReplanRow(${idx})" style="background:#205020;border:none;color:#80d080;border-radius:3px;padding:3px 9px;cursor:pointer;font-size:13px;margin-right:3px;">✓</button>
+          <button onclick="cancelReplanRow(${idx})" style="background:#502020;border:none;color:#d08080;border-radius:3px;padding:3px 9px;cursor:pointer;font-size:13px;">✗</button>
+        </td>`;
+    }
+    origTr.parentNode.insertBefore(pTr, origTr.nextSibling);
+  }
+
+  if (impossible.length) {
+    toast(`${proposals.length - impossible.length} návrhů zobrazeno, ${impossible.length} nelze realizovat.`, 'info', 6000);
+  } else {
+    toast(`${proposals.length} návrhů připraveno ke schválení.`, 'info', 5000);
+  }
+}
+
+function acceptReplanRow(rowIdx) {
+  const proposal = attackRows[rowIdx]?._replanProposal;
+  if (!proposal) { cancelReplanRow(rowIdx); return; }
+  delete proposal._replanProposal;
+
+  // Ulož orig identifikátory
+  const orig = attackRows[rowIdx];
+  const origSrcX = orig.srcX, origSrcY = orig.srcY;
+  const origSendTime = orig.sendTime, origTgtX = orig.tgtX, origTgtY = orig.tgtY;
+
+  attackRows[rowIdx] = proposal;
+
+  // Aktualizuj v savedActions
+  savedActions.forEach(action => {
+    for (let i = 0; i < action.rows.length; i++) {
+      const r = action.rows[i];
+      if (r.srcX===origSrcX && r.srcY===origSrcY && r.tgtX===origTgtX && r.tgtY===origTgtY && r.sendTime===origSendTime) {
+        action.rows[i] = { ...proposal };
+        break;
+      }
+    }
+  });
+
+  document.getElementById(`replan-proposal-${rowIdx}`)?.remove();
+  const cb = document.querySelector(`.replan-cb[data-rowidx="${rowIdx}"]`);
+  if (cb) cb.checked = false;
+  renderResults();
+  autosave();
+  updateReplanBar();
+  toast('✓ Řádek nahrazen.', 'ok');
+}
+
+function cancelReplanRow(rowIdx) {
+  document.getElementById(`replan-proposal-${rowIdx}`)?.remove();
+  const tr = document.querySelector(`table.attacks tbody tr[data-rowidx="${rowIdx}"]`);
+  if (tr) { tr.style.outline=''; tr.style.opacity=''; delete tr.dataset.replanOrig; }
+  if (attackRows[rowIdx]) delete attackRows[rowIdx]._replanProposal;
+  const cb = document.querySelector(`.replan-cb[data-rowidx="${rowIdx}"]`);
+  if (cb) { cb.checked = false; updateReplanBar(); }
+}
 function isNightSend(sendTimeMs) {
   const h = new Date(sendTimeMs).getHours();
   return h >= 0 && h < 6;
@@ -2852,6 +3118,8 @@ sb.auth.getSession().then(async ({ data: { session } }) => {
   document.body.style.visibility = 'visible';
   const nick = profile?.player_name || session.user.email?.split('@')[0] || '?';
   document.getElementById('nav-user-name').textContent = nick;
+  // Sync odeslaných příkazů z DB
+  syncPlayedRows().then(() => renderResults());
 });
 
 async function doNavLogout() {
