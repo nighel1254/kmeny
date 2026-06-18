@@ -87,10 +87,9 @@
 <body style="visibility:hidden">
 
 <!-- Audio unlock banner -->
-<div id="audio-banner" style="background:#1a1200;border-bottom:2px solid var(--gold);padding:10px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-  <span style="font-size:20px;">🔔</span>
-  <span style="flex:1;font-size:13px;color:var(--gold2);">Klikni pro zapnutí zvukových upozornění – siréna zazní 2 minuty před odesláním, i když máš stránku na pozadí.</span>
-  <button id="audio-unlock-btn" onclick="unlockAudio()" style="background:var(--gold);color:#1a0e00;border:none;border-radius:6px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">🔔 Zapnout upozornění</button>
+<div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #3a2a00;padding:6px 16px;display:flex;align-items:center;gap:10px;">
+  <span style="font-size:13px;color:var(--dim);flex:1;">🔔 Zapni zvuková upozornění – siréna 2 min před odesláním</span>
+  <button id="audio-unlock-btn" onclick="unlockAudio()" style="background:#2a1e00;color:var(--gold);border:1px solid #5a3a00;border-radius:4px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Zapnout</button>
 </div>
 
 <div id="app">
@@ -173,8 +172,8 @@ function unlockAudio() {
     if (_audioResumeInterval) { clearInterval(_audioResumeInterval); _audioResumeInterval = null; }
     const btn = document.getElementById('audio-unlock-btn');
     const banner = document.getElementById('audio-banner');
-    if (banner) { banner.style.background='#1a1200'; banner.style.borderBottomColor='var(--gold)'; }
-    if (btn) { btn.textContent='🔔 Zapnout upozornění'; btn.style.background='var(--gold)'; btn.style.color='#1a0e00'; }
+    if (banner) { banner.style.background='#0f0c02'; banner.style.borderColor='#3a2a00'; }
+    if (btn) { btn.textContent='Zapnout'; btn.style.background='#2a1e00'; btn.style.color='var(--gold)'; }
     return;
   }
   try {
@@ -192,8 +191,8 @@ function unlockAudio() {
 
     const banner = document.getElementById('audio-banner');
     const btn = document.getElementById('audio-unlock-btn');
-    if (banner) { banner.style.background='#0a1a0a'; banner.style.borderBottomColor='var(--green)'; }
-    if (btn) { btn.textContent='🔕 Vypnout upozornění'; btn.style.background='#205020'; btn.style.color='#80d080'; }
+    if (banner) { banner.style.background='#0a1a0a'; banner.style.borderColor='#1a4a1a'; }
+    if (btn) { btn.textContent='✓ Zapnuto'; btn.style.background='#205020'; btn.style.color='#80d080'; }
 
     // Test zvuk
     setTimeout(() => playSiren(0.15), 200);
@@ -220,8 +219,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (audioUnlocked) {
     const banner = document.getElementById('audio-banner');
     const btn = document.getElementById('audio-unlock-btn');
-    if (banner) { banner.style.background='#0a1a0a'; banner.style.borderBottomColor='var(--green)'; }
-    if (btn) { btn.textContent='🔕 Vypnout upozornění'; btn.style.background='#205020'; btn.style.color='#80d080'; }
+    if (banner) { banner.style.background='#0a1a0a'; banner.style.borderColor='#1a4a1a'; }
+    if (btn) { btn.textContent='✓ Zapnuto'; btn.style.background='#205020'; btn.style.color='#80d080'; }
   }
 });
 
@@ -634,9 +633,11 @@ function render(data) {
 
   document.getElementById('app').innerHTML = `
     <div class="top-bar">
-      <h1>⚔️ Plán útoků – ${data.player}</h1>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <h1>⚔️ ${data.label || 'Plán útoků'}</h1>
+        <span class="meta">👤 ${data.player} &nbsp;·&nbsp; Svět: ${data.world||'cs112'} &nbsp;·&nbsp; ${data.exported ? fmtDT(new Date(data.exported > 1e12 ? data.exported : data.exported*1000)) : ''}</span>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;">
-        <div class="meta">Svět: ${data.world||'cs112'} &nbsp;|&nbsp; ${data.exported ? fmtDT(new Date(data.exported > 1e12 ? data.exported : data.exported*1000)) : ''}</div>
         <a href="dashboard.html" style="font-size:12px;color:var(--gold);text-decoration:none;background:#1e1508;border:1px solid var(--gold);padding:5px 12px;border-radius:4px;font-weight:600;">← Moje plány</a>
         <button id="notif-btn" onclick="enableNotifications()" style="font-size:12px;background:transparent;border:1px solid var(--gold);color:var(--gold);padding:5px 12px;border-radius:4px;cursor:pointer;">🔔 Povolit notifikace</button>
         <button onclick="planLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 12px;border-radius:4px;cursor:pointer;">Odhlásit</button>
@@ -655,12 +656,11 @@ function render(data) {
     <div id="warnings-wrap" style="display:none;"></div>
     <div class="panel">
       <div class="panel-header">
-        <span>📋 Plán útoku</span>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <div class="table-filter"><input type="text" id="tbl-search" placeholder="🔍 Filtr (vesnice, hráč…)" oninput="renderTable()"></div>
-          <label class="night-toggle"><input type="checkbox" id="hide-night" onchange="renderTable()"> 🌙 Skrýt noční (0–6h)</label>
-          <label class="night-toggle"><input type="checkbox" id="hide-played" onchange="renderTable()" checked> ✅ Skrýt odeslané</label>
-          <span id="sum-count" style="font-size:11px;color:var(--dim);"></span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;">
+          <div class="table-filter" style="flex:1;min-width:150px;"><input type="text" id="tbl-search" placeholder="🔍 Filtr (vesnice, hráč…)" oninput="renderTable()" style="width:100%;"></div>
+          <label class="night-toggle"><input type="checkbox" id="hide-night" onchange="renderTable()"> 🌙 Noční</label>
+          <label class="night-toggle"><input type="checkbox" id="hide-played" onchange="renderTable()" checked> ✅ Odeslané</label>
+          <span id="sum-count" style="font-size:11px;color:var(--dim);white-space:nowrap;"></span>
         </div>
       </div>
       <div id="tbl-wrap"></div>
@@ -679,7 +679,7 @@ function decodeData(json) {
   // Nový kompaktní formát (pole řádků)
   if (d.r) {
     return {
-      player: d.p, world: d.w, exported: d.e * 1000,
+      player: d.p, world: d.w, exported: d.e * 1000, label: d.l || '',
       rows: d.r.map(a => ({
         srcId: a[0]||null, srcName: a[1], srcX: a[2], srcY: a[3], srcCategory: a[4], srcPlayer: a[5]||'',
         tgtX: a[6], tgtY: a[7], tgtName: a[8]||`${a[6]}|${a[7]}`, tgtId: a[9]||null, tgtOwner: a[10],
