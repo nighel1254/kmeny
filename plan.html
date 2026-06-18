@@ -473,6 +473,12 @@ function decodeData(json) {
 
 function init() {
   syncPlayedRows().then(() => {
+    // Polling každých 30s
+    setInterval(async () => {
+      const prev = playedRows.size;
+      await syncPlayedRows();
+      if (playedRows.size > prev) renderTable();
+    }, 30000);
   const hash = location.hash.slice(1);
   if (!hash) {
     document.getElementById('app').innerHTML = '<div class="error">⚠️ Neplatný odkaz – chybí data plánu.</div>';

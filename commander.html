@@ -1871,14 +1871,14 @@ function renderResults(nightWarnings) {
       <td style="color:var(--dim);font-size:11px;">${fmtDur(row.travel)}</td>
       <td><span class="countdown" id="cd-${i}" data-send="${row.sendTime}"></span></td>
       <td>
-        <input type="checkbox" class="replan-cb" data-rowidx="${rowIdx}"
-          style="width:15px;height:15px;accent-color:var(--gold);vertical-align:middle;margin-right:2px;"
-          onchange="updateReplanBar()">
         <a class="play-btn" id="play-${i}" href="#" title="Spustit odpočet"
            onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')">
           <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
         </a>
         ${row.isFake || row.isFakeNoble ? `<button onclick="refreshRow(${rowIdx})" title="Najít jiný zdroj (ne v noci)" style="background:none;border:none;cursor:pointer;color:var(--dim);font-size:13px;padding:2px 4px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>` : ''}
+        <input type="checkbox" class="replan-cb" data-rowidx="${rowIdx}"
+          style="width:15px;height:15px;accent-color:var(--gold);vertical-align:middle;margin-left:2px;"
+          onchange="updateReplanBar()">
       </td>
     </tr>`;
   });
@@ -3141,6 +3141,12 @@ sb.auth.getSession().then(async ({ data: { session } }) => {
   document.getElementById('nav-user-name').textContent = nick;
   // Sync odeslaných příkazů z DB
   syncPlayedRows().then(() => renderResults());
+  // Polling každých 30s pro sync mezi zařízeními
+  setInterval(async () => {
+    const prevSize = playedRows.size;
+    await syncPlayedRows();
+    if (playedRows.size > prevSize) renderResults(); // nové odeslané příkazy
+  }, 30000);
 });
 
 async function doNavLogout() {
