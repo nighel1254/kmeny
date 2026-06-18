@@ -409,8 +409,19 @@ function updateCountdowns() {
     if (diff < 0) {
       const tr = el.closest('tr');
       const isPlayed = tr && tr.classList.contains('played-row');
-      el.textContent = isPlayed ? 'Odešlo' : 'Zmeškal';
-      el.className = 'countdown past'; return;
+      if (isPlayed) {
+        el.textContent = 'Odešlo';
+        el.className = 'countdown past';
+        el.title = 'Klikni pro označení jako Zmeškal';
+        el.style.cursor = 'pointer';
+        el.onclick = () => unmarkRowPlayed(el);
+      } else {
+        el.textContent = 'Zmeškal';
+        el.className = 'countdown past';
+        el.style.cursor = '';
+        el.onclick = null;
+      }
+      return;
     }
     const s=Math.floor(diff/1000);
     el.textContent=`${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`;
@@ -419,12 +430,15 @@ function updateCountdowns() {
 }
 
 function renderTable() {
-  const search    = (document.getElementById('tbl-search')?.value||'').toLowerCase();
-  const hideNight = document.getElementById('hide-night')?.checked;
-  const now       = Date.now();
+  const search     = (document.getElementById('tbl-search')?.value||'').toLowerCase();
+  const hideNight  = document.getElementById('hide-night')?.checked;
+  const hidePlayed = document.getElementById('hide-played')?.checked;
+  const now        = Date.now();
 
   let visible = attackRows.filter(r => {
     if (!search && hideNight && r.night && !r.isPast) return false;
+    // Skryj odeslané (played) ale NIKDY neSkryj zmeškaných (past ale ne played)
+    if (hidePlayed && playedRows.has(rowKey(r))) return false;
     return true;
   });
   if (search) visible = visible.filter(r =>
@@ -553,6 +567,7 @@ function render(data) {
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <div class="table-filter"><input type="text" id="tbl-search" placeholder="🔍 Filtr (vesnice, hráč…)" oninput="renderTable()"></div>
           <label class="night-toggle"><input type="checkbox" id="hide-night" onchange="renderTable()"> 🌙 Skrýt noční (0–6h)</label>
+          <label class="night-toggle"><input type="checkbox" id="hide-played" onchange="renderTable()" checked> ✅ Skrýt odeslané</label>
           <span id="sum-count" style="font-size:11px;color:var(--dim);"></span>
         </div>
       </div>
@@ -679,6 +694,29 @@ function createAlarm(evt, sendTimeMs, tgt, src) {
   a.download = `utok_${tgt.replace('|','_')}_${alarmTime.getHours()}${String(alarmTime.getMinutes()).padStart(2,'0')}.ics`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+async function unmarkRowPlayed(el) {
+  const tr = el.closest('tr');
+  if (!tr) return;
+  const rowidx = parseInt(tr.dataset.rowidx);
+  const row = attackRows[rowidx];
+  if (!row) return;
+  const key = rowKey(row);
+  playedRows.delete(key);
+  try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
+  // Odstraň z DB
+  try {
+    const { data: { session } } = await sbP.auth.getSession();
+    if (session) await sbP.from('played_rows').delete().eq('user_id', session.user.id).eq('row_key', key);
+  } catch(e) {}
+  tr.classList.remove('played-row');
+  el.textContent = 'Zmeškal';
+  el.style.cursor = '';
+  el.onclick = null;
+  el.title = '';
+  // Pokud je hide-played zapnuto, skryj řádek
+  if (document.getElementById('hide-played')?.checked) renderTable();
 }
 
 async function planLogout() {
