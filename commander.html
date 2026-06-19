@@ -2838,9 +2838,22 @@ function acceptRefresh(rowIdx) {
   const origTgtX = attackRows[rowIdx].tgtX;
   const origTgtY = attackRows[rowIdx].tgtY;
 
-  delete proposal._proposal;
-  attackRows[rowIdx] = proposal;
+  // Odstraň _proposal z návrhu před uložením
+  const cleanProposal = { ...proposal };
+  delete cleanProposal._proposal;
+
+  // Nahraď v attackRows
+  attackRows[rowIdx] = cleanProposal;
+
+  // Odstraň proposal řádek z DOM
   document.getElementById(`proposal-${rowIdx}`)?.remove();
+
+  // Obnov styl původního řádku (zruš červené ohraničení)
+  const targetTr = document.querySelector(`table.attacks tbody tr[data-rowidx="${rowIdx}"]`);
+  if (targetTr) {
+    targetTr.style.cssText = targetTr.dataset.refreshOrigStyle || '';
+    delete targetTr.dataset.refreshOrigStyle;
+  }
 
   // Aktualizuj v savedActions – hledej podle původního src+tgt+sendTime
   savedActions.forEach(action => {
@@ -2849,7 +2862,7 @@ function acceptRefresh(rowIdx) {
       if (r.srcX === origSrcX && r.srcY === origSrcY &&
           r.tgtX === origTgtX && r.tgtY === origTgtY &&
           r.sendTime === origSendTime) {
-        action.rows[i] = { ...proposal };
+        action.rows[i] = { ...cleanProposal };
         break;
       }
     }

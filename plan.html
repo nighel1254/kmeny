@@ -497,8 +497,11 @@ function startAlarm(evt, rowIdx, link) {
   if (row) {
     const diff = row.sendTime - Date.now();
     if (diff < 300000) {
-      markRowPlayed(row);
-      setTimeout(() => renderTable(), 300);
+      // Označit jako odeslané až po 10s – aby hráč stihl odeslat útok
+      setTimeout(async () => {
+        await markRowPlayed(row);
+        renderTable();
+      }, 10000);
     }
   }
   window.open(link, 'tw_' + Date.now());
