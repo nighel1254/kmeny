@@ -49,7 +49,7 @@
   .donate-header{padding:14px 20px;border-bottom:1px solid #3a1a4a;border-left:3px solid #aa60ff;}
   .donate-header h3{font-size:14px;color:#cc90ff;font-weight:700;}
   .donate-header p{font-size:12px;color:#7a50aa;margin-top:3px;}
-  .donate-methods{display:grid;grid-template-columns:repeat(3,1fr);gap:0;}
+  .donate-methods{display:grid;grid-template-columns:repeat(2,1fr);gap:0;}
   .donate-method{padding:18px 20px;border-right:1px solid #3a1a4a;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
   .donate-method:last-child{border-right:none;}
   .donate-method h4{font-size:12px;font-weight:700;color:var(--gold2);}
@@ -169,56 +169,33 @@
     </a>
   </div>
 
-  <!-- Donate -->
-  <div class="donate-section">
-    <div class="donate-header">
-      <h3>❤️ Podpořit projekt</h3>
-      <p>Plánovač je zdarma. Pokud ti šetří čas, kup mi kafe — vyber způsob platby:</p>
-    </div>
-    <div class="donate-methods">
-
-      <!-- QR platba -->
-      <div class="donate-method">
-        <h4>🏦 QR Platba</h4>
-        <p>Bankovní převod · bez poplatků</p>
-        <div class="donate-amount">
-          <button class="amt-btn" onclick="setQrAmount(50)">50 Kč</button>
-          <button class="amt-btn active" onclick="setQrAmount(100)">100 Kč</button>
-          <button class="amt-btn" onclick="setQrAmount(200)">200 Kč</button>
-          <button class="amt-btn" onclick="setQrAmount(500)">500 Kč</button>
+  <!-- Donate – diskrétní -->
+  <div style="text-align:center;font-size:12px;color:var(--dim);padding:4px 0 8px;">
+    ☕ Líbí se ti plánovač?
+    <button onclick="toggleDonate()" style="background:none;border:none;color:var(--dim);font-size:12px;cursor:pointer;text-decoration:underline;padding:0 2px;">Podpořit kafe</button>
+  </div>
+  <div id="donate-panel" style="display:none;">
+    <div class="donate-section">
+      <div class="donate-methods">
+        <div class="donate-method">
+          <h4>🏦 QR Platba</h4>
+          <p>Bankovní převod · bez poplatků</p>
+          <div class="donate-amount">
+            <button class="amt-btn" onclick="setQrAmount(50)">50 Kč</button>
+            <button class="amt-btn active" onclick="setQrAmount(100)">100 Kč</button>
+            <button class="amt-btn" onclick="setQrAmount(200)">200 Kč</button>
+            <button class="amt-btn" onclick="setQrAmount(500)">500 Kč</button>
+          </div>
+          <img id="qr-img" src="" alt="QR platba" style="width:150px;height:150px;border-radius:6px;background:#fff;padding:6px;">
+          <div class="acct">284794868 / 0300</div>
         </div>
-        <img id="qr-img" src="" alt="QR platba" style="width:160px;height:160px;border-radius:6px;background:#fff;padding:6px;">
-        <div class="acct">284794868 / 0300</div>
-        <div style="font-size:10px;color:var(--dim);">Zpráva: Donate DK Planner</div>
-      </div>
-
-      <!-- Revolut -->
-      <div class="donate-method">
-        <h4>🔄 Revolut Pay</h4>
-        <p>Platba přes Revolut · CZK · zdarma</p>
-        <img src="https://api.qrserver.com/v1/create-qr-code/?data=https%3A%2F%2Frevolut.me%2Ftomneitzel&size=160x160&margin=6&bgcolor=ffffff" alt="Revolut QR" style="width:160px;height:160px;border-radius:6px;background:#fff;padding:6px;">
-        <a href="https://revolut.me/tomneitzel" target="_blank" rel="noopener" class="btn-pay btn-revolut">
-          🔄 Otevřít Revolut
-        </a>
-        <div style="font-size:10px;color:var(--dim);">revolut.me/tomneitzel</div>
-      </div>
-
-      <!-- Stripe -->
-      <div class="donate-method">
-        <h4>💳 Kartou online</h4>
-        <p>Platba kartou · Apple Pay · Google Pay</p>
-        <div style="font-size:11px;color:#7a50aa;background:#0a0814;border:1px solid #3a1a4a;border-radius:6px;padding:12px;text-align:left;line-height:1.6;">
-          ⚙️ <strong style="color:#cc90ff;">Stripe ještě není nastaveno</strong><br>
-          1. Registruj se na <strong>stripe.com</strong><br>
-          2. Vytvoř Payment Link<br>
-          3. Vlož URL do kódu jako<br>
-          <code style="color:var(--gold2);font-size:10px;">STRIPE_PAYMENT_LINK</code>
+        <div class="donate-method">
+          <h4>🔄 Revolut</h4>
+          <p>revolut.me/tomneitzel · CZK · zdarma</p>
+          <img src="https://api.qrserver.com/v1/create-qr-code/?data=https%3A%2F%2Frevolut.me%2Ftomneitzel&size=150x150&margin=6&bgcolor=ffffff" alt="Revolut QR" style="width:150px;height:150px;border-radius:6px;background:#fff;padding:6px;">
+          <a href="https://revolut.me/tomneitzel" target="_blank" rel="noopener" class="btn-pay btn-revolut">🔄 Otevřít Revolut</a>
         </div>
-        <a href="#" class="btn-pay btn-stripe disabled" id="stripe-btn">
-          💳 Zaplatit kartou
-        </a>
       </div>
-
     </div>
   </div>
 
@@ -379,6 +356,14 @@ async function changePassword() {
   msg.className='modal-msg ok'; msg.textContent='✓ Heslo bylo změněno.';
   setTimeout(closePwModal, 1800);
   toast('✓ Heslo změněno');
+}
+
+// ── Donate toggle ──
+function toggleDonate() {
+  const p = document.getElementById('donate-panel');
+  const vis = p.style.display === 'none';
+  p.style.display = vis ? 'block' : 'none';
+  if (vis) updateQR();
 }
 
 // ── QR platba ──
