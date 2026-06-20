@@ -15,15 +15,19 @@
 
   /* ── Header ── */
   .header{background:linear-gradient(180deg,#4d3510 0%,#2e1e08 60%,#1e1208 100%);border-bottom:2px solid var(--border);box-shadow:0 3px 20px rgba(0,0,0,.7);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-  .header-left{display:flex;align-items:center;gap:10px;}
+  .header-left{display:flex;align-items:center;gap:10px;flex:1;}
   .header-left h1{font-size:16px;color:var(--gold2);font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.5);}
+  .header-center{flex:1;display:flex;justify-content:center;align-items:center;}
   .world-badge{background:rgba(58,42,16,.6);border:1px solid rgba(212,168,75,.3);border-radius:10px;padding:2px 10px;font-size:11px;color:var(--dim);}
-  .header-right{display:flex;align-items:center;gap:8px;}
+  .header-right{display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end;}
   .user-pill{display:flex;align-items:center;gap:6px;background:#1e1508;border:1px solid var(--gold);border-radius:20px;padding:4px 12px;box-shadow:0 0 12px rgba(212,168,75,.08);}
   .user-pill span{font-size:13px;font-weight:600;color:var(--gold2);}
-  .btn-nav{font-size:12px;padding:6px 13px;border-radius:5px;border:none;cursor:pointer;font-weight:600;transition:all .15s;}
-  .btn-logout{background:transparent;border:1px solid var(--border);color:var(--dim);}
-  .btn-logout:hover{border-color:var(--red);color:var(--red);}
+  .btn-nav{font-size:12px;padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-weight:600;transition:all .15s;}
+  .btn-nav:hover{border-color:var(--text);color:var(--text);}
+  .btn-logout:hover{border-color:var(--red) !important;color:var(--red) !important;}
+  .btn-donate-hdr{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid rgba(212,168,75,.35);background:transparent;color:var(--dim);cursor:pointer;transition:all .15s;}
+  .btn-donate-hdr:hover{border-color:var(--gold);color:var(--gold2);}
+  .btn-donate-hdr.active{border-color:var(--gold);color:var(--gold2);background:rgba(212,168,75,.07);}
 
   /* ── Layout ── */
   .page-body{max-width:900px;margin:0 auto;padding:20px 16px;display:flex;flex-direction:column;gap:18px;}
@@ -145,12 +149,15 @@
     <h1>DK Plánovač</h1>
     <div class="world-badge">cs112 – Divoké kmeny</div>
   </div>
+  <div class="header-center">
+    <button id="btn-donate-hdr" class="btn-donate-hdr" onclick="toggleDonate()">☕ Podpořit</button>
+  </div>
   <div class="header-right">
     <div class="user-pill">
       <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:14px;height:14px;filter:sepia(1)saturate(3)hue-rotate(330deg);">
       <span id="user-name">...</span>
     </div>
-    <button class="btn-nav" style="background:transparent;border:1px solid var(--border);color:var(--dim);font-size:11px;" onclick="openPwModal()">🔐 Heslo</button>
+    <button class="btn-nav" onclick="openPwModal()">🔐 Heslo</button>
     <button class="btn-nav btn-logout" onclick="doLogout()">Odhlásit se</button>
   </div>
 </div>
@@ -169,11 +176,6 @@
     </a>
   </div>
 
-  <!-- Donate – diskrétní -->
-  <div style="text-align:center;font-size:12px;color:var(--dim);padding:4px 0 8px;">
-    ☕ Líbí se ti plánovač?
-    <button onclick="toggleDonate()" style="background:none;border:none;color:var(--dim);font-size:12px;cursor:pointer;text-decoration:underline;padding:0 2px;">Podpořit kafe</button>
-  </div>
   <div id="donate-panel" style="display:none;">
     <div class="donate-section">
       <div class="donate-methods">
@@ -318,11 +320,39 @@ async function openPlan(assignmentId) {
   window.location.href = `plan.html#${compressed}`;
 }
 
-async function deletePlan(assignmentId, btn) {
-  btn.textContent = '…';
+const _pendingDel = {};
+
+function deletePlan(assignmentId, btn) {
+  if (_pendingDel[assignmentId]) return;
+  const card = btn.closest('.card');
+  card.style.opacity = '0.4';
+  card.style.transition = 'opacity .3s';
+  btn.innerHTML = '↩ Zpět';
+  btn.style.borderColor = 'var(--gold)';
+  btn.style.color = 'var(--gold2)';
+  btn.onclick = () => _undoDelete(assignmentId);
+  toast('🗑 Bude smazáno za 5 s…', 4800);
+  _pendingDel[assignmentId] = { card, btn, timer: setTimeout(() => _confirmDelete(assignmentId), 5000) };
+}
+
+function _undoDelete(assignmentId) {
+  const pd = _pendingDel[assignmentId]; if (!pd) return;
+  clearTimeout(pd.timer); delete _pendingDel[assignmentId];
+  pd.card.style.opacity = '1';
+  pd.btn.innerHTML = '🗑';
+  pd.btn.style.borderColor = ''; pd.btn.style.color = '';
+  pd.btn.onclick = () => deletePlan(assignmentId, pd.btn);
+  toast('↩ Mazání zrušeno', 2000);
+}
+
+async function _confirmDelete(assignmentId) {
+  const pd = _pendingDel[assignmentId]; delete _pendingDel[assignmentId];
   const { error } = await sb.from('plan_assignments').delete().eq('id', assignmentId);
-  if (error) { btn.textContent = '🗑'; toast('❌ Chyba při mazání'); return; }
-  btn.closest('.card').remove();
+  if (error) {
+    if (pd) { pd.card.style.opacity='1'; pd.btn.innerHTML='🗑'; pd.btn.style.borderColor=''; pd.btn.style.color=''; pd.btn.onclick=()=>deletePlan(assignmentId,pd.btn); }
+    toast('❌ Chyba při mazání'); return;
+  }
+  if (pd) pd.card.remove();
   const cards = document.getElementById('plans-container').querySelectorAll('.card');
   if (!cards.length) document.getElementById('plans-container').innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Žádné plány.</p></div>`;
   toast('✓ Plán smazán');
@@ -363,6 +393,7 @@ function toggleDonate() {
   const p = document.getElementById('donate-panel');
   const vis = p.style.display === 'none';
   p.style.display = vis ? 'block' : 'none';
+  document.getElementById('btn-donate-hdr').classList.toggle('active', vis);
   if (vis) updateQR();
 }
 

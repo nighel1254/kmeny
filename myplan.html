@@ -133,6 +133,12 @@
   /* Target list improvements */
   .target-list{border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:8px;background:#100c04;}
   .tgt-row:nth-child(even){background:rgba(255,255,255,.015);}
+  @keyframes spin-r{to{transform:rotate(360deg)}}
+  .btn-loading{opacity:.7 !important;pointer-events:none;}
+  .spin-icon{display:inline-block;animation:spin-r .7s linear infinite;margin-right:4px;}
+  .smart-time-input{font-family:monospace;color:var(--dim) !important;border-color:rgba(107,79,42,.5) !important;background:#0a0804 !important;}
+  .smart-time-input:focus{border-color:var(--gold) !important;color:var(--text) !important;}
+  .smart-time-input::placeholder{color:#4a3a1a;font-style:italic;}
   @media(max-width:700px){
     .main{flex-direction:column;padding:8px;gap:10px}
     .left-col{width:100%;min-width:unset}
@@ -233,7 +239,7 @@
         <label style="margin-top:0;">Cílové souřadnice</label>
         <textarea id="sharp-coords" rows="3" placeholder="500|500&#10;501|502"></textarea>
         <div class="btn-row">
-          <button class="btn btn-primary btn-sm" onclick="parseTargets('sharp')">▶ Načíst</button>
+          <button class="btn btn-primary btn-sm" id="sharp-load-btn" onclick="parseTargets('sharp')">▶ Načíst</button>
           <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearTargets('sharp')">✕</button>
         </div>
         <div style="font-size:11px;color:var(--gold);margin-top:4px;" id="sharp-count-info"></div>
@@ -241,9 +247,12 @@
         <div id="sharp-tgt-wrap" style="display:none;margin-top:8px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-wrap:wrap;gap:6px;">
             <span style="font-size:12px;color:var(--gold);font-weight:600;">⏰ Čas dopadu per cíl</span>
-            <div style="display:flex;align-items:center;gap:4px;">
-              <span style="font-size:11px;color:var(--dim);">Vše:</span>
-              <input type="datetime-local" id="sharp-global-fill" step="1" style="width:175px;padding:3px 6px;font-size:11px;" onchange="fillAllArrival('sharp',this.value)">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-size:11px;color:var(--dim);">Vše:</span>
+                <input type="datetime-local" id="sharp-global-fill" step="1" style="width:175px;padding:3px 6px;font-size:11px;" onchange="fillAllArrival('sharp',this.value)">
+              </div>
+              <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:175px;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid;outline:none;" oninput="smartPasteTime('sharp',this)">
             </div>
           </div>
           <div class="target-list">
@@ -266,16 +275,22 @@
         <label>Cílové souřadnice šlechticů</label>
         <textarea id="noble-coords" rows="3" placeholder="500|500&#10;501|502"></textarea>
         <div class="btn-row">
-          <button class="btn btn-primary btn-sm" onclick="parseTargets('noble')">▶ Načíst</button>
+          <button class="btn btn-primary btn-sm" id="noble-load-btn" onclick="parseTargets('noble')">▶ Načíst</button>
           <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearTargets('noble')">✕</button>
         </div>
         <div style="font-size:11px;color:var(--gold);margin-top:4px;" id="noble-count-info"></div>
         <div id="noble-tgt-wrap" style="display:none;margin-top:8px;">
+          <div style="margin-bottom:6px;">
+            <button class="btn btn-sm" style="background:#1a0828;border:1px solid #6a30a0;color:#cc80ff;font-size:11px;" onclick="copyTimesFromSharp()">📋 Zkopírovat časy z Ostré cíle</button>
+          </div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-wrap:wrap;gap:6px;">
             <span style="font-size:12px;color:#ff80c0;font-weight:600;">⏰ Čas dopadu per cíl</span>
-            <div style="display:flex;align-items:center;gap:4px;">
-              <span style="font-size:11px;color:var(--dim);">Vše:</span>
-              <input type="datetime-local" id="noble-global-fill" step="1" style="width:175px;padding:3px 6px;font-size:11px;" onchange="fillAllArrival('noble',this.value)">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-size:11px;color:var(--dim);">Vše:</span>
+                <input type="datetime-local" id="noble-global-fill" step="1" style="width:175px;padding:3px 6px;font-size:11px;" onchange="fillAllArrival('noble',this.value)">
+              </div>
+              <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:175px;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid;outline:none;" oninput="smartPasteTime('noble',this)">
             </div>
           </div>
           <div class="target-list">
@@ -297,16 +312,19 @@
         <label style="margin-top:0;">Cílové souřadnice fejků</label>
         <textarea id="fake-coords" rows="3" placeholder="500|500&#10;501|502"></textarea>
         <div class="btn-row">
-          <button class="btn btn-primary btn-sm" onclick="parseTargets('fake')">▶ Načíst</button>
+          <button class="btn btn-primary btn-sm" id="fake-load-btn" onclick="parseTargets('fake')">▶ Načíst</button>
           <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearTargets('fake')">✕</button>
         </div>
         <div style="font-size:11px;color:var(--gold);margin-top:4px;" id="fake-count-info"></div>
         <div id="fake-tgt-wrap" style="display:none;margin-top:8px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-wrap:wrap;gap:6px;">
             <span style="font-size:12px;color:#40cc40;font-weight:600;">⏰ Čas dopadu per cíl</span>
-            <div style="display:flex;align-items:center;gap:4px;">
-              <span style="font-size:11px;color:var(--dim);">Vše:</span>
-              <input type="datetime-local" id="fake-global-fill" step="1" style="width:175px;padding:3px 6px;font-size:11px;" onchange="fillAllArrival('fake',this.value)">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-size:11px;color:var(--dim);">Vše:</span>
+                <input type="datetime-local" id="fake-global-fill" step="1" style="width:175px;padding:3px 6px;font-size:11px;" onchange="fillAllArrival('fake',this.value)">
+              </div>
+              <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:175px;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid;outline:none;" oninput="smartPasteTime('fake',this)">
             </div>
           </div>
           <div class="target-list">
@@ -328,16 +346,19 @@
         <label style="margin-top:0;">Cílové souřadnice</label>
         <textarea id="fakenob-coords" rows="3" placeholder="500|500&#10;501|502"></textarea>
         <div class="btn-row">
-          <button class="btn btn-primary btn-sm" onclick="parseTargets('fakenob')">▶ Načíst</button>
+          <button class="btn btn-primary btn-sm" id="fakenob-load-btn" onclick="parseTargets('fakenob')">▶ Načíst</button>
           <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearTargets('fakenob')">✕</button>
         </div>
         <div style="font-size:11px;color:var(--gold);margin-top:4px;" id="fakenob-count-info"></div>
         <div id="fakenob-tgt-wrap" style="display:none;margin-top:8px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-wrap:wrap;gap:6px;">
             <span style="font-size:12px;color:#ffffff;font-weight:600;">⏰ Čas dopadu per cíl</span>
-            <div style="display:flex;align-items:center;gap:4px;">
-              <span style="font-size:11px;color:var(--dim);">Vše:</span>
-              <input type="datetime-local" id="fakenob-global-fill" step="1" style="width:175px;padding:3px 6px;font-size:11px;" onchange="fillAllArrival('fakenob',this.value)">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+              <div style="display:flex;align-items:center;gap:4px;">
+                <span style="font-size:11px;color:var(--dim);">Vše:</span>
+                <input type="datetime-local" id="fakenob-global-fill" step="1" style="width:175px;padding:3px 6px;font-size:11px;" onchange="fillAllArrival('fakenob',this.value)">
+              </div>
+              <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:175px;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid;outline:none;" oninput="smartPasteTime('fakenob',this)">
             </div>
           </div>
           <div class="target-list">
@@ -628,23 +649,78 @@ async function parseTargets(type) {
   const lines = ta.split(/[\n\s]+/).map(l=>l.trim()).filter(l=>/^\d+\|\d+/.test(l));
   if (!lines.length) return;
 
-  // Zkus načíst názvy
-  if (!allVillagesFetched) { try{await ensureVillageMap();}catch(e){} }
+  const btn = document.getElementById(`${type}-load-btn`);
+  if (btn) { btn.classList.add('btn-loading'); btn.innerHTML = '<span class="spin-icon">⟳</span> Načítám…'; }
 
-  const existing={};
-  targetState[type].forEach(c=>{existing[`${c.x}|${c.y}`]=c.arrivalTime;});
+  try {
+    if (!allVillagesFetched) { try{await ensureVillageMap();}catch(e){} }
 
-  targetState[type] = lines.map(l=>{
-    const m=l.match(/^(\d+)\|(\d+)/);
-    const x=+m[1],y=+m[2],key=`${x}|${y}`;
-    const v=allVillagesMap[key];
-    return{x,y,name:v?.name||key,id:v?.id||null,owner:v?.owner||'',arrivalTime:existing[key]||null};
+    const existing={};
+    targetState[type].forEach(c=>{existing[`${c.x}|${c.y}`]=c.arrivalTime;});
+
+    targetState[type] = lines.map(l=>{
+      const m=l.match(/^(\d+)\|(\d+)/);
+      const x=+m[1],y=+m[2],key=`${x}|${y}`;
+      const v=allVillagesMap[key];
+      return{x,y,name:v?.name||key,id:v?.id||null,owner:v?.owner||'',arrivalTime:existing[key]||null};
+    });
+
+    const info = document.getElementById(`${type}-count-info`);
+    if (info) info.textContent=`✓ ${targetState[type].length} cílů`;
+    document.getElementById(`${type}-tgt-wrap`).style.display='block';
+    renderTargetList(type);
+  } finally {
+    if (btn) { btn.classList.remove('btn-loading'); btn.innerHTML = '▶ Načíst'; }
+  }
+}
+
+function parseArrivalText(txt) {
+  txt = txt.trim();
+  if (!txt) return null;
+  const d = new Date();
+  const lower = txt.toLowerCase();
+  if (/zítra|zitra/.test(lower)) d.setDate(d.getDate() + 1);
+  else if (/pozítří|pozitri|pozítr/.test(lower)) d.setDate(d.getDate() + 2);
+  // else "dnes" or no keyword = today (already set)
+
+  // Match HH:MM[:SS[:mmm]]
+  const m = txt.match(/(\d{1,2}):(\d{2})(?::(\d{2})(?::(\d{1,3}))?)?/);
+  if (!m) return null;
+  d.setHours(+m[1], +m[2], m[3] ? +m[3] : 0, m[4] ? +m[4].padEnd(3,'0') : 0);
+  return d.getTime();
+}
+
+function smartPasteTime(type, input) {
+  const ts = parseArrivalText(input.value);
+  if (ts === null) return;
+  input.style.color = 'var(--green)';
+  // fill global datetime-local display
+  const dtInput = document.getElementById(`${type}-global-fill`);
+  if (dtInput) dtInput.value = toLocalDT(ts);
+  // fill all targets
+  targetState[type].forEach(c => c.arrivalTime = ts);
+  if (targetState[type].length) renderTargetList(type);
+  // clear text after a moment so user sees it worked
+  setTimeout(() => { input.value = ''; input.style.color = ''; }, 800);
+}
+
+function copyTimesFromSharp() {
+  const sharpMap = {};
+  targetState.sharp.forEach(c => { if (c.arrivalTime) sharpMap[`${c.x}|${c.y}`] = c.arrivalTime; });
+  let copied = 0;
+  targetState.noble.forEach(c => {
+    const t = sharpMap[`${c.x}|${c.y}`];
+    if (t) { c.arrivalTime = t; copied++; }
   });
+  if (copied) { renderTargetList('noble'); showStatus('noble-count-info', `✓ Zkopírováno ${copied} časů z Ostré`); }
+  else showStatus('noble-count-info', '⚠ Žádná shoda souřadnic s Ostrými cíli');
+}
 
-  const info = document.getElementById(`${type}-count-info`);
-  if (info) info.textContent=`✓ ${targetState[type].length} cílů`;
-  document.getElementById(`${type}-tgt-wrap`).style.display='block';
-  renderTargetList(type);
+function showStatus(elId, msg) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = targetState[elId.split('-')[0]]?.length ? `✓ ${targetState[elId.split('-')[0]].length} cílů` : ''; }, 3000);
 }
 
 function toLocalDT(ts){
