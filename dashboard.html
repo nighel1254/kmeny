@@ -64,6 +64,7 @@
       <span>⚔️</span>
       <span id="user-name">...</span>
     </div>
+    <a href="myplan.html" class="btn-nav" style="background:linear-gradient(180deg,#c4922a,#8b5e10);color:#fff3d0;border:1px solid #d4a84b;text-decoration:none;">⚔️ Plánovat útok</a>
     <button class="btn-nav btn-logout" onclick="doLogout()">Odhlásit se</button>
   </div>
 </div>
@@ -123,15 +124,27 @@ async function loadPlans(email) {
     .order('created_at', { ascending: false });
 
   const container = document.getElementById('plans-container');
+
+  // Rychlý přístup – vlastní plán
+  const quickCard = `<div class="plan-card" style="border-color:#5a3a10;">
+    <div class="plan-card-header" style="background:linear-gradient(90deg,#2a1a06,#1e1508);">
+      <div>
+        <div class="plan-card-title">⚔️ Vlastní plán útoků</div>
+        <div class="plan-card-meta">Naplánuj si vlastní útoky – offky, šlechtice, fejky</div>
+      </div>
+      <a href="myplan.html" class="btn-open" style="text-decoration:none;">▶ Otevřít plánovač</a>
+    </div>
+  </div>`;
+
   if (error || !assignments?.length) {
-    container.innerHTML = `<div class="empty">
+    container.innerHTML = quickCard + `<div class="empty">
       <div class="empty-icon">📭</div>
       <p>Žádné plány útoků ti zatím nebyly přiřazeny.<br><span style="font-size:12px;color:var(--dim);margin-top:8px;display:block;">Velitel kmene ti pošle plán jakmile bude připraven.</span></p>
     </div>`;
     return;
   }
 
-  container.innerHTML = `<div class="section-title">📋 Přiřazené plány (${assignments.length})</div>` +
+  container.innerHTML = quickCard + `<div class="section-title">📋 Přiřazené plány (${assignments.length})</div>` +
   assignments.map(a => {
     const rows   = a.rows_data || [];
     const sharp  = rows.filter(r => !r.isFake && !r.isNoble);
