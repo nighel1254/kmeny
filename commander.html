@@ -215,6 +215,17 @@
     /* Saved actions bar */
     #saved-actions-bar { font-size: 11px; overflow-x: auto; }
   }
+  .cmdr-amt-btn{background:#1a0a28;border:1px solid #4a2060;color:#cc90ff;border-radius:4px;padding:3px 9px;font-size:11px;cursor:pointer;transition:all .12s;}
+  .cmdr-amt-btn.active,.cmdr-amt-btn:hover{background:#3a1060;border-color:#aa60ff;color:#fff;}
+  /* smart-time helper in commander */
+  .smart-time-input{font-family:monospace;color:var(--dim) !important;background:#0a0804 !important;}
+  .smart-time-input:focus{border-color:var(--gold) !important;color:var(--text) !important;}
+  .smart-time-input::placeholder{color:#4a3a1a;font-style:italic;}
+  /* per-target coord list enhanced */
+  .coord-list{max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;background:#100c04;}
+  .coord-item{padding:5px 8px;border-bottom:1px solid #1a1208;font-size:12px;gap:4px;}
+  .coord-item:last-child{border-bottom:none}
+  .coord-item:hover{background:#1a1208;}
   /* ── TOAST ───────────────────────────────────────────────── */
   #toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
   .toast{background:#1e1508;border:1px solid var(--border);border-radius:6px;padding:10px 16px;font-size:13px;color:var(--text);max-width:320px;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:auto;display:flex;align-items:center;gap:8px;}
@@ -256,6 +267,7 @@
     <div style="font-size:11px;color:var(--dim);margin-left:4px;" id="world-speed-display"></div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+    <button id="cmdr-donate-btn" onclick="toggleCmdrDonate()" style="font-size:11px;padding:4px 14px;border-radius:20px;border:1px solid rgba(212,168,75,.5);background:rgba(180,140,0,.12);color:var(--gold2);cursor:pointer;transition:all .2s;font-weight:600;box-shadow:0 0 10px rgba(180,140,0,.15);">$ ☕ Podpořit $</button>
     <div style="display:flex;align-items:center;gap:6px;background:#1e1508;border:1px solid var(--gold);border-radius:20px;padding:4px 12px;">
       <span style="color:var(--gold);">⚔️</span>
       <span style="font-size:13px;font-weight:600;color:var(--gold2);" id="nav-user-name"></span>
@@ -269,6 +281,36 @@
 
 <!-- Toast container -->
 <div id="toast-container"></div>
+
+<!-- Donate overlay -->
+<div id="cmdr-donate-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:800;align-items:flex-start;justify-content:center;padding-top:80px;" onclick="if(event.target===this)toggleCmdrDonate()">
+  <div style="background:linear-gradient(135deg,#0e0818 0%,#130a1e 100%);border:1px solid #3a1a4a;border-radius:10px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.8);width:520px;max-width:95vw;">
+    <div style="padding:12px 18px;border-bottom:1px solid #3a1a4a;border-left:3px solid #aa60ff;display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:14px;color:#cc90ff;font-weight:700;">$ ☕ Podpořit DK Plánovač $</span>
+      <button onclick="toggleCmdrDonate()" style="background:none;border:none;color:#7a50aa;font-size:18px;cursor:pointer;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
+      <div style="padding:18px 20px;border-right:1px solid #3a1a4a;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;">
+        <h4 style="font-size:12px;font-weight:700;color:var(--gold2);">🏦 QR Platba</h4>
+        <p style="font-size:11px;color:var(--dim);">Bankovní převod · bez poplatků</p>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;">
+          <button onclick="setCmdrQrAmt(50)"  class="cmdr-amt-btn">50 Kč</button>
+          <button onclick="setCmdrQrAmt(100)" class="cmdr-amt-btn active">100 Kč</button>
+          <button onclick="setCmdrQrAmt(200)" class="cmdr-amt-btn">200 Kč</button>
+          <button onclick="setCmdrQrAmt(500)" class="cmdr-amt-btn">500 Kč</button>
+        </div>
+        <img id="cmdr-qr-img" src="" alt="QR platba" style="width:150px;height:150px;border-radius:6px;background:#fff;padding:6px;">
+        <span style="font-family:monospace;font-size:11px;color:var(--text);background:#0a0814;border:1px solid #3a1a4a;border-radius:4px;padding:4px 8px;">284794868 / 0300</span>
+      </div>
+      <div style="padding:18px 20px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;">
+        <h4 style="font-size:12px;font-weight:700;color:var(--gold2);">🔄 Revolut</h4>
+        <p style="font-size:11px;color:var(--dim);">revolut.me/tomneitzel · CZK · zdarma</p>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?data=https%3A%2F%2Frevolut.me%2Ftomneitzel&size=150x150&margin=6&bgcolor=ffffff" alt="Revolut QR" style="width:150px;height:150px;border-radius:6px;background:#fff;padding:6px;">
+        <a href="https://revolut.me/tomneitzel" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(180deg,#5a5aff,#2222cc);color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;width:100%;">🔄 Otevřít Revolut</a>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Autosave banner -->
 <!-- Plans panel -->
@@ -384,19 +426,40 @@
           </div>
           <div id="coord-count-global" style="font-size:11px;color:var(--gold);margin-top:6px;font-weight:bold;"></div>
 
-          <!-- Čas příchodu – pouze globální -->
-          <div style="margin-top:12px;">
-            <div class="global-arrival">
-              <label>⏰ Čas příchodu (pro všechny cíle)</label>
-              <div class="arrival-row">
-                <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
-                <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><img id="global-unit-img" src="" style="width:20px;height:20px;" onerror="this.style.display='none'"> Beranidlo</span>
-                <input type="hidden" id="global-unit" value="ram">
+          <!-- Čas příchodu – přepínač -->
+          <div style="margin-top:10px;">
+            <div class="arrival-mode-toggle">
+              <button id="mode-btn-global" class="arrival-mode-btn active" onclick="setArrivalMode('global')">🕐 Globální čas</button>
+              <button id="mode-btn-per"    class="arrival-mode-btn"        onclick="setArrivalMode('per')">📋 Per cíl</button>
+            </div>
+
+            <!-- Globální wrapper -->
+            <div id="global-arrival-wrap" style="margin-top:6px;">
+              <div class="global-arrival">
+                <label>⏰ Čas příchodu (pro všechny cíle)</label>
+                <div class="arrival-row">
+                  <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
+                  <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><img id="global-unit-img" src="" style="width:20px;height:20px;" onerror="this.style.display='none'"> Beranidlo</span>
+                  <input type="hidden" id="global-unit" value="ram">
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+                  <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
+                  <input type="datetime-local" id="global-arrival-to" step="1" style="flex:1;">
+                </div>
+                <div style="margin-top:6px;">
+                  <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:100%;padding:4px 8px;font-size:11px;border-radius:4px;border:1px solid var(--border);outline:none;" oninput="smartFillGlobalArrival(this)">
+                </div>
               </div>
-              <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
-                <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
-                <input type="datetime-local" id="global-arrival-to" step="1" style="flex:1;">
+            </div>
+
+            <!-- Per-cíl wrapper -->
+            <div id="per-arrival-wrap" style="display:none;margin-top:6px;">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:#100c04;border:1px solid var(--border);border-radius:4px;">
+                <span style="font-size:11px;color:var(--dim);white-space:nowrap;">Vše:</span>
+                <input type="datetime-local" id="per-global-fill" step="1" style="flex:1;padding:3px 6px;font-size:11px;" onchange="fillAllCoordTimes(this.value)">
+                <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:140px;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid var(--border);outline:none;" oninput="smartFillAllCoords(this)">
               </div>
+              <div id="coord-list" style="display:none;"></div>
             </div>
           </div>
         </div>
@@ -424,6 +487,7 @@
               <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
               <input type="datetime-local" id="global-arrival-player-to" step="1" style="flex:1;">
             </div>
+            <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:100%;margin-top:5px;padding:3px 7px;font-size:11px;border-radius:4px;border:1px solid var(--border);outline:none;" oninput="smartFillSingleDT('global-arrival-player',this)">
           </div>
         </div>
 
@@ -476,6 +540,7 @@
             <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
             <input type="datetime-local" id="noble-arrival-to" step="1" style="flex:1;">
           </div>
+          <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:100%;margin-top:5px;padding:3px 7px;font-size:11px;border-radius:4px;border:1px solid var(--border);outline:none;" oninput="smartFillSingleDT('noble-arrival',this)">
         </div>
 
       </div>
@@ -532,6 +597,7 @@
             <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
             <input type="datetime-local" id="fake-arrival-to" step="1" style="flex:1;">
           </div>
+          <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:100%;margin-top:5px;padding:3px 7px;font-size:11px;border-radius:4px;border:1px solid var(--border);outline:none;" oninput="smartFillSingleDT('fake-arrival',this)">
         </div>
       </div>
     </div>
@@ -582,6 +648,7 @@
             <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
             <input type="datetime-local" id="fake-noble-arrival-to" step="1" style="flex:1;">
           </div>
+          <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:100%;margin-top:5px;padding:3px 7px;font-size:11px;border-radius:4px;border:1px solid var(--border);outline:none;" oninput="smartFillSingleDT('fake-noble-arrival',this)">
         </div>
       </div>
     </div>
@@ -1268,40 +1335,131 @@ async function parseCoords() {
   renderCoordList();
 }
 
+function toLocalDT(ts) {
+  const d=new Date(ts), p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function parseArrivalText(txt) {
+  txt = txt.trim(); if (!txt) return null;
+  const d = new Date();
+  const lower = txt.toLowerCase();
+  if (/zítra|zitra/.test(lower)) d.setDate(d.getDate()+1);
+  else if (/pozítří|pozitri/.test(lower)) d.setDate(d.getDate()+2);
+  const m = txt.match(/(\d{1,2}):(\d{2})(?::(\d{2})(?::(\d{1,3}))?)?/);
+  if (!m) return null;
+  d.setHours(+m[1], +m[2], m[3]?+m[3]:0, m[4]?+m[4].padEnd(3,'0'):0);
+  return d.getTime();
+}
+
 function renderCoordList() {
   const el = document.getElementById('coord-list');
-  if (!coordTargets.length) { el.style.display='none'; document.getElementById('coord-count').textContent=''; return; }
+  if (!el) return;
+  if (!coordTargets.length) {
+    el.style.display='none';
+    const cc=document.getElementById('coord-count'); if(cc) cc.textContent='';
+    document.getElementById('coord-count-global').textContent=''; return;
+  }
   el.style.display = 'block';
 
   if (arrivalMode === 'global') {
-    // Jednoduchý seznam bez inputů
     el.innerHTML = coordTargets.map((c,i) =>
-      `<div class="coord-item">
+      `<div class="coord-item" style="display:flex;align-items:center;gap:6px;">
          <span class="ci-coords">${c.x}|${c.y}</span>
-         <span style="color:var(--dim);font-size:11px;flex:1">${c.name !== `${c.x}|${c.y}` ? c.name : ''}</span>
+         <span style="color:var(--dim);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;">${c.name!==\`${c.x}|${c.y}\`?c.name:''}</span>
          <button class="ci-remove" onclick="removeCoord(${i})">✕</button>
        </div>`
     ).join('');
   } else {
-    // Per-cíl: datum + jednotka
     el.innerHTML = coordTargets.map((c,i) => {
-      const dtVal = c.arrivalTime ? new Date(c.arrivalTime).toISOString().slice(0,19) : '';
+      const dtVal = c.arrivalTime ? toLocalDT(c.arrivalTime) : '';
       return `<div class="coord-item">
-         <span class="ci-coords">${c.x}|${c.y}</span>
-         <span class="ci-time"><input type="datetime-local" step="1" value="${dtVal}"
-           onchange="coordTargets[${i}].arrivalTime=this.value?new Date(this.value).getTime():null"></span>
-         <span class="ci-unit"><select class="unit-select" onchange="coordTargets[${i}].unit=this.value">
-           <option value="ram" ${c.unit==='ram'?'selected':''}>Beranidlo</option>
-         </select></span>
-         <button class="ci-remove" onclick="removeCoord(${i})">✕</button>
+         <div style="display:flex;align-items:center;gap:4px;">
+           <span class="ci-coords" style="min-width:60px;">${c.x}|${c.y}</span>
+           <span style="color:var(--dim);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;">${c.name!==\`${c.x}|${c.y}\`?c.name:''}</span>
+           <input type="datetime-local" step="1" value="${dtVal}" style="flex:1;padding:3px 5px;font-size:11px;"
+             onchange="coordTargets[${i}].arrivalTime=this.value?new Date(this.value).getTime():null">
+           <button class="ci-remove" onclick="removeCoord(${i})">✕</button>
+         </div>
+         <div style="padding:2px 0 0 64px;">
+           <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15" style="width:100%;padding:2px 5px;font-size:10px;border-radius:3px;border:1px solid var(--border);outline:none;" oninput="smartPasteCoordRow(${i},this)">
+         </div>
        </div>`;
     }).join('');
   }
-  document.getElementById('coord-count').textContent = `${coordTargets.length} cílů`;
+  const cc=document.getElementById('coord-count'); if(cc) cc.textContent=`${coordTargets.length} cílů`;
   document.getElementById('coord-count-global').textContent = coordTargets.length ? `✓ Načteno ${coordTargets.length} cílů` : '';
 }
 
 function removeCoord(i) { coordTargets.splice(i,1); renderCoordList(); }
+
+function fillAllCoordTimes(val) {
+  if (!val) return;
+  const ts = new Date(val).getTime();
+  coordTargets.forEach(c => c.arrivalTime = ts);
+  renderCoordList();
+}
+
+function smartFillAllCoords(input) {
+  const ts = parseArrivalText(input.value);
+  if (ts === null) return;
+  coordTargets.forEach(c => c.arrivalTime = ts);
+  const dtInput = document.getElementById('per-global-fill');
+  if (dtInput) dtInput.value = toLocalDT(ts);
+  input.style.color = '#7ec87e';
+  renderCoordList();
+  setTimeout(() => { input.value = ''; input.style.color = ''; }, 800);
+}
+
+function smartPasteCoordRow(i, input) {
+  const ts = parseArrivalText(input.value);
+  if (ts === null) return;
+  coordTargets[i].arrivalTime = ts;
+  const row = input.closest('.coord-item');
+  const dtInput = row ? row.querySelector('input[type="datetime-local"]') : null;
+  if (dtInput) dtInput.value = toLocalDT(ts);
+  input.style.color = '#7ec87e';
+  setTimeout(() => { input.value = ''; input.style.color = ''; }, 800);
+}
+
+function smartFillGlobalArrival(input) {
+  const ts = parseArrivalText(input.value);
+  if (ts === null) return;
+  const dtInput = document.getElementById('global-arrival');
+  if (dtInput) dtInput.value = toLocalDT(ts);
+  input.style.color = '#7ec87e';
+  setTimeout(() => { input.value = ''; input.style.color = ''; }, 800);
+}
+
+function smartFillSingleDT(targetId, input) {
+  const ts = parseArrivalText(input.value);
+  if (ts === null) return;
+  const dtInput = document.getElementById(targetId);
+  if (dtInput) dtInput.value = toLocalDT(ts);
+  input.style.color = '#7ec87e';
+  setTimeout(() => { input.value = ''; input.style.color = ''; }, 800);
+}
+
+// ── Donate (commander) ──────────────────────────────────────
+let _cmdrDonateOpen = false, _cmdrQrAmt = 100;
+function toggleCmdrDonate() {
+  _cmdrDonateOpen = !_cmdrDonateOpen;
+  const o = document.getElementById('cmdr-donate-overlay');
+  o.style.display = _cmdrDonateOpen ? 'flex' : 'none';
+  document.getElementById('cmdr-donate-btn').style.boxShadow = _cmdrDonateOpen
+    ? '0 0 18px rgba(180,140,0,.4)' : '0 0 10px rgba(180,140,0,.15)';
+  if (_cmdrDonateOpen) updateCmdrQR();
+}
+function setCmdrQrAmt(amt) {
+  _cmdrQrAmt = amt;
+  document.querySelectorAll('.cmdr-amt-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === amt));
+  updateCmdrQR();
+}
+function updateCmdrQR() {
+  const spd = `SPD*1.0*ACC:CZ1803000000000284794868*AM:${_cmdrQrAmt}.00*CC:CZK*MSG:Donate DK Planner*`;
+  document.getElementById('cmdr-qr-img').src =
+    `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(spd)}&size=200x200&margin=8&bgcolor=ffffff`;
+}
 
 function clearCoords() {
   document.getElementById('coords-paste').value = '';

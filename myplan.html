@@ -735,11 +735,24 @@ function renderTargetList(type) {
     return `<div class="tgt-row">
       <span class="coords">${c.x}|${c.y}</span>
       <span style="color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis;">${c.name!==`${c.x}|${c.y}`?c.name:''}</span>
-      <input type="datetime-local" step="1" value="${dtVal}"
-        onchange="targetState['${type}'][${i}].arrivalTime=this.value?new Date(this.value).getTime():null">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <input type="datetime-local" step="1" value="${dtVal}"
+          onchange="targetState['${type}'][${i}].arrivalTime=this.value?new Date(this.value).getTime():null">
+        <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15" style="padding:2px 5px;font-size:10px;border-radius:3px;border:1px solid;outline:none;width:100%;" oninput="smartPasteTimeRow('${type}',${i},this)">
+      </div>
       <button class="ci-remove" onclick="removeTarget('${type}',${i})">✕</button>
     </div>`;
   }).join('');
+}
+
+function smartPasteTimeRow(type, i, input) {
+  const ts = parseArrivalText(input.value);
+  if (ts === null) return;
+  targetState[type][i].arrivalTime = ts;
+  const dtInput = input.closest('.tgt-row').querySelector('input[type="datetime-local"]');
+  if (dtInput) dtInput.value = toLocalDT(ts);
+  input.style.color = 'var(--green)';
+  setTimeout(() => { input.value = ''; input.style.color = ''; }, 800);
 }
 
 function removeTarget(type,i){
@@ -805,20 +818,22 @@ async function calculate() {
   const fakeNobCnt = parseInt(document.getElementById('fakenob-count').value)||0;
   const noblePerTgt= parseInt(document.getElementById('noble-per-target').value)||4;
 
-  // ── Ostré útoky ─────────────────────────────────────────
+  // ── Ostré útoky — každá vesnice se použije jen jednou ──
+  const usedSharpSrcs = new Set();
   for (const tgt of sharpTgts) {
     for (let s=0; s<sharpCount; s++) {
-      for (const src of offVillages) {
-        const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
-        const sendTime = tgt.arrivalTime - travel;
-        attackRows.push({
-          srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-          srcCategory:src.category,
-          tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
-          unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
-          night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:false
-        });
-      }
+      const src = offVillages.find(v => !usedSharpSrcs.has(`${v.x}|${v.y}`));
+      if (!src) { toast(`⚠ Nedostatek útočných vesnic! (${usedSharpSrcs.size} použito)`, 'info', 5000); break; }
+      usedSharpSrcs.add(`${src.x}|${src.y}`);
+      const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
+      const sendTime = tgt.arrivalTime - travel;
+      attackRows.push({
+        srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
+        srcCategory:src.category,
+        tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
+        unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
+        night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:false
+      });
     }
   }
 
@@ -871,6 +886,7 @@ async function calculate() {
       const pool = nobleVillages.map(v=>({...v, remaining: v._noble}));
       for (const tgt of nobleTgts) {
         let placed=0;
+        const tgtNobleRows=[];
         for (const src of pool) {
           if (placed >= noblePerTgt) break;
           if (src.remaining<=0) continue;
@@ -878,23 +894,30 @@ async function calculate() {
           const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'noble');
           const sendTime = tgt.arrivalTime - travel;
           for (let t=0; t<take; t++) {
-            attackRows.push({
+            const row = {
               srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
               srcCategory:'noble',
               tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
               unit:'noble', sendTime, arrivalTime:tgt.arrivalTime, travel,
-              night:isNight(sendTime), isFake:false, isNoble:true, isFakeNoble:false
-            });
+              night:isNight(sendTime), isFake:false, isNoble:true, isFakeNoble:false,
+              trainPos: placed + t + 1
+            };
+            attackRows.push(row);
+            tgtNobleRows.push(row);
           }
           src.remaining -= take;
           placed += take;
         }
+        tgtNobleRows.forEach(r => r.trainTotal = placed);
         if (placed < noblePerTgt) toast(`⚠ Cíl ${tgt.x}|${tgt.y}: pouze ${placed}/${noblePerTgt} šlechticů!`,'info',5000);
       }
     }
   }
 
   attackRows.sort((a,b)=>a.sendTime-b.sendTime);
+  const _now = Date.now();
+  attackRows = attackRows.filter(r => r.sendTime > _now);
+  if (!attackRows.length) { toast('⚠ Všechny útoky jsou v minulosti — zkontroluj časy dopadu!', 'err', 6000); return; }
   renderResults();
 }
 
@@ -911,7 +934,7 @@ const AXE_GRN=`<img src="${API_IMG}/unit_axe.png" style="width:16px;height:16px;
 function typeChip(r){
   if(r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#fff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
   if(r.isFake)      return `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${AXE_GRN} fejk</span>`;
-  if(r.isNoble)     return `<span class="chip" style="background:#2a0020;color:#ff80c0;border:1px solid #802060">${NOBLE_NORM} vlak</span>`;
+  if(r.isNoble)     { const pos=r.trainPos?` (${r.trainPos}/${r.trainTotal||'?'})`:''; return `<span class="chip" style="background:#2a0020;color:#ff80c0;border:1px solid #802060">${NOBLE_NORM} vlak${pos}</span>`; }
   if(r.srcCategory==='fullka')   return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`;
   if(r.srcCategory==='triq_off') return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_RED} 3/4 off</span>`;
   if(r.srcCategory==='half_off') return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_RED} 1/2 off</span>`;

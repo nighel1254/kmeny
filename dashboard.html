@@ -25,9 +25,9 @@
   .btn-nav{font-size:12px;padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-weight:600;transition:all .15s;}
   .btn-nav:hover{border-color:var(--text);color:var(--text);}
   .btn-logout:hover{border-color:var(--red) !important;color:var(--red) !important;}
-  .btn-donate-hdr{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid rgba(212,168,75,.35);background:transparent;color:var(--dim);cursor:pointer;transition:all .15s;}
-  .btn-donate-hdr:hover{border-color:var(--gold);color:var(--gold2);}
-  .btn-donate-hdr.active{border-color:var(--gold);color:var(--gold2);background:rgba(212,168,75,.07);}
+  .btn-donate-hdr{font-size:11px;padding:4px 14px;border-radius:20px;border:1px solid rgba(212,168,75,.5);background:rgba(180,140,0,.12);color:var(--gold2);cursor:pointer;transition:all .2s;font-weight:600;box-shadow:0 0 10px rgba(180,140,0,.15),0 0 22px rgba(180,140,0,.05);}
+  .btn-donate-hdr:hover{border-color:var(--gold);background:rgba(180,140,0,.22);color:#ffe060;box-shadow:0 0 18px rgba(180,140,0,.3),0 0 36px rgba(180,140,0,.1);}
+  .btn-donate-hdr.active{border-color:var(--gold);background:rgba(180,140,0,.2);color:#ffe060;box-shadow:0 0 14px rgba(180,140,0,.25);}
 
   /* ── Layout ── */
   .page-body{max-width:900px;margin:0 auto;padding:20px 16px;display:flex;flex-direction:column;gap:18px;}
@@ -150,7 +150,7 @@
     <div class="world-badge">cs112 – Divoké kmeny</div>
   </div>
   <div class="header-center">
-    <button id="btn-donate-hdr" class="btn-donate-hdr" onclick="toggleDonate()">☕ Podpořit</button>
+    <button id="btn-donate-hdr" class="btn-donate-hdr" onclick="toggleDonate()">$ ☕ Podpořit $</button>
   </div>
   <div class="header-right">
     <div class="user-pill">
