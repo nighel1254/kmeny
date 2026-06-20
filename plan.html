@@ -138,7 +138,7 @@ const NOBLE_FLIP = `<img src="${API_IMG}/unit_snob.png" style="width:18px;height
 const NOBLE_NORM = `<img src="${API_IMG}/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
 
 function typeChip(r) {
-  if (r.isFake && r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
+  if (r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
   if (r.isFake)                  return `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${twImg(SMALL_ICO)} fejk</span>`;
   if (r.srcCategory==='fullka')  return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${twImg(LARGE_ICO)} fullka</span>`;
   if (r.srcCategory==='triq_off')return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${twImg(SMALL_ICO,'filter:sepia(1) saturate(3) hue-rotate(10deg)')} 3/4 off</span>`;
