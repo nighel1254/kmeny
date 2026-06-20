@@ -180,7 +180,8 @@
             <span style="color:#50c050;">Fullka: <strong id="cnt-fullka">0</strong></span>
             <span style="color:#50d0d0;">3/4: <strong id="cnt-triq">0</strong></span>
             <span style="color:#c0b040;">1/2: <strong id="cnt-half">0</strong></span>
-            <span style="color:#ff80c0;">👑 Šlechtici: <strong id="cnt-noble">0</strong></span>
+            <span style="color:#ff80c0;">👑 <strong id="cnt-noble">0</strong> šl.</span>
+            <span style="color:#cc80ff;">🚂 <strong id="cnt-trains">0</strong> vlaky</span>
         <div id="mode-toggle-wrap" style="display:flex;gap:8px;align-items:center;margin-top:10px;margin-bottom:2px;">
           <span style="font-size:12px;color:var(--dim);">Plánovat s:</span>
           <button id="mode-available" class="btn btn-sm btn-primary" onclick="setMode('available')" style="font-size:11px;padding:3px 10px;">🏠 Dostupné (doma)</button>
@@ -468,7 +469,7 @@ function setMode(mode) {
   document.getElementById('mode-available').className = 'btn btn-sm' + (mode==='available'?' btn-primary':' ') ;
   document.getElementById('mode-available').style = mode==='available'?'font-size:11px;padding:3px 10px;':'font-size:11px;padding:3px 10px;background:#1a1208;border:1px solid var(--border);color:var(--dim);';
   document.getElementById('mode-total').style = mode==='total'?'font-size:11px;padding:3px 10px;':'font-size:11px;padding:3px 10px;background:#1a1208;border:1px solid var(--border);color:var(--dim);';
-  if (jsonVillages.length) { applyMode(); renderOffList(); }
+  if (jsonVillages.length) { applyMode(); updateSrcCounts(); applyFilter(); }
 }
 
 function applyMode() {
@@ -490,6 +491,16 @@ function applyMode() {
   });
   offVillages = jsonVillages.filter(v=>['fullka','triq_off','half_off','mini_off'].includes(v._category));
   nobleVillages = jsonVillages.filter(v=>v._noble>0);
+}
+
+function updateSrcCounts() {
+  document.getElementById('cnt-fullka').textContent = jsonVillages.filter(v=>v._category==='fullka').length;
+  document.getElementById('cnt-triq').textContent   = jsonVillages.filter(v=>v._category==='triq_off').length;
+  document.getElementById('cnt-half').textContent   = jsonVillages.filter(v=>v._category==='half_off').length;
+  const totalNob = nobleVillages.reduce((s,v)=>s+v._noble,0);
+  const trains   = nobleVillages.filter(v=>v._noble>=4).length;
+  document.getElementById('cnt-noble').textContent  = totalNob;
+  document.getElementById('cnt-trains').textContent = trains;
 }
 
 function importJson() {
@@ -515,15 +526,7 @@ function importJson() {
 
     setStatus('json-status','ok',`✓ Načteno ${jsonVillages.length} vesnic${data.player_name?' hráče '+data.player_name:''}`);
     document.getElementById('src-overview').style.display='block';
-    document.getElementById('cnt-fullka').textContent = jsonVillages.filter(v=>v._category==='fullka').length;
-    document.getElementById('cnt-triq').textContent   = jsonVillages.filter(v=>v._category==='triq_off').length;
-    document.getElementById('cnt-half').textContent   = jsonVillages.filter(v=>v._category==='half_off').length;
-    document.getElementById('cnt-noble').textContent  = nobleVillages.length + ' (' + nobleVillages.reduce((s,v)=>s+v._noble,0) + ' šl.)';
-
-    // Šlechtici info
-    document.getElementById('noble-src-info').textContent = nobleVillages.length
-      ? `✓ ${nobleVillages.length} vesnic se šlechtici (${nobleVillages.reduce((s,v)=>s+v._noble,0)} celkem, ${data.total_incl_traveling?.noble_trains||0} vlaky)`
-      : '⚠ Žádné vesnice se šlechtici';
+    updateSrcCounts();
 
     applyFilter();
   } catch(e) {
@@ -555,14 +558,23 @@ function applyFilter() {
   const SMALL_ICO='https://help.divokekmeny.cz/images/b/b6/Small.png';
   const LARGE_ICO='https://help.divokekmeny.cz/images/7/71/Large.png';
   const MEDIUM_ICO='https://help.divokekmeny.cz/images/9/96/Medium.png';
-  list.innerHTML = offVillages.slice(0,80).map(v=>{
+  const offSet = new Set(offVillages.map(v=>`${v.x}|${v.y}`));
+  const nobleOnly = nobleVillages.filter(v=>!offSet.has(`${v.x}|${v.y}`));
+  const renderRow = v => {
     const cat = v._category==='fullka'?`<span class="vi-cat vi-fullka">fullka</span>`
               : v._category==='triq_off'?`<span class="vi-cat vi-triq">3/4</span>`
               : v._category==='half_off'?`<span class="vi-cat vi-half">1/2</span>`
-              : `<span class="vi-cat vi-mini">mini</span>`;
+              : v._category==='mini_off'?`<span class="vi-cat vi-mini">mini</span>`:'';
     const nob = v._noble>0?`<span class="vi-cat vi-noble">👑${v._noble}</span>`:'';
     return `<div class="village-item"><span style="font-size:12px;">${v.village_name||''} ${cat}${nob}</span><span class="village-coords">${v.x}|${v.y}</span></div>`;
-  }).join('')+(offVillages.length>80?`<div class="village-item" style="color:var(--dim)">…a ${offVillages.length-80} dalších</div>`:'');
+  };
+  const offHtml = offVillages.slice(0,80).map(renderRow).join('')
+    +(offVillages.length>80?`<div class="village-item" style="color:var(--dim)">…a ${offVillages.length-80} dalších</div>`:'');
+  const nobHtml = nobleOnly.length
+    ? `<div class="village-item" style="color:var(--dim);font-size:11px;margin-top:4px;border-top:1px solid var(--border);">👑 Vesnice se šlechtou (bez off):</div>`
+      + nobleOnly.map(renderRow).join('')
+    : '';
+  list.innerHTML = offHtml + nobHtml;
   document.getElementById('src-selected-info').textContent=`✓ ${offVillages.length} útočných vesnic vybráno`;
 }
 
