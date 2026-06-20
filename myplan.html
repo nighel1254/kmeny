@@ -152,9 +152,17 @@
         <!-- Bookmarklet instrukce -->
         <div class="bm-box">
           <strong style="color:var(--gold2);">Krok 1 – Export jednotek ze hry</strong><br>
-          <span style="color:var(--dim);">Přetáhni tento bookmarklet na lištu záložek, pak ho klikni na stránce <em>Přehled → Vesnice → Jednotky</em> ve hře:</span>
-          <code class="bm-code" id="bm-code-el" onclick="copyBookmarklet()" title="Klikni pro kopírování">Načítám…</code>
-          <span style="font-size:11px;color:var(--dim);">Po spuštění se JSON zkopíruje do schránky.</span>
+          <span style="color:var(--dim);">Přetáhni toto tlačítko na <strong style="color:var(--text);">lištu záložek</strong> v Chrome, pak ho klikni na stránce <em>Přehled → Vesnice → Jednotky</em> ve hře:</span>
+          <div style="margin:10px 0 6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <a id="bm-link" href="#" title="⬆ Přetáhni na lištu záložek"
+              style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,#c4922a,#8b5e10);color:#fff3d0;border:1px solid #d4a84b;border-radius:5px;padding:7px 14px;font-size:13px;font-weight:700;text-decoration:none;cursor:grab;user-select:none;white-space:nowrap;">
+              ⚔️ DK Export jednotek
+            </a>
+            <span style="font-size:11px;color:var(--dim);">← přetáhni na lištu záložek</span>
+          </div>
+          <div style="font-size:11px;color:var(--dim);border-top:1px solid var(--border);padding-top:6px;margin-top:4px;">
+            💡 Lištu záložek zobrazíš klávesou <kbd style="background:#1a1208;border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:10px;">Ctrl+Shift+B</kbd>
+          </div>
         </div>
 
         <label style="margin-top:12px;">Krok 2 – Vlož JSON sem</label>
@@ -862,8 +870,8 @@ async function init(){
   document.getElementById('nav-user-name').textContent=profile?.player_name||'?';
   document.body.style.visibility='visible';
 
-  // Nastav bookmarklet text
-  document.getElementById('bm-code-el').textContent='📎 DK Export jednotek (klikni pro kopírování)';
+  // Nastav bookmarklet href – aby šel přetáhnout na lištu
+  document.getElementById('bm-link').href = BM_CODE;
 
   loadWorldConfig();
 }
