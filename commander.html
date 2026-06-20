@@ -428,7 +428,7 @@
 
     <!-- Fejk nastavení -->
     <div class="panel">
-      <div class="panel-header">💨 Fejky</div>
+      <div class="panel-header"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;filter:sepia(1)saturate(4)hue-rotate(90deg)brightness(1.3)"> Fejky</div>
       <div class="panel-body">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
           <label style="white-space:nowrap;font-size:13px;">Počet fejků na cíl:</label>
@@ -483,7 +483,7 @@
 
     <!-- Fejk Vlaky -->
     <div class="panel">
-      <div class="panel-header"><span style="display:inline-block;transform:rotate(180deg);margin-right:4px;">👑</span> Fejk vlaky</div>
+      <div class="panel-header"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;transform:rotate(180deg);"> Fejk vlaky</div>
       <div class="panel-body">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
           <label style="white-space:nowrap;font-size:13px;">Počet fejk vlaků na cíl:</label>
@@ -533,7 +533,7 @@
 
     <!-- Šlechtici -->
     <div class="panel">
-      <div class="panel-header">👑 Šlechtici</div>
+      <div class="panel-header"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Šlechtici</div>
       <div class="panel-body">
 
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
@@ -1846,14 +1846,16 @@ function renderResults(nightWarnings) {
     const NOBLE_NORM = `<img src="${API_BASE}/graphic/unit/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
 
     let typeHtml;
+    const AXE_RED=`<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(330deg)" onerror="this.style.display='none'">`;
+    const AXE_GRN=`<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(90deg)brightness(1.3)" onerror="this.style.display='none'">`;
     if (row.isFake && row.isFakeNoble) {
       typeHtml = `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
     } else if (row.isFake) {
-      typeHtml = `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${twImg(SMALL_ICO)} fejk</span>`;
+      typeHtml = `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${AXE_GRN} fejk</span>`;
     } else {
-      typeHtml = row.srcCategory === 'fullka'   ? `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${twImg(LARGE_ICO)} fullka</span>`
-               : row.srcCategory === 'triq_off' ? `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${twImg(SMALL_ICO, 'filter:sepia(1) saturate(3) hue-rotate(10deg)')} 3/4 off</span>`
-               : row.srcCategory === 'half_off' ? `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${twImg(MEDIUM_ICO)} 1/2 off</span>`
+      typeHtml = row.srcCategory === 'fullka'   ? `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`
+               : row.srcCategory === 'triq_off' ? `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_RED} 3/4 off</span>`
+               : row.srcCategory === 'half_off' ? `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_RED} 1/2 off</span>`
                : row.srcCategory === 'noble'    ? `<span class="chip chip-noble">${NOBLE_NORM} vlak</span>`
                : '';
     }
