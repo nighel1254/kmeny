@@ -9,82 +9,236 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <style>
-  :root{--bg:#0d0a05;--panel:#1a1208;--border:#3a2a10;--gold:#d4a84b;--gold2:#f0c96a;--text:#e8d5a3;--dim:#8a7a5a;--green:#4a9a4a;}
+  :root{--bg:#0d0a05;--panel:#1e1508;--border:#3a2a10;--gold:#d4a84b;--gold2:#f0c96a;--text:#e8d5a3;--dim:#8a7a5a;--green:#4a9a4a;--red:#cc4444;}
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh;}
+  body{background:radial-gradient(ellipse 130% 60% at 50% 0%,#201608 0%,#120e05 50%,#0a0804 100%);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh;}
 
-  /* Header */
-  .header{background:var(--panel);border-bottom:2px solid var(--gold);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  /* ── Header ── */
+  .header{background:linear-gradient(180deg,#4d3510 0%,#2e1e08 60%,#1e1208 100%);border-bottom:2px solid var(--border);box-shadow:0 3px 20px rgba(0,0,0,.7);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
   .header-left{display:flex;align-items:center;gap:10px;}
-  .header-left h1{font-size:16px;color:var(--gold2);font-weight:700;}
-  .world-badge{background:#1e1508;border:1px solid var(--border);border-radius:10px;padding:2px 10px;font-size:11px;color:var(--dim);}
-  .header-right{display:flex;align-items:center;gap:10px;}
-  .user-pill{display:flex;align-items:center;gap:6px;background:#1e1508;border:1px solid var(--gold);border-radius:20px;padding:4px 12px;}
+  .header-left h1{font-size:16px;color:var(--gold2);font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.5);}
+  .world-badge{background:rgba(58,42,16,.6);border:1px solid rgba(212,168,75,.3);border-radius:10px;padding:2px 10px;font-size:11px;color:var(--dim);}
+  .header-right{display:flex;align-items:center;gap:8px;}
+  .user-pill{display:flex;align-items:center;gap:6px;background:#1e1508;border:1px solid var(--gold);border-radius:20px;padding:4px 12px;box-shadow:0 0 12px rgba(212,168,75,.08);}
   .user-pill span{font-size:13px;font-weight:600;color:var(--gold2);}
-  .btn-nav{font-size:12px;padding:5px 12px;border-radius:4px;border:none;cursor:pointer;font-weight:600;}
+  .btn-nav{font-size:12px;padding:6px 13px;border-radius:5px;border:none;cursor:pointer;font-weight:600;transition:all .15s;}
   .btn-logout{background:transparent;border:1px solid var(--border);color:var(--dim);}
-  .btn-logout:hover{border-color:#cc3333;color:#cc3333;}
+  .btn-logout:hover{border-color:var(--red);color:var(--red);}
 
-  /* Plans */
-  .plans-grid{padding:20px;display:flex;flex-direction:column;gap:14px;max-width:860px;margin:0 auto;}
-  .section-title{font-size:13px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
-  .plan-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:border-color .15s;}
-  .plan-card:hover{border-color:var(--gold);}
-  .plan-card-header{padding:14px 18px;background:#1e1508;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
-  .plan-card-title{font-size:15px;color:var(--gold2);font-weight:700;}
-  .plan-card-meta{font-size:11px;color:var(--dim);margin-top:3px;}
-  .plan-card-meta strong{color:var(--text);}
-  .btn-open{background:var(--gold);color:#1a0e00;padding:8px 18px;border-radius:5px;border:none;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;}
+  /* ── Layout ── */
+  .page-body{max-width:900px;margin:0 auto;padding:20px 16px;display:flex;flex-direction:column;gap:18px;}
+
+  /* ── Cards ── */
+  .card{background:linear-gradient(180deg,#261a09,#1e1408);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.03);transition:border-color .15s,box-shadow .15s;}
+  .card:hover{border-color:#6b4f2a;box-shadow:0 6px 24px rgba(0,0,0,.6);}
+  .card-header{padding:14px 18px;background:linear-gradient(90deg,#3d2a0a,#2a1e08);border-bottom:1px solid var(--border);border-left:3px solid var(--gold);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .card-title{font-size:15px;color:var(--gold2);font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.4);}
+  .card-meta{font-size:11px;color:var(--dim);margin-top:3px;}
+  .card-meta strong{color:var(--text);}
+  .card-body{padding:16px 18px;}
+
+  /* ── Plánovač hero card ── */
+  .hero-card{background:linear-gradient(135deg,#3d2a0a 0%,#2a1e08 50%,#1a1005 100%);border:1px solid #6b4f2a;border-radius:10px;padding:22px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;box-shadow:0 4px 20px rgba(0,0,0,.5),0 0 40px rgba(212,168,75,.04),inset 0 1px 0 rgba(255,255,255,.05);}
+  .hero-info h2{font-size:18px;color:var(--gold2);font-weight:800;text-shadow:0 1px 6px rgba(0,0,0,.5);}
+  .hero-info p{font-size:12px;color:var(--dim);margin-top:4px;}
+  .btn-hero{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(180deg,#d4a030 0%,#c4922a 45%,#7a5008 100%);color:#fff3d0;border:1px solid #d4a84b;border-radius:6px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;transition:all .15s;box-shadow:0 3px 10px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12);text-shadow:0 1px 3px rgba(0,0,0,.4);}
+  .btn-hero:hover{background:linear-gradient(180deg,#e0b040,#d0a030,#9b6e20);transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,0,0,.5);}
+
+  /* ── Donate section ── */
+  .donate-section{background:linear-gradient(135deg,#0e0818 0%,#130a1e 100%);border:1px solid #3a1a4a;border-radius:10px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.5);}
+  .donate-header{padding:14px 20px;border-bottom:1px solid #3a1a4a;border-left:3px solid #aa60ff;}
+  .donate-header h3{font-size:14px;color:#cc90ff;font-weight:700;}
+  .donate-header p{font-size:12px;color:#7a50aa;margin-top:3px;}
+  .donate-methods{display:grid;grid-template-columns:repeat(3,1fr);gap:0;}
+  .donate-method{padding:18px 20px;border-right:1px solid #3a1a4a;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
+  .donate-method:last-child{border-right:none;}
+  .donate-method h4{font-size:12px;font-weight:700;color:var(--gold2);}
+  .donate-method p{font-size:11px;color:var(--dim);line-height:1.4;}
+  .donate-method .acct{font-family:monospace;font-size:11px;color:var(--text);background:#0a0814;border:1px solid #3a1a4a;border-radius:4px;padding:4px 8px;width:100%;text-align:center;}
+  .donate-amount{display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-top:2px;}
+  .amt-btn{background:#1a0a28;border:1px solid #4a2060;color:#cc90ff;border-radius:4px;padding:3px 9px;font-size:11px;cursor:pointer;transition:all .12s;}
+  .amt-btn.active,.amt-btn:hover{background:#3a1060;border-color:#aa60ff;color:#fff;}
+  .btn-pay{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;transition:all .15s;width:100%;}
+  .btn-revolut{background:linear-gradient(180deg,#5a5aff,#2222cc);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4);}
+  .btn-revolut:hover{background:linear-gradient(180deg,#6a6aff,#3333dd);transform:translateY(-1px);}
+  .btn-stripe{background:linear-gradient(180deg,#635bff,#3d35cc);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4);}
+  .btn-stripe:hover{background:linear-gradient(180deg,#7370ff,#4d45dd);transform:translateY(-1px);}
+  .btn-stripe.disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
+  @media(max-width:650px){
+    .donate-methods{grid-template-columns:1fr;}
+    .donate-method{border-right:none;border-bottom:1px solid #3a1a4a;}
+    .donate-method:last-child{border-bottom:none;}
+  }
+
+  /* ── Section label ── */
+  .section-label{font-size:11px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:0 2px;display:flex;align-items:center;gap:6px;}
+  .section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  /* ── Plan stats bar ── */
+  .plan-stats{padding:10px 18px;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;align-items:center;border-top:1px solid var(--border);background:rgba(0,0,0,.15);}
+  .stat{display:flex;align-items:center;gap:4px;}
+  .stat strong{font-size:13px;}
+
+  /* ── Action buttons ── */
+  .btn-open{background:var(--gold);color:#1a0e00;padding:8px 18px;border-radius:5px;border:none;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;transition:all .15s;}
   .btn-open:hover{background:var(--gold2);}
-  .plan-stats{padding:12px 18px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;align-items:center;}
-  .stat{display:flex;align-items:center;gap:5px;}
-  .stat strong{font-size:14px;}
-  .empty{text-align:center;padding:80px 20px;color:var(--dim);}
-  .empty-icon{font-size:48px;margin-bottom:12px;}
+  .btn-del{background:transparent;border:1px solid #502020;color:#cc6060;padding:7px 12px;border-radius:5px;cursor:pointer;font-size:12px;transition:all .15s;}
+  .btn-del:hover{border-color:var(--red);color:var(--red);}
+
+  /* ── Empty state ── */
+  .empty{text-align:center;padding:50px 20px;color:var(--dim);}
+  .empty-icon{font-size:44px;margin-bottom:12px;}
   .empty p{font-size:14px;}
+
+  /* ── Password modal ── */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+  .modal-overlay.open{opacity:1;pointer-events:auto;}
+  .modal{background:linear-gradient(180deg,#261a09,#1e1408);border:1px solid var(--gold);border-radius:10px;padding:24px;width:340px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.8);}
+  .modal h3{color:var(--gold2);font-size:15px;margin-bottom:16px;}
+  .modal label{display:block;font-size:12px;color:var(--dim);margin-bottom:4px;margin-top:12px;}
+  .modal input{width:100%;background:#0d0a04;border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:5px;font-size:13px;outline:none;}
+  .modal input:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,168,75,.12);}
+  .modal-actions{display:flex;gap:8px;margin-top:18px;}
+  .btn-primary{background:linear-gradient(180deg,#d4a030,#8b5e10);color:#fff3d0;border:1px solid var(--gold);border-radius:5px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn-primary:hover{background:linear-gradient(180deg,#e0b040,#9b6e20);}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer;}
+  .btn-ghost:hover{border-color:var(--text);color:var(--text);}
+  .modal-msg{font-size:12px;margin-top:8px;padding:6px 10px;border-radius:4px;display:none;}
+  .modal-msg.ok{display:block;background:#0a1a0a;border:1px solid var(--green);color:var(--green);}
+  .modal-msg.err{display:block;background:#2a0a0a;border:1px solid var(--red);color:#ff8080;}
+
+  /* ── Toast ── */
+  #toast{position:fixed;bottom:20px;right:20px;background:#261a09;border:1px solid var(--gold);border-radius:8px;padding:10px 16px;font-size:13px;color:var(--text);opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:2000;}
+  #toast.show{opacity:1;transform:translateY(0);}
 
   @media(max-width:600px){
     .header{padding:8px 12px;}
-    .plans-grid{padding:12px;}
-    .plan-stats{gap:10px;font-size:11px;}
-    .btn-open{padding:6px 12px;font-size:12px;}
+    .page-body{padding:12px 10px;}
+    .hero-card{padding:16px;}
+    .btn-hero{width:100%;justify-content:center;}
   }
 </style>
 </head>
 <body style="visibility:hidden">
 
+<!-- Password Change Modal -->
+<div class="modal-overlay" id="pw-modal" onclick="if(event.target===this)closePwModal()">
+  <div class="modal">
+    <h3>🔐 Změna hesla</h3>
+    <label>Nové heslo</label>
+    <input type="password" id="pw-new" placeholder="min. 6 znaků">
+    <label>Potvrdit heslo</label>
+    <input type="password" id="pw-confirm" placeholder="zopakuj heslo">
+    <div class="modal-msg" id="pw-msg"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="changePassword()">Uložit heslo</button>
+      <button class="btn-ghost" onclick="closePwModal()">Zrušit</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
 <div class="header">
   <div class="header-left">
-    <span style="font-size:20px;">⚔️</span>
+    <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:22px;height:22px;filter:sepia(1)saturate(4)hue-rotate(330deg) drop-shadow(0 1px 4px rgba(0,0,0,.8));">
     <h1>DK Plánovač</h1>
     <div class="world-badge">cs112 – Divoké kmeny</div>
   </div>
   <div class="header-right">
     <div class="user-pill">
-      <span>⚔️</span>
+      <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:14px;height:14px;filter:sepia(1)saturate(3)hue-rotate(330deg);">
       <span id="user-name">...</span>
     </div>
-    <a href="myplan.html" class="btn-nav" style="background:linear-gradient(180deg,#c4922a,#8b5e10);color:#fff3d0;border:1px solid #d4a84b;text-decoration:none;">⚔️ Plánovat útok</a>
+    <button class="btn-nav" style="background:transparent;border:1px solid var(--border);color:var(--dim);font-size:11px;" onclick="openPwModal()">🔐 Heslo</button>
     <button class="btn-nav btn-logout" onclick="doLogout()">Odhlásit se</button>
   </div>
 </div>
 
-<div class="plans-grid" id="plans-container">
-  <div class="empty"><div class="empty-icon">⏳</div><p>Načítám plány...</p></div>
+<div class="page-body">
+
+  <!-- Plánovač hero -->
+  <div class="hero-card">
+    <div class="hero-info">
+      <h2>⚔️ Plánovač útoků</h2>
+      <p>Nahraj JSON svých jednotek, zadej cíle a vygeneruj přesný časový plán.</p>
+    </div>
+    <a href="myplan.html" class="btn-hero">
+      <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:18px;height:18px;filter:sepia(1)saturate(4)hue-rotate(330deg);">
+      Otevřít plánovač
+    </a>
+  </div>
+
+  <!-- Donate -->
+  <div class="donate-section">
+    <div class="donate-header">
+      <h3>❤️ Podpořit projekt</h3>
+      <p>Plánovač je zdarma. Pokud ti šetří čas, kup mi kafe — vyber způsob platby:</p>
+    </div>
+    <div class="donate-methods">
+
+      <!-- QR platba -->
+      <div class="donate-method">
+        <h4>🏦 QR Platba</h4>
+        <p>Bankovní převod · bez poplatků</p>
+        <div class="donate-amount">
+          <button class="amt-btn" onclick="setQrAmount(50)">50 Kč</button>
+          <button class="amt-btn active" onclick="setQrAmount(100)">100 Kč</button>
+          <button class="amt-btn" onclick="setQrAmount(200)">200 Kč</button>
+          <button class="amt-btn" onclick="setQrAmount(500)">500 Kč</button>
+        </div>
+        <img id="qr-img" src="" alt="QR platba" style="width:160px;height:160px;border-radius:6px;background:#fff;padding:6px;">
+        <div class="acct">284794868 / 0300</div>
+        <div style="font-size:10px;color:var(--dim);">Zpráva: Donate DK Planner</div>
+      </div>
+
+      <!-- Revolut -->
+      <div class="donate-method">
+        <h4>🔄 Revolut Pay</h4>
+        <p>Platba přes Revolut · CZK · zdarma</p>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?data=https%3A%2F%2Frevolut.me%2Ftomneitzel&size=160x160&margin=6&bgcolor=ffffff" alt="Revolut QR" style="width:160px;height:160px;border-radius:6px;background:#fff;padding:6px;">
+        <a href="https://revolut.me/tomneitzel" target="_blank" rel="noopener" class="btn-pay btn-revolut">
+          🔄 Otevřít Revolut
+        </a>
+        <div style="font-size:10px;color:var(--dim);">revolut.me/tomneitzel</div>
+      </div>
+
+      <!-- Stripe -->
+      <div class="donate-method">
+        <h4>💳 Kartou online</h4>
+        <p>Platba kartou · Apple Pay · Google Pay</p>
+        <div style="font-size:11px;color:#7a50aa;background:#0a0814;border:1px solid #3a1a4a;border-radius:6px;padding:12px;text-align:left;line-height:1.6;">
+          ⚙️ <strong style="color:#cc90ff;">Stripe ještě není nastaveno</strong><br>
+          1. Registruj se na <strong>stripe.com</strong><br>
+          2. Vytvoř Payment Link<br>
+          3. Vlož URL do kódu jako<br>
+          <code style="color:var(--gold2);font-size:10px;">STRIPE_PAYMENT_LINK</code>
+        </div>
+        <a href="#" class="btn-pay btn-stripe disabled" id="stripe-btn">
+          💳 Zaplatit kartou
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Assigned plans -->
+  <div class="section-label">📋 Přiřazené plány</div>
+  <div id="plans-container">
+    <div class="empty"><div class="empty-icon">⏳</div><p>Načítám plány...</p></div>
+  </div>
+
 </div>
 
 <script>
 const SUPABASE_URL = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 const API_BASE  = 'https://cs112.divokekmeny.cz';
 const API_IMG   = `${API_BASE}/graphic/unit`;
-const SMALL_ICO = 'https://help.divokekmeny.cz/images/b/b6/Small.png';
-const LARGE_ICO = 'https://help.divokekmeny.cz/images/7/71/Large.png';
-const MEDIUM_ICO= 'https://help.divokekmeny.cz/images/9/96/Medium.png';
-const NOBLE_IMG = `<img src="${API_IMG}/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;" onerror="this.style.display='none'">`;
-const twImg = (url,s='') => `<img src="${url}" style="width:16px;height:16px;vertical-align:middle;${s}" onerror="this.style.display='none'">`;
+const NOBLE_IMG = `<img src="${API_IMG}/unit_snob.png" style="width:15px;height:15px;vertical-align:middle;" onerror="this.style.display='none'">`;
+const AXE_RED   = `<img src="${API_IMG}/unit_axe.png" style="width:15px;height:15px;vertical-align:middle;filter:sepia(1)saturate(4)hue-rotate(330deg);" onerror="this.style.display='none'">`;
+const AXE_GRN   = `<img src="${API_IMG}/unit_axe.png" style="width:15px;height:15px;vertical-align:middle;filter:sepia(1)saturate(4)hue-rotate(90deg)brightness(1.3);" onerror="this.style.display='none'">`;
 
 const pad = n => String(Math.floor(n)).padStart(2,'0');
 function fmtDT(dt) {
@@ -96,6 +250,11 @@ function fmtDur(ms) {
   const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60);
   return h ? `${h}h ${m}m` : `${m}m`;
 }
+function toast(msg, ms=2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), ms);
+}
 
 let currentUser = null;
 
@@ -103,15 +262,11 @@ async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { window.location.href = 'index.html'; return; }
   currentUser = session.user;
-
   const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
-
   if (profile?.role === 'commander') { window.location.href = 'commander.html'; return; }
-
   document.body.style.visibility = 'visible';
   const nick = profile?.player_name || currentUser.email?.split('@')[0] || '?';
   document.getElementById('user-name').textContent = nick;
-
   const email = profile?.email || currentUser.email;
   loadPlans(email.toLowerCase());
 }
@@ -125,69 +280,52 @@ async function loadPlans(email) {
 
   const container = document.getElementById('plans-container');
 
-  // Rychlý přístup – vlastní plán
-  const quickCard = `<div class="plan-card" style="border-color:#5a3a10;">
-    <div class="plan-card-header" style="background:linear-gradient(90deg,#2a1a06,#1e1508);">
-      <div>
-        <div class="plan-card-title">⚔️ Vlastní plán útoků</div>
-        <div class="plan-card-meta">Naplánuj si vlastní útoky – offky, šlechtice, fejky</div>
-      </div>
-      <a href="myplan.html" class="btn-open" style="text-decoration:none;">▶ Otevřít plánovač</a>
-    </div>
-  </div>`;
-
   if (error || !assignments?.length) {
-    container.innerHTML = quickCard + `<div class="empty">
+    container.innerHTML = `<div class="empty">
       <div class="empty-icon">📭</div>
-      <p>Žádné plány útoků ti zatím nebyly přiřazeny.<br><span style="font-size:12px;color:var(--dim);margin-top:8px;display:block;">Velitel kmene ti pošle plán jakmile bude připraven.</span></p>
+      <p>Žádné plány útoků ti zatím nebyly přiřazeny.<br>
+      <span style="font-size:12px;color:var(--dim);margin-top:8px;display:block;">Velitel kmene ti pošle plán jakmile bude připraven.</span></p>
     </div>`;
     return;
   }
 
-  container.innerHTML = quickCard + `<div class="section-title">📋 Přiřazené plány (${assignments.length})</div>` +
-  assignments.map(a => {
+  container.innerHTML = assignments.map(a => {
     const rows   = a.rows_data || [];
     const sharp  = rows.filter(r => !r.isFake && !r.isNoble);
     const nobles = rows.filter(r => r.isNoble);
     const fakes  = rows.filter(r => r.isFake && !r.isFakeNoble);
     const fakeN  = rows.filter(r => r.isFakeNoble);
 
-    // Čas prvního odeslání
-    const sendTimes = rows.map(r => r.sendTime).filter(t => t && !isNaN(t));
-    const minSend   = sendTimes.length ? new Date(Math.min(...sendTimes)*1000) : null;
-    const arrTimes  = rows.map(r => r.arrivalTime).filter(t => t && !isNaN(t));
-    const minArr    = arrTimes.length ? new Date(Math.min(...arrTimes)*1000) : null;
-
-    // Oprava – sendTime může být v ms nebo s
-    const fixTime = (t) => t > 1e12 ? new Date(t) : new Date(t*1000);
+    const fixTime = t => t > 1e12 ? new Date(t) : new Date(t*1000);
+    const sendTimes = rows.map(r => r.sendTime).filter(Boolean);
+    const arrTimes  = rows.map(r => r.arrivalTime).filter(Boolean);
     const firstSend = sendTimes.length ? fixTime(Math.min(...sendTimes)) : null;
     const firstArr  = arrTimes.length  ? fixTime(Math.min(...arrTimes))  : null;
 
     const assignedAt = new Date(a.created_at);
-    const label = a.plans?.label || a.plan_label || `Plán ${assignedAt.getDate()}.${assignedAt.getMonth()+1}. ${pad(assignedAt.getHours())}:${pad(assignedAt.getMinutes())}`;
+    const label = a.plans?.label || `Plán ${fmtDT(assignedAt)}`;
 
-    return `<div class="plan-card">
-      <div class="plan-card-header">
+    return `<div class="card">
+      <div class="card-header">
         <div>
-          <div class="plan-card-title">⚔️ ${label}</div>
-          <div class="plan-card-meta">
+          <div class="card-title">${AXE_RED} ${label}</div>
+          <div class="card-meta">
             Přiřazeno: <strong>${fmtDT(assignedAt)}</strong>
-            ${firstSend ? ` &nbsp;·&nbsp; První odeslání: <strong style="color:var(--gold2)">${fmtDT(firstSend)}</strong>` : ''}
-            ${firstArr  ? ` &nbsp;·&nbsp; Příchod: <strong>${fmtDT(firstArr)}</strong>` : ''}
+            ${firstSend ? ` · První odeslání: <strong style="color:var(--gold2)">${fmtDT(firstSend)}</strong>` : ''}
+            ${firstArr  ? ` · Příchod: <strong>${fmtDT(firstArr)}</strong>` : ''}
           </div>
         </div>
-        <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít plán</button>
-        <button onclick="deletePlan('${a.id}', this)" style="background:transparent;border:1px solid #502020;color:#cc6060;padding:6px 12px;border-radius:5px;border-width:1px;cursor:pointer;font-size:12px;">🗑 Smazat</button>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít</button>
+          <button class="btn-del" onclick="deletePlan('${a.id}',this)">🗑</button>
+        </div>
       </div>
       <div class="plan-stats">
-        ${sharp.length  ? `<span class="stat">⚔️ <strong>${sharp.length}</strong> ostrých</span>` : ''}
-        ${sharp.filter(r=>r.srcCategory==='fullka').length  ? `<span class="stat" style="color:#ff4040">${twImg(LARGE_ICO)} <strong>${sharp.filter(r=>r.srcCategory==='fullka').length}</strong></span>` : ''}
-        ${sharp.filter(r=>r.srcCategory==='triq_off').length? `<span class="stat" style="color:#f0c040">${twImg(SMALL_ICO,'filter:sepia(1) saturate(3) hue-rotate(10deg)')} <strong>${sharp.filter(r=>r.srcCategory==='triq_off').length}</strong></span>` : ''}
-        ${sharp.filter(r=>r.srcCategory==='half_off').length? `<span class="stat" style="color:#c07840">${twImg(MEDIUM_ICO)} <strong>${sharp.filter(r=>r.srcCategory==='half_off').length}</strong></span>` : ''}
-        ${nobles.length ? `<span class="stat" style="color:#ff80c0">${NOBLE_IMG} <strong>${nobles.length}</strong> vlaků</span>` : ''}
-        ${fakes.length  ? `<span class="stat" style="color:#40cc40">${twImg(SMALL_ICO)} <strong>${fakes.length}</strong> fejků</span>` : ''}
-        ${fakeN.length  ? `<span class="stat" style="color:#fff">↑👑 <strong>${fakeN.length}</strong></span>` : ''}
-        ${!rows.length  ? `<span style="color:var(--dim);font-size:12px;">Prázdný plán</span>` : ''}
+        ${sharp.length  ? `<span class="stat">${AXE_RED} <strong>${sharp.length}</strong> ostrých</span>` : ''}
+        ${nobles.length ? `<span class="stat" style="color:#ff80c0;">${NOBLE_IMG} <strong>${nobles.length}</strong> vlaků</span>` : ''}
+        ${fakes.length  ? `<span class="stat" style="color:#50cc50;">${AXE_GRN} <strong>${fakes.length}</strong> fejků</span>` : ''}
+        ${fakeN.length  ? `<span class="stat" style="color:#cc80ff;">${NOBLE_IMG} <strong>${fakeN.length}</strong> f.vlaků</span>` : ''}
+        ${!rows.length  ? `<span style="color:var(--dim);">Prázdný plán</span>` : ''}
         <span class="stat" style="color:var(--dim);margin-left:auto;">Celkem: <strong>${rows.length}</strong></span>
       </div>
     </div>`;
@@ -195,7 +333,7 @@ async function loadPlans(email) {
 }
 
 async function openPlan(assignmentId) {
-  const { data: a } = await sb.from('plan_assignments').select('*, plans(label, world)').eq('id', assignmentId).single();
+  const { data: a } = await sb.from('plan_assignments').select('*, plans(label,world)').eq('id', assignmentId).single();
   if (!a) { alert('Plán nenalezen.'); return; }
   const nick = document.getElementById('user-name').textContent;
   const data = { p: nick, w: a.plans?.world||'cs112', l: a.plans?.label||'', e: Math.floor(Date.now()/1000), rows: a.rows_data||[] };
@@ -204,16 +342,13 @@ async function openPlan(assignmentId) {
 }
 
 async function deletePlan(assignmentId, btn) {
-  btn.textContent = '...';
+  btn.textContent = '…';
   const { error } = await sb.from('plan_assignments').delete().eq('id', assignmentId);
-  if (error) { btn.textContent = '🗑 Smazat'; return; }
-  btn.closest('.plan-card').remove();
-  // Aktualizuj počet
-  const grid = document.getElementById('plans-container');
-  const count = grid.querySelectorAll('.plan-card').length;
-  const title = grid.querySelector('.section-title');
-  if (title) title.textContent = `📋 Přiřazené plány (${count})`;
-  if (!count) grid.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Žádné plány útoků ti zatím nebyly přiřazeny.</p></div>`;
+  if (error) { btn.textContent = '🗑'; toast('❌ Chyba při mazání'); return; }
+  btn.closest('.card').remove();
+  const cards = document.getElementById('plans-container').querySelectorAll('.card');
+  if (!cards.length) document.getElementById('plans-container').innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Žádné plány.</p></div>`;
+  toast('✓ Plán smazán');
 }
 
 async function doLogout() {
@@ -221,7 +356,48 @@ async function doLogout() {
   window.location.href = 'index.html';
 }
 
-window.addEventListener('DOMContentLoaded', init);
+// ── Password change ──
+function openPwModal() {
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+  const msg = document.getElementById('pw-msg');
+  msg.className = 'modal-msg'; msg.textContent = '';
+  document.getElementById('pw-modal').classList.add('open');
+}
+function closePwModal() {
+  document.getElementById('pw-modal').classList.remove('open');
+}
+async function changePassword() {
+  const pw  = document.getElementById('pw-new').value.trim();
+  const pw2 = document.getElementById('pw-confirm').value.trim();
+  const msg = document.getElementById('pw-msg');
+  msg.className = 'modal-msg';
+  if (pw.length < 6) { msg.className='modal-msg err'; msg.textContent='Heslo musí mít alespoň 6 znaků.'; return; }
+  if (pw !== pw2)    { msg.className='modal-msg err'; msg.textContent='Hesla se neshodují.'; return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if (error) { msg.className='modal-msg err'; msg.textContent='Chyba: '+error.message; return; }
+  msg.className='modal-msg ok'; msg.textContent='✓ Heslo bylo změněno.';
+  setTimeout(closePwModal, 1800);
+  toast('✓ Heslo změněno');
+}
+
+// ── QR platba ──
+const IBAN_NO_SPACES = 'CZ1803000000000284794868';
+let qrAmount = 100;
+
+function setQrAmount(amt) {
+  qrAmount = amt;
+  document.querySelectorAll('.amt-btn').forEach(b => b.classList.toggle('active', parseInt(b.textContent) === amt));
+  updateQR();
+}
+
+function updateQR() {
+  const spd = `SPD*1.0*ACC:${IBAN_NO_SPACES}*AM:${qrAmount}.00*CC:CZK*MSG:Donate DK Planner*`;
+  document.getElementById('qr-img').src =
+    `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(spd)}&size=200x200&margin=8&bgcolor=ffffff`;
+}
+
+window.addEventListener('DOMContentLoaded', () => { init(); updateQR(); });
 </script>
 </body>
 </html>
