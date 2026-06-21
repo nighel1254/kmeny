@@ -1466,7 +1466,7 @@ function clearCoords() {
   document.getElementById('coords-paste').value = '';
   coordTargets = [];
   document.getElementById('coord-list').style.display = 'none';
-  document.getElementById('coord-count').textContent = '';
+  const _cc = document.getElementById('coord-count'); if (_cc) _cc.textContent = '';
   document.getElementById('coord-count-global').textContent = '';
 }
 
