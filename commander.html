@@ -1363,28 +1363,29 @@ function renderCoordList() {
   el.style.display = 'block';
 
   if (arrivalMode === 'global') {
-    el.innerHTML = coordTargets.map((c,i) =>
-      `<div class="coord-item" style="display:flex;align-items:center;gap:6px;">
-         <span class="ci-coords">${c.x}|${c.y}</span>
-         <span style="color:var(--dim);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;">${c.name!==\`${c.x}|${c.y}\`?c.name:''}</span>
-         <button class="ci-remove" onclick="removeCoord(${i})">✕</button>
-       </div>`
-    ).join('');
+    el.innerHTML = coordTargets.map((c,i) => {
+      const nm = c.name !== c.x+'|'+c.y ? c.name : '';
+      return '<div class="coord-item" style="display:flex;align-items:center;gap:6px;">'
+        + '<span class="ci-coords">'+c.x+'|'+c.y+'</span>'
+        + '<span style="color:var(--dim);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;">'+nm+'</span>'
+        + '<button class="ci-remove" onclick="removeCoord('+i+')">✕</button>'
+        + '</div>';
+    }).join('');
   } else {
     el.innerHTML = coordTargets.map((c,i) => {
       const dtVal = c.arrivalTime ? toLocalDT(c.arrivalTime) : '';
-      return `<div class="coord-item">
-         <div style="display:flex;align-items:center;gap:4px;">
-           <span class="ci-coords" style="min-width:60px;">${c.x}|${c.y}</span>
-           <span style="color:var(--dim);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;">${c.name!==\`${c.x}|${c.y}\`?c.name:''}</span>
-           <input type="datetime-local" step="1" value="${dtVal}" style="flex:1;padding:3px 5px;font-size:11px;"
-             onchange="coordTargets[${i}].arrivalTime=this.value?new Date(this.value).getTime():null">
-           <button class="ci-remove" onclick="removeCoord(${i})">✕</button>
-         </div>
-         <div style="padding:2px 0 0 64px;">
-           <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15" style="width:100%;padding:2px 5px;font-size:10px;border-radius:3px;border:1px solid var(--border);outline:none;" oninput="smartPasteCoordRow(${i},this)">
-         </div>
-       </div>`;
+      const nm = c.name !== c.x+'|'+c.y ? c.name : '';
+      return '<div class="coord-item">'
+        + '<div style="display:flex;align-items:center;gap:4px;">'
+        + '<span class="ci-coords" style="min-width:60px;">'+c.x+'|'+c.y+'</span>'
+        + '<span style="color:var(--dim);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;">'+nm+'</span>'
+        + '<input type="datetime-local" step="1" value="'+dtVal+'" style="flex:1;padding:3px 5px;font-size:11px;"'
+        + ' onchange="coordTargets['+i+'].arrivalTime=this.value?new Date(this.value).getTime():null">'
+        + '<button class="ci-remove" onclick="removeCoord('+i+')">✕</button>'
+        + '</div>'
+        + '<div style="padding:2px 0 0 64px;">'
+        + '<input type="text" class="smart-time-input" placeholder="dnes v 11:36:15" style="width:100%;padding:2px 5px;font-size:10px;border-radius:3px;border:1px solid var(--border);outline:none;" oninput="smartPasteCoordRow('+i+',this)">'
+        + '</div></div>';
     }).join('');
   }
   const cc=document.getElementById('coord-count'); if(cc) cc.textContent=`${coordTargets.length} cílů`;
