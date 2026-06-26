@@ -370,6 +370,13 @@
               <a href="#" onclick="setAllSrcPlayerChecks(true);return false;" style="color:var(--gold);">☑ Vše</a>
               <a href="#" onclick="setAllSrcPlayerChecks(false);return false;" style="color:var(--dim);">☐ Nic</a>
             </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+              <select id="src-player-group-select" onchange="applyPlayerGroup(this.value)" style="flex:1;font-size:12px;padding:4px 6px;">
+                <option value="">— skupina hráčů —</option>
+              </select>
+              <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);padding:4px 8px;" onclick="saveCurrentAsGroup()" title="Uložit zaškrtnuté hráče jako skupinu">💾</button>
+              <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:#c04040;padding:4px 8px;" onclick="deletePlayerGroup()" title="Smazat vybranou skupinu">✕</button>
+            </div>
             <div id="src-player-checklist" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:6px 8px;background:var(--panel);"></div>
             <div class="btn-row" style="margin-top:8px;">
               <button class="btn btn-primary btn-sm" onclick="loadPlayersFromJson()">▶ Načíst vybrané</button>
@@ -450,21 +457,18 @@
           </div>
           <div id="coord-count-global" style="font-size:11px;color:var(--gold);margin-top:6px;font-weight:bold;"></div>
 
-          <!-- Čas příchodu – globální + možnost přepsat u jednotlivých cílů -->
-          <div style="margin-top:10px;">
+          <!-- Čas příchodu – globální + možnost přepsat u jednotlivých cílů (zobrazí se až po načtení cílů) -->
+          <div id="sharp-arrival-wrap" style="display:none;margin-top:10px;">
             <div class="global-arrival">
               <label>⏰ Čas příchodu (globální – pro cíle bez vlastního času níže)</label>
               <div class="arrival-row">
-                <input type="datetime-local" id="global-arrival" step="1" placeholder="Od">
+                <input type="datetime-local" id="global-arrival" step="1" placeholder="Od" onchange="syncGlobalArrivalToRows()">
                 <span style="background:#140e04;border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:4px;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;"><img id="global-unit-img" src="" style="width:20px;height:20px;" onerror="this.style.display='none'"> Beranidlo</span>
                 <input type="hidden" id="global-unit" value="ram">
               </div>
               <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
                 <span style="font-size:11px;color:var(--dim);white-space:nowrap;">do (volitelné):</span>
                 <input type="datetime-local" id="global-arrival-to" step="1" style="flex:1;">
-              </div>
-              <div style="margin-top:6px;">
-                <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:100%;padding:4px 8px;font-size:11px;border-radius:4px;border:1px solid var(--border);outline:none;" oninput="smartFillGlobalArrival(this)">
               </div>
             </div>
 
@@ -486,8 +490,8 @@
           <div class="village-list" id="target-village-list"></div>
           <div style="font-size:11px;color:var(--dim);margin-top:6px;" id="target-village-count"></div>
 
-          <!-- globální příchod pro hráč-tab -->
-          <div class="global-arrival" style="margin-top:10px;">
+          <!-- globální příchod pro hráč-tab (zobrazí se až po načtení vesnic hráče) -->
+          <div class="global-arrival" id="player-arrival-wrap" style="display:none;margin-top:10px;">
             <label>⏰ Čas příchodu (pro všechny cíle)</label>
             <div class="arrival-row">
               <input type="datetime-local" id="global-arrival-player" step="1">
@@ -536,12 +540,12 @@
           <div id="noble-target-count" style="font-size:11px;color:var(--gold);margin-top:4px;font-weight:bold;"></div>
           <div class="btn-row" style="margin-top:6px;">
             <button class="btn btn-primary btn-sm" onclick="updateNobleTargetCount()">▶ Načíst</button>
-            <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="document.getElementById('noble-target-coords').value='';document.getElementById('noble-target-count').textContent='';">✕ Smazat</button>
+            <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="document.getElementById('noble-target-coords').value='';updateNobleTargetCount();">✕ Smazat</button>
           </div>
         </div>
 
-        <!-- Čas příchodu -->
-        <div class="global-arrival" style="margin-top:10px;">
+        <!-- Čas příchodu (zobrazí se až po načtení cílových vesnic) -->
+        <div class="global-arrival" id="noble-arrival-wrap" style="display:none;margin-top:10px;">
           <label>⏰ Čas příchodu šlechticů</label>
           <div class="arrival-row">
             <input type="datetime-local" id="noble-arrival" step="1" style="flex:1;">
@@ -598,7 +602,7 @@
         <div class="status-bar" id="fake-status"></div>
         <div id="fake-coord-count" style="font-size:11px;color:var(--dim);margin-top:4px;"></div>
 
-        <div class="global-arrival" style="margin-top:10px;">
+        <div class="global-arrival" id="fake-arrival-wrap" style="display:none;margin-top:10px;">
           <label>⏰ Čas příchodu fejků</label>
           <div class="arrival-row">
             <input type="datetime-local" id="fake-arrival" step="1">
@@ -649,7 +653,7 @@
 
         <div id="fake-noble-coord-count" style="font-size:11px;color:var(--dim);margin-top:4px;"></div>
 
-        <div class="global-arrival" style="margin-top:10px;">
+        <div class="global-arrival" id="fake-noble-arrival-wrap" style="display:none;margin-top:10px;">
           <label>⏰ Čas příchodu fejk vlaků</label>
           <div class="arrival-row">
             <input type="datetime-local" id="fake-noble-arrival" step="1">
@@ -752,6 +756,14 @@
 // ── CONSTANTS ──────────────────────────────────────────────
 const WORLD    = 'cs112';
 const API_BASE = `https://${WORLD}.divokekmeny.cz`;
+const twImg = (url, style='') => `<img src="${url}" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;${style}" onerror="this.style.display='none'">`;
+const LARGE_ICO  = 'https://help.divokekmeny.cz/images/7/71/Large.png';
+const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
+const AXE_RED = twImg(LARGE_ICO);
+const AXE_GRN = twImg(MEDIUM_ICO, 'filter:hue-rotate(90deg)saturate(1.4)');
+const AXE_YEL = `<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(20deg)" onerror="this.style.display='none'">`;
+const AXE_BRN = `<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(3)brightness(0.85)" onerror="this.style.display='none'">`;
+const NOBLE_NORM = `<img src="${API_BASE}/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
 const PROXIES  = [
   u => u,
   u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
@@ -791,7 +803,8 @@ let coordTargets   = [];   // [{x,y,name,id,arrivalTime?,unit?}]
 let fakeTargets    = [];   // fejk cíle [{x,y,name}]
 let fakeNobleTargets = []; // fejk vlak cíle [{x,y,name}]
 let currentFakeNobleTab = 'coords';
-let jsonVillages   = [];   // všechny z importu
+let jsonVillages   = [];   // aktuálně zbývající (live, zmenšuje se po "Přidat do plánu")
+let importedJsonVillages = []; // celý originální import kmene – neměnný, pro znovu-načtení plánu "od začátku"
 let attackRows     = [];
 let savedActions   = [];   // [{label, rows}] – uložené akce pro multi-plán
 let lastNightWarnings = [];
@@ -945,18 +958,23 @@ function renderCapacitySummary() {
   if (!el) return;
   if (!jsonVillages.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
-  const fullka   = jsonVillages.filter(v => v.category === 'fullka').length;
-  const triq     = jsonVillages.filter(v => v.category === 'triq_off').length;
-  const half     = jsonVillages.filter(v => v.category === 'half_off').length;
-  const nobles   = jsonVillages.reduce((s,v) => s + (v.noble || (v.units && v.units.noble) || 0), 0);
+  // Fullka/3-4/1-2 vychází z aktuálně NAČTENÉHO (vybraného) zdroje, ne z celého importu
+  const fullka = srcVillages.filter(v => v.category === 'fullka').length;
+  const triq   = srcVillages.filter(v => v.category === 'triq_off').length;
+  const half   = srcVillages.filter(v => v.category === 'half_off').length;
+
+  // Šlechtici nejsou filtrováni kategorií off, jen výběrem hráčů
+  const checkedPlayers = [...document.querySelectorAll('.src-player-cb:checked')].map(cb => cb.value);
+  const noblePool = checkedPlayers.length ? jsonVillages.filter(v => checkedPlayers.includes(v.player_name)) : jsonVillages;
+  const nobles = noblePool.reduce((s,v) => s + (v.noble || (v.units && v.units.noble) || 0), 0);
 
   el.style.display = 'flex';
   el.innerHTML =
-    `<span style="color:var(--dim);">⚡ K dispozici (zbývá po odečtení použitých v plánu):</span>` +
-    `<span><span class="vi-cat vi-cat-full" style="margin-right:4px;">fullka</span><b>${fullka}</b></span>` +
-    `<span><span class="vi-cat" style="background:#001a1a;color:#50d0d0;border:1px solid #205050;margin-right:4px;">3/4</span><b>${triq}</b></span>` +
-    `<span><span class="vi-cat vi-cat-half" style="margin-right:4px;">1/2</span><b>${half}</b></span>` +
-    `<span style="color:var(--gold);">👑 šlechtici: <b>${nobles}</b></span>`;
+    `<span style="color:var(--dim);">⚡ K dispozici (z vybraných hráčů, zbývá po odečtení použitých v plánu):</span>` +
+    `<span>${AXE_RED}<b>${fullka}</b></span>` +
+    `<span>${AXE_YEL}<b>${triq}</b></span>` +
+    `<span>${AXE_BRN}<b>${half}</b></span>` +
+    `<span style="color:var(--gold);">${NOBLE_NORM}<b>${nobles}</b></span>`;
 }
 
 function importJson() {
@@ -966,6 +984,7 @@ function importJson() {
     const data = JSON.parse(raw);
     jsonVillages = data.villages || [];
     if (!jsonVillages.length) throw new Error('Žádné vesnice v JSON');
+    importedJsonVillages = [...jsonVillages];
     setStatus('json-status', 'ok', `✓ Načteno ${jsonVillages.length} vesnic z kmene`);
     document.getElementById('src-filter-wrap').style.display = 'block';
     applyJsonFilter();
@@ -982,6 +1001,7 @@ function importJson() {
     ).join('');
     document.getElementById('src-from-json-wrap').style.display = 'block';
     document.getElementById('src-from-json-empty').style.display = 'none';
+    refreshPlayerGroupSelect();
   } catch(e) {
     setStatus('json-status', 'err', `❌ Chyba: ${e.message}`);
   }
@@ -989,6 +1009,60 @@ function importJson() {
 
 function setAllSrcPlayerChecks(checked) {
   document.querySelectorAll('.src-player-cb').forEach(cb => cb.checked = checked);
+}
+
+// ── SKUPINY HRÁČŮ (uložené šablony výběru) ─────────────────
+const PLAYER_GROUPS_LS_KEY = 'dk_player_groups';
+
+function getPlayerGroups() {
+  try { return JSON.parse(localStorage.getItem(PLAYER_GROUPS_LS_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function savePlayerGroups(groups) {
+  try { localStorage.setItem(PLAYER_GROUPS_LS_KEY, JSON.stringify(groups)); } catch(e) {}
+}
+
+function refreshPlayerGroupSelect() {
+  const sel = document.getElementById('src-player-group-select');
+  if (!sel) return;
+  const groups = getPlayerGroups();
+  const names = Object.keys(groups).sort();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— skupina hráčů —</option>' +
+    names.map(n => `<option value="${n}">${n} (${groups[n].length})</option>`).join('');
+  if (names.includes(cur)) sel.value = cur;
+}
+
+function saveCurrentAsGroup() {
+  const checked = [...document.querySelectorAll('.src-player-cb:checked')].map(cb => cb.value);
+  if (!checked.length) { toast('Nejprve zaškrtni hráče, které chceš uložit jako skupinu!', 'err'); return; }
+  const name = prompt('Název skupiny (např. "Skupina 1"):');
+  if (!name) return;
+  const groups = getPlayerGroups();
+  groups[name] = checked;
+  savePlayerGroups(groups);
+  refreshPlayerGroupSelect();
+  document.getElementById('src-player-group-select').value = name;
+  toast(`✓ Skupina "${name}" uložena (${checked.length} hráčů)`, 'ok');
+}
+
+function applyPlayerGroup(name) {
+  if (!name) return;
+  const groups = getPlayerGroups();
+  const members = groups[name] || [];
+  document.querySelectorAll('.src-player-cb').forEach(cb => cb.checked = members.includes(cb.value));
+}
+
+function deletePlayerGroup() {
+  const sel = document.getElementById('src-player-group-select');
+  const name = sel?.value;
+  if (!name) { toast('Vyber skupinu k odstranění!', 'err'); return; }
+  if (!confirm(`Smazat skupinu "${name}"?`)) return;
+  const groups = getPlayerGroups();
+  delete groups[name];
+  savePlayerGroups(groups);
+  refreshPlayerGroupSelect();
+  toast(`✓ Skupina "${name}" smazána`, 'info');
 }
 
 function loadPlayersFromJson() {
@@ -1025,6 +1099,7 @@ function loadPlayersFromJson() {
 
   document.getElementById('village-count').textContent = `Zobrazeno: ${srcVillages.length} vesnic`;
   setStatus('player-status', 'ok', `✓ Načteno ${srcVillages.length} offek (${checked.length} hráč${checked.length>1?'ů':''}) z importu`);
+  renderCapacitySummary();
 }
 
 function populateNoblePanel() {
@@ -1074,6 +1149,7 @@ function updateNobleTargetCount() {
   const coords = raw.split(/[\n\s]+/).filter(l => /^\d+\|\d+/.test(l.trim()));
   const el = document.getElementById('noble-target-count');
   el.textContent = coords.length ? `✓ ${coords.length} cílů` : '';
+  document.getElementById('noble-arrival-wrap').style.display = coords.length ? 'block' : 'none';
 }
 
 function calculateNobles(rows) {
@@ -1191,7 +1267,7 @@ function applyJsonFilter() {
 
 function clearJson() {
   document.getElementById('json-paste').value = '';
-  jsonVillages = []; srcVillages = [];
+  jsonVillages = []; srcVillages = []; importedJsonVillages = [];
   document.getElementById('src-filter-wrap').style.display = 'none';
   document.getElementById('json-status').className = 'status-bar';
   renderCapacitySummary();
@@ -1260,8 +1336,8 @@ async function loadPlayer(role) {
     document.getElementById(countId).textContent = `Celkem: ${villages.length} vesnic`;
 
     if      (role === 'src')  srcVillages  = villages;
-    else if (role === 'tgt')  tgtVillages  = villages;
-    else                      fakeTargets  = villages.map(v => ({ x:v.x, y:v.y, name:v.name, id:v.id }));
+    else if (role === 'tgt') { tgtVillages  = villages; document.getElementById('player-arrival-wrap').style.display = villages.length ? 'block' : 'none'; }
+    else { fakeTargets  = villages.map(v => ({ x:v.x, y:v.y, name:v.name, id:v.id })); document.getElementById('fake-arrival-wrap').style.display = fakeTargets.length ? 'block' : 'none'; }
   } catch(e) {
     setStatus(statusId, 'err', `❌ ${e.message}`);
   } finally {
@@ -1309,12 +1385,14 @@ function parseFakeNobleCoords() {
     return { x, y, name: tv?.name || `${x}|${y}`, id: tv?.id || null, owner: tv ? (allPlayers.get(tv.playerId)||'') : '' };
   });
   document.getElementById('fake-noble-coord-count').textContent = `${fakeNobleTargets.length} fejk vlak cílů`;
+  document.getElementById('fake-noble-arrival-wrap').style.display = fakeNobleTargets.length ? 'block' : 'none';
 }
 
 function clearFakeNobleCoords() {
   document.getElementById('fake-noble-coords-paste').value = '';
   fakeNobleTargets = [];
   document.getElementById('fake-noble-coord-count').textContent = '';
+  document.getElementById('fake-noble-arrival-wrap').style.display = 'none';
 }
 
 async function loadFakeNoblePlayer() {
@@ -1328,6 +1406,7 @@ async function loadFakeNoblePlayer() {
     fakeNobleTargets = allVillages.filter(v => v.playerId === player.id).map(v => ({ x:v.x, y:v.y, name:v.name, id:v.id, owner: allPlayers.get(v.playerId)||'' }));
     document.getElementById('fake-noble-player-status').textContent = `✓ ${fakeNobleTargets.length} vesnic`;
     document.getElementById('fake-noble-village-list').innerHTML = fakeNobleTargets.slice(0,50).map(v => `<div class="village-item"><span>${v.name}</span><span class="village-coords">${v.x}|${v.y}</span></div>`).join('');
+    document.getElementById('fake-noble-arrival-wrap').style.display = fakeNobleTargets.length ? 'block' : 'none';
   } catch(e) {
     document.getElementById('fake-noble-player-status').textContent = `❌ ${e.message}`;
   } finally {
@@ -1391,6 +1470,7 @@ async function parseCoords() {
     };
   });
   renderCoordList();
+  document.getElementById('sharp-arrival-wrap').style.display = coordTargets.length ? 'block' : 'none';
   } finally {
     if (btn) { btn.classList.remove('btn-loading'); btn.innerHTML = '▶ Načíst'; }
   }
@@ -1433,9 +1513,6 @@ function renderCoordList() {
       + '<input type="datetime-local" step="1" value="'+dtVal+'" placeholder="globální" style="flex:1;padding:3px 5px;font-size:11px;"'
       + ' onchange="coordTargets['+i+'].arrivalTime=this.value?new Date(this.value).getTime():null">'
       + '<button class="ci-remove" onclick="removeCoord('+i+')">✕</button>'
-      + '</div>'
-      + '<div style="padding:2px 0 0 64px;">'
-      + '<input type="text" class="smart-time-input" placeholder="dnes v 11:36:15" style="width:100%;padding:2px 5px;font-size:10px;border-radius:3px;border:1px solid var(--border);outline:none;" oninput="smartPasteCoordRow('+i+',this)">'
       + '</div></div>';
   }).join('');
   const cc=document.getElementById('coord-count'); if(cc) cc.textContent=`${coordTargets.length} cílů`;
@@ -1444,24 +1521,13 @@ function renderCoordList() {
 
 function removeCoord(i) { coordTargets.splice(i,1); renderCoordList(); }
 
-function smartPasteCoordRow(i, input) {
-  const ts = parseArrivalText(input.value);
-  if (ts === null) return;
-  coordTargets[i].arrivalTime = ts;
-  const row = input.closest('.coord-item');
-  const dtInput = row ? row.querySelector('input[type="datetime-local"]') : null;
-  if (dtInput) dtInput.value = toLocalDT(ts);
-  input.style.color = '#7ec87e';
-  setTimeout(() => { input.value = ''; input.style.color = ''; }, 800);
-}
-
-function smartFillGlobalArrival(input) {
-  const ts = parseArrivalText(input.value);
-  if (ts === null) return;
-  const dtInput = document.getElementById('global-arrival');
-  if (dtInput) dtInput.value = toLocalDT(ts);
-  input.style.color = '#7ec87e';
-  setTimeout(() => { input.value = ''; input.style.color = ''; }, 800);
+// Když se vyplní globální čas, vizuálně ho promítne i do prázdných řádků (nepřepisuje coordTargets – stále "globální")
+function syncGlobalArrivalToRows() {
+  const g = document.getElementById('global-arrival').value;
+  if (!g) return;
+  document.querySelectorAll('#coord-list .coord-item input[type="datetime-local"]').forEach((inp, idx) => {
+    if (!coordTargets[idx]?.arrivalTime) inp.value = g;
+  });
 }
 
 function smartFillSingleDT(targetId, input) {
@@ -1498,6 +1564,7 @@ function clearCoords() {
   document.getElementById('coords-paste').value = '';
   coordTargets = [];
   document.getElementById('coord-list').style.display = 'none';
+  document.getElementById('sharp-arrival-wrap').style.display = 'none';
   const _cc = document.getElementById('coord-count'); if (_cc) _cc.textContent = '';
   document.getElementById('coord-count-global').textContent = '';
 }
@@ -1514,6 +1581,7 @@ function parseFakeCoords() {
     return { x, y, name: tv?.name || `${x}|${y}`, id: tv?.id || null, owner: tv ? (allPlayers.get(tv.playerId) || '') : '' };
   });
   document.getElementById('fake-coord-count').textContent = `${fakeTargets.length} fejk vesnic`;
+  document.getElementById('fake-arrival-wrap').style.display = fakeTargets.length ? 'block' : 'none';
   const fakeCount = parseInt(document.getElementById('fake-count').value) || 0;
   const srcCount = srcVillages.length || '?';
   if (fakeCount > 0) {
@@ -1531,6 +1599,7 @@ function clearFakeCoords() {
   fakeTargets = [];
   document.getElementById('fake-coord-count').textContent = '';
   document.getElementById('fake-status').textContent = '';
+  document.getElementById('fake-arrival-wrap').style.display = 'none';
 }
 
 // ── CESTOVNÍ ČAS ───────────────────────────────────────────
@@ -2309,8 +2378,8 @@ function editAction(idx) {
 function captureInputSnapshot() {
   const g = id => document.getElementById(id)?.value || '';
   return {
-    // Zdrojové vesnice
-    jsonVillages: JSON.stringify(jsonVillages),
+    // Zdrojové vesnice (jsonVillages = CELÝ originální import, ne aktuálně zbývající)
+    jsonVillages: JSON.stringify(importedJsonVillages.length ? importedJsonVillages : jsonVillages),
     srcVillages:  JSON.stringify(srcVillages),
     // Cílové vesnice
     sharpCount:       document.getElementById('sharp-count')?.value || '1',
@@ -2345,6 +2414,7 @@ function restoreInputSnapshot(snap) {
   if (snap.jsonVillages) {
     try {
       jsonVillages = JSON.parse(snap.jsonVillages);
+      importedJsonVillages = [...jsonVillages];
       document.getElementById('src-filter-wrap').style.display = 'block';
       applyJsonFilter();
       populateNoblePanel();
@@ -2358,6 +2428,7 @@ function restoreInputSnapshot(snap) {
       ).join('');
       document.getElementById('src-from-json-wrap').style.display = 'block';
       document.getElementById('src-from-json-empty').style.display = 'none';
+      refreshPlayerGroupSelect();
     } catch(e){}
   }
   if (snap.srcVillages)  { try { srcVillages  = JSON.parse(snap.srcVillages);  } catch(e){} }
@@ -2367,6 +2438,7 @@ function restoreInputSnapshot(snap) {
   if (document.getElementById('global-arrival')) document.getElementById('global-arrival').value = snap.globalArrival || '';
   if (document.getElementById('global-arrival-to')) document.getElementById('global-arrival-to').value = snap.globalArrivalTo || '';
   if (snap.coordTargets) { try { coordTargets = JSON.parse(snap.coordTargets); renderCoordList(); } catch(e){} }
+  document.getElementById('sharp-arrival-wrap').style.display = coordTargets.length ? 'block' : 'none';
   const cg = document.getElementById('coord-count-global');
   if (cg) cg.textContent = coordTargets.length ? `✓ Načteno ${coordTargets.length} cílů` : '';
   // Fejky
@@ -2374,11 +2446,13 @@ function restoreInputSnapshot(snap) {
   if (document.getElementById('fake-coords-paste')) document.getElementById('fake-coords-paste').value = snap.fakeCoordsPaste || '';
   if (document.getElementById('fake-arrival')) document.getElementById('fake-arrival').value = snap.fakeArrival || '';
   if (document.getElementById('fake-arrival-to')) document.getElementById('fake-arrival-to').value = snap.fakeArrivalTo || '';
+  if (snap.fakeCoordsPaste) parseFakeCoords();
   // Fejk vlaky
   if (document.getElementById('fake-noble-count')) document.getElementById('fake-noble-count').value = snap.fakeNobleCount || '0';
   if (document.getElementById('fake-noble-coords-paste')) document.getElementById('fake-noble-coords-paste').value = snap.fakeNobleCoords || '';
   if (document.getElementById('fake-noble-arrival')) document.getElementById('fake-noble-arrival').value = snap.fakeNobleArrival || '';
   if (document.getElementById('fake-noble-arrival-to')) document.getElementById('fake-noble-arrival-to').value = snap.fakeNobleArrTo || '';
+  if (snap.fakeNobleCoords) parseFakeNobleCoords();
   // Šlechtici
   if (document.getElementById('noble-count-per-target')) document.getElementById('noble-count-per-target').value = snap.noblePerTarget || '4';
   if (document.getElementById('noble-target-coords')) document.getElementById('noble-target-coords').value = snap.nobleTarget || '';
@@ -2390,6 +2464,7 @@ function restoreInputSnapshot(snap) {
   }
   if (snap.srcSelectedPlayers?.length) {
     document.querySelectorAll('.src-player-cb').forEach(cb => cb.checked = snap.srcSelectedPlayers.includes(cb.value));
+    if (jsonVillages.length) loadPlayersFromJson();
   }
   updateNobleTargetCount();
 }
@@ -2411,6 +2486,7 @@ function saveAction() {
 
   refreshSavedActionsBar();
   applyJsonFilter();
+  if (currentSrcTab === 'player' && document.querySelector('.src-player-cb:checked')) loadPlayersFromJson();
 
   attackRows = [];
   document.getElementById('results-area').innerHTML = '';
@@ -2429,11 +2505,23 @@ function getPlanState() {
     savedActions,
     attackRows,
     srcVillages,
-    jsonVillages,
+    jsonVillages: importedJsonVillages.length ? importedJsonVillages : jsonVillages,
     snapshot: captureInputSnapshot(),
     version: 2,
     savedAt: Date.now()
   };
+}
+
+// Sestaví seznam ostrých cílů zpět z uložených útoků (pro zobrazení v "Jednotlivé cíle" po načtení plánu)
+function targetsFromRows(rows) {
+  const map = new Map();
+  rows.filter(r => !r.isFake && !r.isFakeNoble && !r.isNoble).forEach(r => {
+    const key = `${r.tgtX}|${r.tgtY}`;
+    if (!map.has(key)) {
+      map.set(key, { x:r.tgtX, y:r.tgtY, name:r.tgtName || key, id:r.tgtId || null, owner:r.tgtOwner || '', points:0, arrivalTime:r.arrivalTime, unit:r.unit || 'ram' });
+    }
+  });
+  return [...map.values()];
 }
 
 function applyPlanState(state) {
@@ -2442,12 +2530,25 @@ function applyPlanState(state) {
   attackRows   = state.attackRows   || [];
   srcVillages  = state.srcVillages  || [];
   jsonVillages = state.jsonVillages || [];
+  importedJsonVillages = [...jsonVillages];
   refreshSavedActionsBar();
   if (state.snapshot) restoreInputSnapshot(state.snapshot);
   if (attackRows.length) renderResults();
   applyJsonFilter();
   // Obnov noble panel pokud je JSON načtený
   if (jsonVillages.length) populateNoblePanel();
+
+  // Zpětně dopočítej ostré cíle z uložených útoků (auto-odstranění po výpočtu je jen pro live plánování,
+  // ale po znovu-načtení plánu chceme vidět VŠECHNY naplánované cíle)
+  const allRowsForCoords = [...savedActions.flatMap(a => a.rows), ...attackRows];
+  const reconstructed = targetsFromRows(allRowsForCoords);
+  if (reconstructed.length) {
+    coordTargets = reconstructed;
+    const pasteEl = document.getElementById('coords-paste');
+    if (pasteEl) pasteEl.value = coordTargets.map(c => `${c.x}|${c.y}`).join('\n');
+    renderCoordList();
+    document.getElementById('sharp-arrival-wrap').style.display = 'block';
+  }
   return true;
 }
 
@@ -2585,27 +2686,24 @@ function openExport() {
     lines.push(`   Ostrých: ${sharpCnt}  |  Fejků: ${fakeCnt}  |  Celkem: ${rows.length}`);
     lines.push('');
 
-    rows.forEach((r, i) => {
-      const typ    = r.isFake && r.isFakeNoble ? '↑👑 FEJK VLAK'
-        : r.isFake                             ? '🟢 FEJK    '
-        : r.srcCategory === 'noble'            ? '👑 VLAK    '
-        : r.srcCategory === 'fullka'           ? '🔴 FULLKA  '
-        : r.srcCategory === 'triq_off'         ? '🟡 3/4 OFF '
-        : r.srcCategory === 'half_off'         ? '🟤 1/2 OFF '
-        :                                        '⚔️  OFF     ';
-      const src    = `${r.srcX}|${r.srcY}`;
-      const tgt    = `${r.tgtX}|${r.tgtY}`;
-      const unit   = r.unit === 'lk' ? 'Lehká kavalérie' : r.unit === 'tk' ? 'Těžká kavalérie' : r.unit === 'scout' ? 'Špeh' : r.unit === 'axe' ? 'Sekerník' : r.unit === 'noble' ? 'Šlechtic' : r.unit === 'spear' ? 'Kopiník' : r.unit === 'sword' ? 'Šermíř' : r.unit === 'catapult' ? 'Katapult' : r.unit === 'paladin' ? 'Paladin' : 'Beranidlo';
-      const send   = fmtDT(new Date(r.sendTime));
-      const arrive = fmtDT(new Date(r.arrivalTime));
-      const dur    = fmtDur(r.travel);
-
-      lines.push(`  ${String(i+1).padStart(2)}.  ${typ}`);
-      lines.push(`       Ze:      ${src}  ${r.srcName}`);
-      lines.push(`       Na:      ${tgt}${r.tgtName && r.tgtName !== tgt ? '  ' + r.tgtName : ''}${r.tgtOwner ? '  ('+r.tgtOwner+')' : ''}`);
-      lines.push(`       Jednotka: ${unit}`);
-      lines.push(`       Odeslat:  ${send}   (cesta: ${dur})`);
-      lines.push(`       Příchod:  ${arrive}`);
+    // Seskup podle typu útoku – ať to hráč rychle čte
+    const groups = [
+      { label: 'Ostré útoky', filter: r => !r.isFake && !r.isFakeNoble && !r.isNoble && r.srcCategory !== 'noble' },
+      { label: 'Fejky',       filter: r => r.isFake && !r.isFakeNoble },
+      { label: 'Fejk vlaky',  filter: r => r.isFake &&  r.isFakeNoble },
+      { label: 'Šlechtici',   filter: r => r.isNoble || r.srcCategory === 'noble' },
+    ];
+    groups.forEach(g => {
+      const grows = rows.filter(g.filter);
+      if (!grows.length) return;
+      lines.push(`${g.label}:`);
+      grows.forEach((r, i) => {
+        const src    = `${r.srcX}|${r.srcY}`;
+        const tgt    = `${r.tgtX}|${r.tgtY}`;
+        lines.push(`${i+1}) z ${src} na ${tgt}`);
+        lines.push(`Odeslat: ${fmtDT(new Date(r.sendTime))}`);
+        lines.push(`Příchod: ${fmtDT(new Date(r.arrivalTime))}`);
+      });
       lines.push('');
     });
 
@@ -3172,9 +3270,16 @@ function restoreAutosave() {
   dismissAutosave();
 }
 
-function dismissAutosave() {
+async function dismissAutosave() {
   document.getElementById('autosave-banner').style.display = 'none';
   _autosaveState = null;
+  try { localStorage.removeItem(PLAN_LS_KEY); } catch(e) {}
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    await sb.from('plans').delete()
+      .eq('created_by', session.user.id).eq('type','personal').eq('label','⚙️ Autosave');
+  } catch(e) {}
 }
 
 // ── PLANS PANEL ────────────────────────────────────────────
@@ -3342,7 +3447,7 @@ async function loadAutosaveFromDB() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return;
     const { data: plan } = await sb.from('plans')
-      .select('data, created_at').eq('created_by', session.user.id)
+      .select('data, created_at, updated_at').eq('created_by', session.user.id)
       .eq('type','personal').eq('label','⚙️ Autosave').single();
     if (!plan) return;
     const state = {
@@ -3350,7 +3455,7 @@ async function loadAutosaveFromDB() {
       attackRows:   plan.data?.rows || [],
       srcVillages, jsonVillages,
       snapshot:     plan.data?.snapshot || null,
-      version: 2, savedAt: new Date(plan.created_at).getTime()
+      version: 2, savedAt: new Date(plan.updated_at || plan.created_at).getTime()
     };
     if (state.savedActions.length || state.attackRows.length) {
       showAutosaveBanner(state);

@@ -241,6 +241,13 @@ $.getAll(
         };
 
         var json = JSON.stringify(summary, null, 2);
+        window.__dkKmenJson = json;
+
+        var copyCloseBtns =
+            '<button onclick="navigator.clipboard.writeText(window.__dkKmenJson)" ' +
+            'style="margin-top:10px;margin-right:6px;padding:4px 12px;background:#205020;border:1px solid #4a9a4a;color:#a0e0a0;cursor:pointer;border-radius:4px;">Kopírovat</button>' +
+            '<button onclick="$(\'.dk-export-box,#dk-progressbar\').remove()" ' +
+            'style="margin-top:10px;padding:4px 12px;background:#3d2a0a;border:1px solid #d4a84b;color:#e8d5a3;cursor:pointer;border-radius:4px;">Zavřít</button>';
 
         if (navigator.clipboard) {
             navigator.clipboard.writeText(json).then(function() {
@@ -251,14 +258,13 @@ $.getAll(
                     '• 3/4 off: <b>' + summary.triq_off + '</b><br>' +
                     '• Fullka: <b>' + summary.fullka + '</b><br><br>' +
                     '<span style="color:#7ec87e">✓ JSON zkopírován do schránky</span><br>' +
-                    '<button onclick="$(\'.dk-export-box,#dk-progressbar\').remove()" ' +
-                    'style="margin-top:10px;padding:4px 12px;background:#3d2a0a;border:1px solid #d4a84b;color:#e8d5a3;cursor:pointer;border-radius:4px;">Zavřít</button>'
+                    copyCloseBtns
                 );
             });
         } else {
             var w = window.open('', '_blank');
             w.document.write('<pre style="font-family:monospace;font-size:12px;white-space:pre-wrap;">' + json + '</pre>');
-            showProgress('✅ <b>Hotovo!</b> JSON otevřen v novém okně.<br>Celkem: <b>' + summary.total + '</b>');
+            showProgress('✅ <b>Hotovo!</b> JSON otevřen v novém okně.<br>Celkem: <b>' + summary.total + '</b><br><br>' + copyCloseBtns);
         }
     },
     function(e) {
