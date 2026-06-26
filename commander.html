@@ -360,12 +360,14 @@
         <!-- TAB: hráč -->
         <div class="tab-pane active" id="src-tab-player">
           <div id="src-from-json-wrap" style="display:none;">
-            <label style="color:var(--gold2);">Vyber hráče z importu kmene</label>
-            <div style="display:flex;gap:6px;margin-top:4px;">
-              <select id="src-player-select" style="flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;">
-                <option value="">— vyber hráče —</option>
-              </select>
-              <button class="btn btn-primary btn-sm" onclick="loadPlayerFromJson()">▶ Načíst</button>
+            <label style="color:var(--gold2);">Vyber hráče z importu kmene (jeden, víc, nebo celý kmen)</label>
+            <div style="display:flex;align-items:center;gap:10px;margin:4px 0 6px;font-size:12px;">
+              <a href="#" onclick="setAllSrcPlayerChecks(true);return false;" style="color:var(--gold);">☑ Vše</a>
+              <a href="#" onclick="setAllSrcPlayerChecks(false);return false;" style="color:var(--dim);">☐ Nic</a>
+            </div>
+            <div id="src-player-checklist" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:6px 8px;background:var(--panel);"></div>
+            <div class="btn-row" style="margin-top:8px;">
+              <button class="btn btn-primary btn-sm" onclick="loadPlayersFromJson()">▶ Načíst vybrané</button>
             </div>
           </div>
           <div id="src-from-json-empty" style="font-size:12px;color:var(--dim);padding:8px 0;">
@@ -405,9 +407,9 @@
           <div id="src-filter-wrap" style="display:none;margin-top:8px;">
             <div style="font-size:12px;color:var(--gold);margin-bottom:4px;">Filtr vesnic:</div>
             <div class="src-filter">
-              <label><input type="checkbox" id="filter-full" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.getElementById('src-player-select').value) loadPlayerFromJson()"> <span class="chip chip-full" title="≥18 000 off populace">fullka ≥18k pop</span></label>
-              <label><input type="checkbox" id="filter-triq" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.getElementById('src-player-select').value) loadPlayerFromJson()"> <span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off ≥15k</span></label>
-              <label><input type="checkbox" id="filter-half" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.getElementById('src-player-select').value) loadPlayerFromJson()"> <span class="chip chip-half" title="10 000–14 999 off populace">1/2 off ≥10k</span></label>
+              <label><input type="checkbox" id="filter-full" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.querySelector('.src-player-cb:checked')) loadPlayersFromJson()"> <span class="chip chip-full" title="≥18 000 off populace">fullka ≥18k pop</span></label>
+              <label><input type="checkbox" id="filter-triq" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.querySelector('.src-player-cb:checked')) loadPlayersFromJson()"> <span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off ≥15k</span></label>
+              <label><input type="checkbox" id="filter-half" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.querySelector('.src-player-cb:checked')) loadPlayersFromJson()"> <span class="chip chip-half" title="10 000–14 999 off populace">1/2 off ≥10k</span></label>
             </div>
             <div class="village-list" id="json-village-list" style="margin-top:8px;"></div>
             <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="json-village-count"></div>
@@ -512,12 +514,12 @@
         <!-- Výběr zdroje šlechticů -->
         <div id="noble-empty" style="font-size:12px;color:var(--dim);padding:4px 0 8px;">Načti JSON v záložce 📦 Import kmene.</div>
         <div id="noble-content" style="display:none;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-            <label style="font-size:12px;color:var(--gold);white-space:nowrap;">Zdroj šlechticů:</label>
-            <select id="noble-player-select" style="flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-size:12px;" onchange="refreshNoblelist()">
-              <option value="">🏰 Celý kmen</option>
-            </select>
+          <div style="font-size:12px;color:var(--gold);margin-bottom:4px;">Zdroj šlechticů (nezaškrtni nikoho = celý kmen, nebo vyber jednoho/víc hráčů):</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;">
+            <a href="#" onclick="setAllNoblePlayerChecks(true);return false;" style="color:var(--gold);">☑ Vše</a>
+            <a href="#" onclick="setAllNoblePlayerChecks(false);return false;" style="color:var(--dim);">☐ Nic (celý kmen)</a>
           </div>
+          <div id="noble-player-checklist" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:6px 8px;background:var(--panel);margin-bottom:8px;"></div>
           <div class="village-list" id="noble-village-list"></div>
           <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="noble-count"></div>
         </div>
@@ -961,11 +963,15 @@ function importJson() {
     applyJsonFilter();
     populateNoblePanel();
 
-    // Naplň dropdown hráčů v záložce Hráč
+    // Naplň checklist hráčů v záložce Hráč (multi-select)
     const players = [...new Set(jsonVillages.map(v => v.player_name).filter(Boolean))].sort();
-    const sel = document.getElementById('src-player-select');
-    sel.innerHTML = '<option value="">— vyber hráče —</option>' +
-      players.map(p => `<option value="${p}">${p}</option>`).join('');
+    const list = document.getElementById('src-player-checklist');
+    list.innerHTML = players.map(p =>
+      `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;">
+        <input type="checkbox" class="src-player-cb" value="${p}" style="width:auto;accent-color:var(--gold);">
+        <span>${p}</span>
+      </label>`
+    ).join('');
     document.getElementById('src-from-json-wrap').style.display = 'block';
     document.getElementById('src-from-json-empty').style.display = 'none';
   } catch(e) {
@@ -973,15 +979,20 @@ function importJson() {
   }
 }
 
-function loadPlayerFromJson() {
-  const playerName = document.getElementById('src-player-select').value;
-  if (!playerName) { toast('Vyber hráče ze seznamu!', 'err'); return; }
+function setAllSrcPlayerChecks(checked) {
+  document.querySelectorAll('.src-player-cb').forEach(cb => cb.checked = checked);
+}
+
+function loadPlayersFromJson() {
+  const checked = [...document.querySelectorAll('.src-player-cb:checked')].map(cb => cb.value);
+  if (!checked.length) { toast('Zaškrtni alespoň jednoho hráče (nebo "☑ Vše" pro celý kmen)!', 'err'); return; }
 
   const wantFull = document.getElementById('filter-full').checked;
   const wantTriq = document.getElementById('filter-triq').checked;
   const wantHalf = document.getElementById('filter-half').checked;
 
-  const playerVillages = jsonVillages.filter(v => v.player_name === playerName);
+  const playerSet = new Set(checked);
+  const playerVillages = jsonVillages.filter(v => playerSet.has(v.player_name));
   srcVillages = playerVillages.filter(v => {
     if (v.category === 'fullka')   return wantFull;
     if (v.category === 'triq_off') return wantTriq;
@@ -999,13 +1010,13 @@ function loadPlayerFromJson() {
   const listEl = document.getElementById('village-list');
   listEl.innerHTML = srcVillages.slice(0, 100).map(v =>
     `<div class="village-item">
-      <span style="font-size:12px">${v.village_name || v.name || ''} ${catChipHtml(v)}</span>
+      <span style="font-size:12px">${v.village_name || v.name || ''} ${catChipHtml(v)} <span style="color:var(--dim);">${v.player_name||''}</span></span>
       <span class="village-coords">${v.x}|${v.y}</span>
     </div>`
   ).join('') + (srcVillages.length > 100 ? `<div class="village-item" style="color:var(--dim)">… a ${srcVillages.length-100} dalších</div>` : '');
 
   document.getElementById('village-count').textContent = `Zobrazeno: ${srcVillages.length} vesnic`;
-  setStatus('player-status', 'ok', `✓ Načteno ${srcVillages.length} offek hráče ${playerName} z importu`);
+  setStatus('player-status', 'ok', `✓ Načteno ${srcVillages.length} offek (${checked.length} hráč${checked.length>1?'ů':''}) z importu`);
 }
 
 function populateNoblePanel() {
@@ -1015,21 +1026,29 @@ function populateNoblePanel() {
   if (!nobleVillages.length) { el.style.display='none'; empty.style.display='block'; return; }
   el.style.display = 'block'; empty.style.display = 'none';
 
-  // Naplň dropdown hráčů
+  // Naplň checklist hráčů (multi-select)
   const players = [...new Set(nobleVillages.map(v => v.player_name).filter(Boolean))].sort();
-  const sel = document.getElementById('noble-player-select');
-  sel.innerHTML = '<option value="">🏰 Celý kmen</option>' +
-    players.map(p => `<option value="${p}">${p}</option>`).join('');
+  const list = document.getElementById('noble-player-checklist');
+  list.innerHTML = players.map(p =>
+    `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;">
+      <input type="checkbox" class="noble-player-cb" value="${p}" onchange="refreshNoblelist()" style="width:auto;accent-color:var(--gold);">
+      <span>${p}</span>
+    </label>`
+  ).join('');
 
   refreshNoblelist();
 }
 
+function setAllNoblePlayerChecks(checked) {
+  document.querySelectorAll('.noble-player-cb').forEach(cb => cb.checked = checked);
+  refreshNoblelist();
+}
+
 function refreshNoblelist() {
-  const sel = document.getElementById('noble-player-select');
-  const selectedPlayer = sel?.value || '';
+  const checkedPlayers = [...document.querySelectorAll('.noble-player-cb:checked')].map(cb => cb.value);
   const nobleVillages = jsonVillages
     .filter(v => (v.noble || (v.units && v.units.noble)) > 0)
-    .filter(v => !selectedPlayer || v.player_name === selectedPlayer);
+    .filter(v => !checkedPlayers.length || checkedPlayers.includes(v.player_name));
 
   const listEl = document.getElementById('noble-village-list');
   listEl.innerHTML = nobleVillages.slice(0, 50).map(v => {
@@ -1064,11 +1083,11 @@ function calculateNobles(rows) {
   const noblePerTarget = parseInt(document.getElementById('noble-count-per-target').value) || 4;
 
   // Sestav pool šlechticů
-  const noblePlayerSel = document.getElementById('noble-player-select')?.value || '';
-  const selectedPlayer = noblePlayerSel || '';
+  const nobleCheckedPlayers = [...document.querySelectorAll('.noble-player-cb:checked')].map(cb => cb.value);
+  const selectedPlayer = nobleCheckedPlayers.length === 1 ? nobleCheckedPlayers[0] : '';
   const pool = jsonVillages
     .filter(v => (v.noble || (v.units && v.units.noble)) > 0)
-    .filter(v => !noblePlayerSel || v.player_name === noblePlayerSel);
+    .filter(v => !nobleCheckedPlayers.length || nobleCheckedPlayers.includes(v.player_name));
   if (!pool.length) { toast('Žádní šlechtici v importu!', 'err'); return; }
 
   // Pracovní kopie – počet celých vlaků které může každá vesnice poslat
@@ -1134,8 +1153,8 @@ function applyJsonFilter() {
   const wantFull  = document.getElementById('filter-full').checked;
   const wantTriq  = document.getElementById('filter-triq').checked;
   const wantHalf  = document.getElementById('filter-half').checked;
-  const selectedPlayer = document.getElementById('src-player-select')?.value || '';
-  const base = selectedPlayer ? jsonVillages.filter(v => v.player_name === selectedPlayer) : jsonVillages;
+  const checkedPlayers = [...document.querySelectorAll('.src-player-cb:checked')].map(cb => cb.value);
+  const base = checkedPlayers.length ? jsonVillages.filter(v => checkedPlayers.includes(v.player_name)) : jsonVillages;
 
   srcVillages = base.filter(v => {
     if (v.category === 'fullka')   return wantFull;
@@ -2282,14 +2301,32 @@ function captureInputSnapshot() {
     nobleTarget:      g('noble-target-coords'),
     nobleArrival:     g('noble-arrival'),
     nobleArrivalTo:   g('noble-arrival-to'),
-    noblePlayer:      document.getElementById('noble-player-select')?.value || '',
+    nobleSelectedPlayers: [...document.querySelectorAll('.noble-player-cb:checked')].map(cb => cb.value),
+    srcSelectedPlayers:   [...document.querySelectorAll('.src-player-cb:checked')].map(cb => cb.value),
   };
 }
 
 function restoreInputSnapshot(snap) {
   if (!snap) return;
   // Zdrojové vesnice
-  if (snap.jsonVillages) { try { jsonVillages = JSON.parse(snap.jsonVillages); applyJsonFilter(); } catch(e){} }
+  if (snap.jsonVillages) {
+    try {
+      jsonVillages = JSON.parse(snap.jsonVillages);
+      document.getElementById('src-filter-wrap').style.display = 'block';
+      applyJsonFilter();
+      populateNoblePanel();
+      const players = [...new Set(jsonVillages.map(v => v.player_name).filter(Boolean))].sort();
+      const list = document.getElementById('src-player-checklist');
+      if (list) list.innerHTML = players.map(p =>
+        `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;">
+          <input type="checkbox" class="src-player-cb" value="${p}" style="width:auto;accent-color:var(--gold);">
+          <span>${p}</span>
+        </label>`
+      ).join('');
+      document.getElementById('src-from-json-wrap').style.display = 'block';
+      document.getElementById('src-from-json-empty').style.display = 'none';
+    } catch(e){}
+  }
   if (snap.srcVillages)  { try { srcVillages  = JSON.parse(snap.srcVillages);  } catch(e){} }
   // Cílové vesnice
   if (document.getElementById('sharp-count')) document.getElementById('sharp-count').value = snap.sharpCount || '1';
@@ -2314,9 +2351,12 @@ function restoreInputSnapshot(snap) {
   if (document.getElementById('noble-target-coords')) document.getElementById('noble-target-coords').value = snap.nobleTarget || '';
   if (document.getElementById('noble-arrival')) document.getElementById('noble-arrival').value = snap.nobleArrival || '';
   if (document.getElementById('noble-arrival-to')) document.getElementById('noble-arrival-to').value = snap.nobleArrivalTo || '';
-  if (snap.noblePlayer && document.getElementById('noble-player-select')) {
-    document.getElementById('noble-player-select').value = snap.noblePlayer;
+  if (snap.nobleSelectedPlayers?.length) {
+    document.querySelectorAll('.noble-player-cb').forEach(cb => cb.checked = snap.nobleSelectedPlayers.includes(cb.value));
     refreshNoblelist();
+  }
+  if (snap.srcSelectedPlayers?.length) {
+    document.querySelectorAll('.src-player-cb').forEach(cb => cb.checked = snap.srcSelectedPlayers.includes(cb.value));
   }
   updateNobleTargetCount();
 }
