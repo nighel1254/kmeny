@@ -442,6 +442,11 @@
           <span style="font-size:11px;color:var(--dim);">(1 = každá offka pošle 1 ostrý)</span>
         </div>
 
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-bottom:12px;cursor:pointer;">
+          <input type="checkbox" id="ratio-check-enabled" checked style="width:auto;accent-color:var(--gold);">
+          Kontrolovat poměr bodů 20:1 (nepřiřadí cíl, na který hráč podle pravidel nemůže útočit)
+        </label>
+
         <div class="tabs">
           <div class="tab active" onclick="switchTargetTab('coords')">📋 Souřadnice</div>
           <div class="tab"       onclick="switchTargetTab('player')">👤 Hráč</div>
@@ -956,25 +961,32 @@ function switchSrcTab(tab) {
 function renderCapacitySummary() {
   const el = document.getElementById('capacity-summary');
   if (!el) return;
-  if (!jsonVillages.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (!importedJsonVillages.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
-  // Fullka/3-4/1-2 vychází z aktuálně NAČTENÉHO (vybraného) zdroje, ne z celého importu
-  const fullka = srcVillages.filter(v => v.category === 'fullka').length;
-  const triq   = srcVillages.filter(v => v.category === 'triq_off').length;
-  const half   = srcVillages.filter(v => v.category === 'half_off').length;
-
-  // Šlechtici nejsou filtrováni kategorií off, jen výběrem hráčů
   const checkedPlayers = [...document.querySelectorAll('.src-player-cb:checked')].map(cb => cb.value);
-  const noblePool = checkedPlayers.length ? jsonVillages.filter(v => checkedPlayers.includes(v.player_name)) : jsonVillages;
-  const nobles = noblePool.reduce((s,v) => s + (v.noble || (v.units && v.units.noble) || 0), 0);
+  const totalPool = checkedPlayers.length ? importedJsonVillages.filter(v => checkedPlayers.includes(v.player_name)) : importedJsonVillages;
+  const remPool   = checkedPlayers.length ? jsonVillages.filter(v => checkedPlayers.includes(v.player_name))         : jsonVillages;
+
+  const byCat = (pool, cat) => pool.filter(v => v.category === cat).length;
+  const mk = cat => {
+    const total = byCat(totalPool, cat);
+    const rem   = byCat(remPool, cat);
+    return { total, rem, used: total - rem };
+  };
+  const fullka = mk('fullka'), triq = mk('triq_off'), half = mk('half_off');
+
+  const sumNobles = pool => pool.reduce((s,v) => s + (v.noble || (v.units && v.units.noble) || 0), 0);
+  const nobleTotal = sumNobles(totalPool), nobleRem = sumNobles(remPool);
+
+  const cell = (icon, c) => `<span>${icon}<b>${c.rem}</b><span style="color:var(--dim);font-size:11px;"> / ${c.total}${c.used ? ` (využito ${c.used})` : ''}</span></span>`;
 
   el.style.display = 'flex';
   el.innerHTML =
-    `<span style="color:var(--dim);">⚡ K dispozici (z vybraných hráčů, zbývá po odečtení použitých v plánu):</span>` +
-    `<span>${AXE_RED}<b>${fullka}</b></span>` +
-    `<span>${AXE_YEL}<b>${triq}</b></span>` +
-    `<span>${AXE_BRN}<b>${half}</b></span>` +
-    `<span style="color:var(--gold);">${NOBLE_NORM}<b>${nobles}</b></span>`;
+    `<span style="color:var(--dim);">⚡ Zbývá / celkem (z vybraných hráčů):</span>` +
+    cell(AXE_RED, fullka) +
+    cell(AXE_YEL, triq) +
+    cell(AXE_BRN, half) +
+    `<span style="color:var(--gold);">${NOBLE_NORM}<b>${nobleRem}</b><span style="color:var(--dim);font-size:11px;"> / ${nobleTotal}${nobleTotal-nobleRem ? ` (využito ${nobleTotal-nobleRem})` : ''}</span></span>`;
 }
 
 function importJson() {
@@ -1090,12 +1102,12 @@ function loadPlayersFromJson() {
   };
 
   const listEl = document.getElementById('village-list');
-  listEl.innerHTML = srcVillages.slice(0, 100).map(v =>
+  listEl.innerHTML = srcVillages.map(v =>
     `<div class="village-item">
       <span style="font-size:12px">${v.village_name || v.name || ''} ${catChipHtml(v)} <span style="color:var(--dim);">${v.player_name||''}</span></span>
       <span class="village-coords">${v.x}|${v.y}</span>
     </div>`
-  ).join('') + (srcVillages.length > 100 ? `<div class="village-item" style="color:var(--dim)">… a ${srcVillages.length-100} dalších</div>` : '');
+  ).join('');
 
   document.getElementById('village-count').textContent = `Zobrazeno: ${srcVillages.length} vesnic`;
   setStatus('player-status', 'ok', `✓ Načteno ${srcVillages.length} offek (${checked.length} hráč${checked.length>1?'ů':''}) z importu`);
@@ -1134,13 +1146,13 @@ function refreshNoblelist() {
     .filter(v => !checkedPlayers.length || checkedPlayers.includes(v.player_name));
 
   const listEl = document.getElementById('noble-village-list');
-  listEl.innerHTML = nobleVillages.slice(0, 50).map(v => {
+  listEl.innerHTML = nobleVillages.map(v => {
     const cnt = v.noble || (v.units && v.units.noble) || 0;
     return `<div class="village-item">
       <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${cnt}</span> <span style="color:var(--dim);font-size:11px;">${v.player_name||''}</span></span>
       <span class="village-coords">${v.x}|${v.y}</span>
     </div>`;
-  }).join('') + (nobleVillages.length > 50 ? `<div class="village-item" style="color:var(--dim)">… a ${nobleVillages.length-50} dalších</div>` : '');
+  }).join('');
   document.getElementById('noble-count').textContent = `${nobleVillages.length} vesnic se šlechtici`;
 }
 
@@ -1152,10 +1164,14 @@ function updateNobleTargetCount() {
   document.getElementById('noble-arrival-wrap').style.display = coords.length ? 'block' : 'none';
 }
 
-function calculateNobles(rows) {
+function calculateNobles(rows, extraWarnings) {
   // Načti nastavení
   const raw = document.getElementById('noble-target-coords').value.trim();
   if (!raw) return;
+
+  const ratioCheckEnabled = document.getElementById('ratio-check-enabled')?.checked ?? true;
+  const playerPoints      = ratioCheckEnabled ? getPlayerPointsByName() : null;
+  const ratioViolations   = new Map();
   const coordLines = raw.split(/[\n\s]+/).filter(l => /^\d+\|\d+/.test(l.trim()));
   if (!coordLines.length) { toast('Neplatné souřadnice cíle šlechticů!', 'err'); return; }
 
@@ -1199,6 +1215,7 @@ function calculateNobles(rows) {
     // Seřaď dostupné zdroje (s alespoň 1 vlakem) podle vzdálenosti
     const sorted = available
       .filter(v => Math.floor(v.remaining / noblePerTarget) > 0)
+      .filter(v => ratioAllowed(ratioCheckEnabled, playerPoints, v.player_name || selectedPlayer, tgtOwner, ratioViolations))
       .sort((a, b) => {
         const da = Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2);
         const db = Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2);
@@ -1231,6 +1248,14 @@ function calculateNobles(rows) {
     });
     sv.remaining -= noblePerTarget;
   }
+
+  if (ratioViolations.size && extraWarnings) {
+    extraWarnings.push(`🚫 Poměr bodů 20:1 – tyto kombinace nesmí útočit (šlechtici):`);
+    for (const v of ratioViolations.values()) {
+      const minDef = Math.ceil(v.atk / 20);
+      extraWarnings.push(`   • Hráč: ${v.srcPlayer} (${Math.round(v.atk).toLocaleString('cs-CZ')} b.) nemůže útočit na hráče ${v.tgtPlayer} (${Math.round(v.def).toLocaleString('cs-CZ')} b., potřeboval by alespoň ${minDef.toLocaleString('cs-CZ')} b.)`);
+    }
+  }
 }
 
 function applyJsonFilter() {
@@ -1255,12 +1280,12 @@ function applyJsonFilter() {
   };
 
   const listEl = document.getElementById('json-village-list');
-  listEl.innerHTML = srcVillages.slice(0, 100).map(v =>
+  listEl.innerHTML = srcVillages.map(v =>
     `<div class="village-item">
       <span style="font-size:12px">${v.village_name} ${catChipHtml(v)}</span>
       <span class="village-coords">${v.x}|${v.y}</span>
     </div>`
-  ).join('') + (srcVillages.length > 100 ? `<div class="village-item" style="color:var(--dim)">… a ${srcVillages.length-100} dalších</div>` : '');
+  ).join('');
   document.getElementById('json-village-count').textContent = `Zobrazeno: ${srcVillages.length} vesnic`;
   renderCapacitySummary();
 }
@@ -1405,7 +1430,7 @@ async function loadFakeNoblePlayer() {
     const player = await findPlayer(name);
     fakeNobleTargets = allVillages.filter(v => v.playerId === player.id).map(v => ({ x:v.x, y:v.y, name:v.name, id:v.id, owner: allPlayers.get(v.playerId)||'' }));
     document.getElementById('fake-noble-player-status').textContent = `✓ ${fakeNobleTargets.length} vesnic`;
-    document.getElementById('fake-noble-village-list').innerHTML = fakeNobleTargets.slice(0,50).map(v => `<div class="village-item"><span>${v.name}</span><span class="village-coords">${v.x}|${v.y}</span></div>`).join('');
+    document.getElementById('fake-noble-village-list').innerHTML = fakeNobleTargets.map(v => `<div class="village-item"><span>${v.name}</span><span class="village-coords">${v.x}|${v.y}</span></div>`).join('');
     document.getElementById('fake-noble-arrival-wrap').style.display = fakeNobleTargets.length ? 'block' : 'none';
   } catch(e) {
     document.getElementById('fake-noble-player-status').textContent = `❌ ${e.message}`;
@@ -1613,6 +1638,32 @@ function travelMs(x1,y1,x2,y2,unit) {
 }
 
 function isNight(ts) { const h = new Date(ts).getHours(); return h>=NIGHT_START && h<NIGHT_END; }
+
+// ── PRAVIDLO 20:1 (poměr celkových bodů útočníka/obránce) ───
+// Součet bodů VŠECH vesnic hráče nesmí přesáhnout 20× body hráče, na kterého útočí.
+function getPlayerPointsByName() {
+  const byId = new Map();
+  for (const v of allVillages) byId.set(v.playerId, (byId.get(v.playerId) || 0) + (v.points || 0));
+  const byName = new Map();
+  for (const [pid, pts] of byId) {
+    const name = allPlayers.get(pid);
+    if (name) byName.set(name, pts);
+  }
+  return byName;
+}
+
+// Vrátí true = útok je povolený. Při zablokování zaznamená důvod do `violations` (Map).
+function ratioAllowed(enabled, playerPoints, srcPlayer, tgtPlayer, violations) {
+  if (!enabled || !playerPoints) return true;
+  if (!srcPlayer || !tgtPlayer || srcPlayer === tgtPlayer) return true;
+  const atk = playerPoints.get(srcPlayer);
+  const def = playerPoints.get(tgtPlayer);
+  if (!atk || !def) return true; // body neznámé (mimo náš import) – neblokujeme
+  if (atk <= def * 20) return true;
+  const key = `${srcPlayer}→${tgtPlayer}`;
+  if (!violations.has(key)) violations.set(key, { srcPlayer, tgtPlayer, atk, def });
+  return false;
+}
 function distSq(a,b) { return (a.x-b.x)**2 + (a.y-b.y)**2; }
 
 // Najdi nejlepší čas příchodu v rozmezí [from, to] pro skupinu offek→cíl
@@ -1674,8 +1725,9 @@ async function calculate() {
       const arrToStr = document.getElementById('global-arrival-player-to').value;
       const at = arrToStr ? new Date(arrToStr).getTime() : null;
       const unit = getUnitSelectValue('global-unit-player');
+      const tgtPlayerName = document.getElementById('target-player-name').value.trim();
       targets = tgtVillages.map(v => ({
-        x:v.x, y:v.y, name:v.name, id:v.id, unit,
+        x:v.x, y:v.y, name:v.name, id:v.id, unit, owner: tgtPlayerName,
         _arrFrom: af, _arrTo: at, arrivalTime: af
       }));
     }
@@ -1711,6 +1763,10 @@ async function calculate() {
   const rows = [];
   const usedSendTimesGlobal = new Set(); // globální sledování časů odeslání
   const now  = Date.now();
+
+  const ratioCheckEnabled = document.getElementById('ratio-check-enabled')?.checked ?? true;
+  const playerPoints      = ratioCheckEnabled ? getPlayerPointsByName() : null;
+  const ratioViolations   = new Map();
 
   // ── Společná logika přiřazení ostrých ──────────────────────
   // Alfa omega: čas příchodu je pevný.
@@ -1787,7 +1843,9 @@ async function calculate() {
   const allPairs = [];
   for (const si of fullkyInfos) {
     for (const tgt of sortedTargets) {
-      if (tgtQuota.get(tgt) > 0) allPairs.push({ si, tgt, score: pairScore(si, tgt) });
+      if (tgtQuota.get(tgt) > 0 && ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations)) {
+        allPairs.push({ si, tgt, score: pairScore(si, tgt) });
+      }
     }
   }
   allPairs.sort((a, b) => b.score - a.score);
@@ -1814,7 +1872,7 @@ async function calculate() {
     if (needed <= 0) continue;
 
     const candidates = srcInfos
-      .filter(si => !usedSrc.has(si.sv))
+      .filter(si => !usedSrc.has(si.sv) && ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations))
       .sort((a, b) => {
         // 1. silnější kategorie
         if (b.catRank !== a.catRank) return b.catRank - a.catRank;
@@ -1839,6 +1897,15 @@ async function calculate() {
   const needed  = coveredTargets * sharpCount;
   if (fullky.length > 0 && fullky.length < needed) {
     extraWarnings.push(`⚠️ Fullků (${fullky.length}) nestačí na ${sharpCount}× ${coveredTargets} cílů – doplňuje se 3/4 a 1/2 off`);
+  }
+
+  // Varování – poměr bodů 20:1 zablokoval kombinace hráčů
+  if (ratioViolations.size) {
+    extraWarnings.push(`🚫 Poměr bodů 20:1 – tyto kombinace nesmí útočit (cíl proto nemusí dostat ostrý útok od daného hráče):`);
+    for (const v of ratioViolations.values()) {
+      const minDef = Math.ceil(v.atk / 20);
+      extraWarnings.push(`   • Hráč: ${v.srcPlayer} (${Math.round(v.atk).toLocaleString('cs-CZ')} b.) nemůže útočit na hráče ${v.tgtPlayer} (${Math.round(v.def).toLocaleString('cs-CZ')} b., potřeboval by alespoň ${minDef.toLocaleString('cs-CZ')} b.)`);
+    }
   }
 
   // ── Optimalizuj čas příchodu pro každý cíl ──────────────────
@@ -1942,6 +2009,7 @@ async function calculate() {
       for (const sv of sortedSrcForFake) {
         if (assigned >= fakeCount) break;
         if (usedFakeSrcs.has(`${sv.x}|${sv.y}`)) continue;
+        if (!ratioAllowed(ratioCheckEnabled, playerPoints, sv.player_name, ft.owner, ratioViolations)) continue;
         const travel = travelMs(sv.x, sv.y, ft.x, ft.y, fakeUnit);
         const sendTime = arrivalTime - travel;
         if (usedSendTimesGlobal.has(sendTime)) continue; // duplicitní čas – přeskočit
@@ -1994,6 +2062,7 @@ async function calculate() {
       for (const sv of sortedSrcForFakeNoble) {
         if (assigned >= fakeNobleCount) break;
         if (usedFakeNobleSrcs.has(`${sv.x}|${sv.y}`)) continue;
+        if (!ratioAllowed(ratioCheckEnabled, playerPoints, sv.player_name, ft.owner, ratioViolations)) continue;
         const travel = travelMs(sv.x, sv.y, ft.x, ft.y, 'ram');
         const sendTime = arrivalTime - travel;
         if (usedSendTimesGlobal.has(sendTime)) continue;
@@ -2012,7 +2081,7 @@ async function calculate() {
     }
   }
   if (document.getElementById('noble-target-coords').value.trim().match(/\d+\|\d+/)) {
-    calculateNobles(rows);
+    calculateNobles(rows, extraWarnings);
   }
 
   rows.sort((a,b)=>a.sendTime-b.sendTime);
@@ -2043,21 +2112,21 @@ async function calculate() {
     }
   }
 
-  // Odeber z pole "Ostré útoky souřadnice" cíle, na které se útok podařilo naplánovat,
-  // ať zůstanou jen ty nepokryté (pro plánování hráč po hráči)
-  if (currentTargetTab === 'coords' && coordTargets.length) {
-    const coveredKeys = new Set(rows.filter(r => !r.isFake && !r.isNoble && !r.isFakeNoble).map(r => `${r.tgtX}|${r.tgtY}`));
-    if (coveredKeys.size) {
-      const remaining = coordTargets.filter(c => !coveredKeys.has(`${c.x}|${c.y}`));
-      if (remaining.length !== coordTargets.length) {
-        coordTargets = remaining;
-        const pasteEl = document.getElementById('coords-paste');
-        if (pasteEl) pasteEl.value = coordTargets.map(c => `${c.x}|${c.y}`).join('\n');
-        renderCoordList();
-        toast(`✓ ${coveredKeys.size} naplánovaných cílů odstraněno ze seznamu, zbývá ${coordTargets.length}`, 'info', 4000);
-      }
-    }
-  }
+  // POZN: dříve se zde automaticky odebíraly naplánované cíle ze seznamu souřadnic.
+  // Zakomentováno na žádost uživatele – stačí přehled "Nepokryté cíle" níže, seznam se nemaže.
+  // if (currentTargetTab === 'coords' && coordTargets.length) {
+  //   const coveredKeys = new Set(rows.filter(r => !r.isFake && !r.isNoble && !r.isFakeNoble).map(r => `${r.tgtX}|${r.tgtY}`));
+  //   if (coveredKeys.size) {
+  //     const remaining = coordTargets.filter(c => !coveredKeys.has(`${c.x}|${c.y}`));
+  //     if (remaining.length !== coordTargets.length) {
+  //       coordTargets = remaining;
+  //       const pasteEl = document.getElementById('coords-paste');
+  //       if (pasteEl) pasteEl.value = coordTargets.map(c => `${c.x}|${c.y}`).join('\n');
+  //       renderCoordList();
+  //       toast(`✓ ${coveredKeys.size} naplánovaných cílů odstraněno ze seznamu, zbývá ${coordTargets.length}`, 'info', 4000);
+  //     }
+  //   }
+  // }
 
   renderResults(nightWarnings);
 }
@@ -2413,12 +2482,18 @@ function restoreInputSnapshot(snap) {
   // Zdrojové vesnice
   if (snap.jsonVillages) {
     try {
-      jsonVillages = JSON.parse(snap.jsonVillages);
-      importedJsonVillages = [...jsonVillages];
+      // snap.jsonVillages = CELÝ originální import. Skutečně dostupné (jsonVillages) jsou
+      // ty, co ještě nejsou použité v už uložených/aktuálních útocích.
+      importedJsonVillages = JSON.parse(snap.jsonVillages);
+      const usedSrcIds = new Set([...savedActions.flatMap(a => a.rows), ...attackRows].map(r => `${r.srcX}|${r.srcY}`));
+      jsonVillages = importedJsonVillages.filter(v => !usedSrcIds.has(`${v.x}|${v.y}`));
+      const jsonPasteEl = document.getElementById('json-paste');
+      if (jsonPasteEl) jsonPasteEl.value = JSON.stringify({ villages: importedJsonVillages }, null, 2);
       document.getElementById('src-filter-wrap').style.display = 'block';
       applyJsonFilter();
       populateNoblePanel();
-      const players = [...new Set(jsonVillages.map(v => v.player_name).filter(Boolean))].sort();
+      // Checklist hráčů sestav z CELÉHO importu, ať se neztratí hráč, který má vše už použité
+      const players = [...new Set(importedJsonVillages.map(v => v.player_name).filter(Boolean))].sort();
       const list = document.getElementById('src-player-checklist');
       if (list) list.innerHTML = players.map(p =>
         `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;">
@@ -2528,6 +2603,7 @@ function applyPlanState(state) {
   if (!state || state.version !== 2) { toast('Neplatný nebo zastaralý soubor plánu.', 'err'); return false; }
   savedActions = state.savedActions || [];
   attackRows   = state.attackRows   || [];
+  // Záložní hodnoty, pokud by snapshot chyběl – jinak je přepočítá restoreInputSnapshot()
   srcVillages  = state.srcVillages  || [];
   jsonVillages = state.jsonVillages || [];
   importedJsonVillages = [...jsonVillages];
@@ -2686,24 +2762,21 @@ function openExport() {
     lines.push(`   Ostrých: ${sharpCnt}  |  Fejků: ${fakeCnt}  |  Celkem: ${rows.length}`);
     lines.push('');
 
-    // Seskup podle typu útoku – ať to hráč rychle čte
-    const groups = [
-      { label: 'Ostré útoky', filter: r => !r.isFake && !r.isFakeNoble && !r.isNoble && r.srcCategory !== 'noble' },
-      { label: 'Fejky',       filter: r => r.isFake && !r.isFakeNoble },
-      { label: 'Fejk vlaky',  filter: r => r.isFake &&  r.isFakeNoble },
-      { label: 'Šlechtici',   filter: r => r.isNoble || r.srcCategory === 'noble' },
-    ];
-    groups.forEach(g => {
-      const grows = rows.filter(g.filter);
-      if (!grows.length) return;
-      lines.push(`${g.label}:`);
-      grows.forEach((r, i) => {
-        const src    = `${r.srcX}|${r.srcY}`;
-        const tgt    = `${r.tgtX}|${r.tgtY}`;
-        lines.push(`${i+1}) z ${src} na ${tgt}`);
-        lines.push(`Odeslat: ${fmtDT(new Date(r.sendTime))}`);
-        lines.push(`Příchod: ${fmtDT(new Date(r.arrivalTime))}`);
-      });
+    // Příkazy seřazené podle času odeslání (od nejbližšího), jeden pod druhým
+    rows.forEach((r, i) => {
+      const typeLabel = r.isFake && r.isFakeNoble ? 'FEJK VLAK'
+        : r.isFake                                ? 'FEJK'
+        : (r.isNoble || r.srcCategory === 'noble') ? 'VLAK (ŠLECHTIC)'
+        : r.srcCategory === 'fullka'              ? 'FULLKA'
+        : r.srcCategory === 'triq_off'             ? '3/4 OFF'
+        : r.srcCategory === 'half_off'             ? '1/2 OFF'
+        :                                            'OFF';
+      const src = `${r.srcX}|${r.srcY}`;
+      const tgt = `${r.tgtX}|${r.tgtY}`;
+      lines.push(`${i+1}) ${typeLabel}`);
+      lines.push(`${src} → ${tgt}`);
+      lines.push(`Odeslat v: ${fmtDT(new Date(r.sendTime))}`);
+      lines.push(`Příchod v: ${fmtDT(new Date(r.arrivalTime))}`);
       lines.push('');
     });
 
