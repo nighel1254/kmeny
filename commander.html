@@ -2147,7 +2147,7 @@ function renderResults(nightWarnings) {
   });
   if (search) {
     visible = visible.filter(r =>
-      `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''}`.toLowerCase().includes(search)
+      `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${typeSearchText(r)}`.toLowerCase().includes(search)
     );
   }
 
@@ -2323,6 +2323,17 @@ function setSort(col) {
 function sortIndicator(col) {
   if (currentSort !== col) return '<span style="opacity:.3">↕</span>';
   return sortAsc ? '↑' : '↓';
+}
+
+// Textový popis typu pro vyhledávání – odpovídá tomu, co se reálně zobrazuje ve sloupci "Typ"
+function typeSearchText(r) {
+  if (r.isFake && r.isFakeNoble) return 'fejk vlak';
+  if (r.isFake) return 'fejk';
+  if (r.isNoble || r.srcCategory === 'noble') return 'vlak šlechtic';
+  if (r.srcCategory === 'fullka')   return 'fullka';
+  if (r.srcCategory === 'triq_off') return '3/4 off triq';
+  if (r.srcCategory === 'half_off') return '1/2 off half';
+  return '';
 }
 
 // Vrátí klíč podle toho, jaký typ se ve sloupci "Typ" skutečně ZOBRAZUJE
