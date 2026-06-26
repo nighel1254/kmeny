@@ -188,7 +188,7 @@
           <strong style="color:var(--gold2);">Krok 1 – Export jednotek ze hry</strong><br>
           <span style="color:var(--dim);">Přetáhni toto tlačítko na <strong style="color:var(--text);">lištu záložek</strong> v Chrome, pak ho klikni na stránce <em>Přehled → Vesnice → Jednotky</em> ve hře:</span>
           <div style="margin:10px 0 6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <a id="bm-link" href="javascript:(function(){var tURL='screen=overview_villages&amp;mode=units';if(window.location.href.indexOf(tURL)===-1){alert('Nejsi na spravne strance!\n\nJdi na: Prehled > Vesnice > Vojenské jednotky\na pak klikni bookmarklet znovu.');return;}var UP={spear:1,sword:1,axe:1,archer:1,scout:2,lk:4,archer2:5,tk:6,ram:5,catapult:8,noble:100,paladin:10};var IK={'unit_spear':'spear','unit_sword':'sword','unit_axe':'axe','unit_archer':'archer','unit_spy':'scout','unit_light':'lk','unit_marcher':'archer2','unit_heavy':'tk','unit_ram':'ram','unit_catapult':'catapult','unit_snob':'noble','unit_knight':'paladin'};var ex=document.getElementById('dk-hrac-box');if(ex)ex.remove();var box=document.createElement('div');box.id='dk-hrac-box';box.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;background:#2a1e0e;border:2px solid #d4a84b;border-radius:8px;padding:16px 20px;font-family:monospace;font-size:13px;color:#e8d5a3;min-width:300px;max-width:420px;box-shadow:0 4px 20px rgba(0,0,0,.6);';document.body.appendChild(box);function show(msg){box.innerHTML='<b style=&quot;color:#f0c96a&quot;>DK Export jednotek</b><br><br>'+msg;}show('Nacitam...');var ut=document.getElementById('units_table');if(!ut){show('Tabulka units_table nenalezena!');return;}var colOrder=[];var hrow=ut.querySelector('thead tr');if(!hrow){show('Hlavicka nenalezena!');return;}Array.from(hrow.querySelectorAll('th')).forEach(function(th,idx){var img=th.querySelector('img');if(!img)return;var src=img.src||'';var m=src.match(/unit_(spear|sword|axe|archer|spy|light|marcher|heavy|ram|catapult|snob|knight)/);if(m){var key=IK['unit_'+m[1]];if(key)colOrder.push({unit:key,idx:idx});}});if(!colOrder.length){show('Zadne jednotky v hlavicce!');return;}var pn='';try{if(typeof game_data!=='undefined'&amp;&amp;game_data.player)pn=game_data.player.name;}catch(e){}function readRowNoLabel(tr){var units={};var cells=tr.querySelectorAll('td');colOrder.forEach(function(col){var cell=cells[col.idx];if(!cell)return;var txt=cell.textContent.trim().replace(/[^\d]/g,'');units[col.unit]=txt?(parseInt(txt)||0):0;});return units;}function readRowWithLabel(tr){var units={};var cells=tr.querySelectorAll('td');colOrder.forEach(function(col){var cell=cells[col.idx-1];if(!cell)return;var txt=cell.textContent.trim().replace(/[^\d]/g,'');units[col.unit]=txt?(parseInt(txt)||0):0;});return units;}function offPop(u){var op=0;['axe','lk','tk','ram','catapult','archer2'].forEach(function(k){op+=(u[k]||0)*(UP[k]||0);});return op;}function classify(op){if(op>=18000)return'fullka';if(op>=15000)return'triq_off';if(op>=10000)return'half_off';if(op>=1000)return'mini_off';return'def';}var villages=[];Array.from(ut.querySelectorAll('tbody')).forEach(function(tbody){var nameEl=tbody.querySelector('.quickedit-label');if(!nameEl)return;var fullText=nameEl.textContent.trim();var cm=fullText.match(/\((\d+)\|(\d+)\)/);if(!cm)return;var x=+cm[1],y=+cm[2];var vname=fullText.replace(/\s*\(\d+\|\d+\).*/,'').trim()||(x+'|'+y);var vid=tbody.querySelector('a[href*=&quot;village=&quot;]');var vidm=vid?(vid.href||'').match(/village=(\d+)/):null;var allRows=Array.from(tbody.querySelectorAll('tr'));var vlastniRow=null,celkemRow=null;allRows.forEach(function(tr){var ft=tr.querySelector('td');if(!ft)return;var txt=ft.textContent.replace(/[\s\u00a0]+/g,' ').trim().toLowerCase();if(txt==='celkem')celkemRow=tr;});for(var ri=0;ri<allRows.length;ri++){var cells=allRows[ri].querySelectorAll('td');if(cells.length>=colOrder.length&amp;&amp;allRows[ri]!==celkemRow){vlastniRow=allRows[ri];break;}}var avail={},celk={},travel={};if(vlastniRow)avail=readRowNoLabel(vlastniRow);if(celkemRow)celk=readRowWithLabel(celkemRow);Object.keys(celk).forEach(function(k){travel[k]=Math.max(0,(celk[k]||0)-(avail[k]||0));});var opAvail=offPop(avail);var opTotal=offPop(celk);var nobleAvail=avail.noble||0;var nobleTrav=travel.noble||0;var nobleTotal=nobleAvail+nobleTrav;villages.push({village_name:vname,village_id:vidm?vidm[1]:null,x:x,y:y,player_name:pn,available:avail,traveling:travel,category:classify(opAvail),category_total:classify(opTotal),noble:nobleAvail,noble_traveling:nobleTrav,noble_total:nobleTotal,noble_train:nobleTotal>=4,off_pop:opAvail,off_pop_total:opTotal});});if(!villages.length){show('Zadne vesnice nenalezeny.');return;}function cnt(f,cat){return villages.filter(function(v){return v[f]===cat;}).length;}var totalNobles=villages.reduce(function(s,v){return s+v.noble_total;},0);var totalTrains=villages.filter(function(v){return v.noble_train;}).length;var sum={exported_at:new Date().toISOString(),world:location.hostname.split('.')[0],player_name:pn,total:villages.length,available:{fullka:cnt('category','fullka'),triq_off:cnt('category','triq_off'),half_off:cnt('category','half_off'),mini_off:cnt('category','mini_off'),nobles_available:villages.reduce(function(s,v){return s+v.noble;},0)},total_incl_traveling:{fullka:cnt('category_total','fullka'),triq_off:cnt('category_total','triq_off'),half_off:cnt('category_total','half_off'),mini_off:cnt('category_total','mini_off'),nobles_total:totalNobles,noble_trains:totalTrains},villages:villages};var json=JSON.stringify(sum,null,2);var cb='<button onclick=&quot;document.getElementById(\'dk-hrac-box\').remove()&quot; style=&quot;margin-top:10px;padding:4px 12px;background:#3d2a0a;border:1px solid #d4a84b;color:#e8d5a3;cursor:pointer;border-radius:4px;&quot;>Zavrit</button>';if(navigator.clipboard){navigator.clipboard.writeText(json).then(function(){show('Dostupne: Fullka:'+sum.available.fullka+' 3/4:'+sum.available.triq_off+' 1/2:'+sum.available.half_off+' Mini:'+sum.available.mini_off+' Slechtici:'+sum.available.nobles_available+'<br>Celkem vč. na cestě: Fullka:'+sum.total_incl_traveling.fullka+' 3/4:'+sum.total_incl_traveling.triq_off+' 1/2:'+sum.total_incl_traveling.half_off+' Mini:'+sum.total_incl_traveling.mini_off+'<br>Slechtici celkem:'+totalNobles+' Vlaky (≥4):'+totalTrains+'<br><span style=&quot;color:#7ec87e&quot;>JSON zkopirovan!</span><br>'+cb);}).catch(function(){var w=window.open('','_blank');w.document.write('<pre>'+json+'</pre>');show('JSON v novem okne.<br>'+cb);});}else{var w=window.open('','_blank');w.document.write('<pre>'+json+'</pre>');show('JSON v novem okne.<br>'+cb);}})();" title="⬆ Přetáhni na lištu záložek"
+            <a id="bm-link" href="javascript:(function(){var tURL='screen=overview_villages&amp;mode=units';if(window.location.href.indexOf(tURL)===-1){alert('Nejsi na spravne strance!\n\nJdi na: Prehled > Vesnice > Vojenské jednotky\na pak klikni bookmarklet znovu.');return;}var UP={spear:1,sword:1,axe:1,archer:1,scout:2,lk:4,archer2:5,tk:6,ram:5,catapult:8,noble:100,paladin:10};var IK={'unit_spear':'spear','unit_sword':'sword','unit_axe':'axe','unit_archer':'archer','unit_spy':'scout','unit_light':'lk','unit_marcher':'archer2','unit_heavy':'tk','unit_ram':'ram','unit_catapult':'catapult','unit_snob':'noble','unit_knight':'paladin'};var ex=document.getElementById('dk-hrac-box');if(ex)ex.remove();var box=document.createElement('div');box.id='dk-hrac-box';box.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;background:#2a1e0e;border:2px solid #d4a84b;border-radius:8px;padding:16px 20px;font-family:monospace;font-size:13px;color:#e8d5a3;min-width:300px;max-width:420px;box-shadow:0 4px 20px rgba(0,0,0,.6);';document.body.appendChild(box);function show(msg){box.innerHTML='<b style=&quot;color:#f0c96a&quot;>DK Export jednotek</b><br><br>'+msg;}show('Nacitam...');var ut=document.getElementById('units_table');if(!ut){show('Tabulka units_table nenalezena!');return;}var colOrder=[];var hrow=ut.querySelector('thead tr');if(!hrow){show('Hlavicka nenalezena!');return;}Array.from(hrow.querySelectorAll('th')).forEach(function(th,idx){var img=th.querySelector('img');if(!img)return;var src=img.src||'';var m=src.match(/unit_(spear|sword|axe|archer|spy|light|marcher|heavy|ram|catapult|snob|knight)/);if(m){var key=IK['unit_'+m[1]];if(key)colOrder.push({unit:key,idx:idx});}});if(!colOrder.length){show('Zadne jednotky v hlavicce!');return;}var pn='';try{if(typeof game_data!=='undefined'&amp;&amp;game_data.player)pn=game_data.player.name;}catch(e){}function readRowNoLabel(tr){var units={};var cells=tr.querySelectorAll('td');colOrder.forEach(function(col){var cell=cells[col.idx];if(!cell)return;var txt=cell.textContent.trim().replace(/[^\d]/g,'');units[col.unit]=txt?(parseInt(txt)||0):0;});return units;}function readRowWithLabel(tr){var units={};var cells=tr.querySelectorAll('td');colOrder.forEach(function(col){var cell=cells[col.idx-1];if(!cell)return;var txt=cell.textContent.trim().replace(/[^\d]/g,'');units[col.unit]=txt?(parseInt(txt)||0):0;});return units;}function offPop(u){var op=0;['axe','lk','tk','ram','catapult','archer2'].forEach(function(k){op+=(u[k]||0)*(UP[k]||0);});return op;}function classify(op){if(op>=18000)return'fullka';if(op>=15000)return'triq_off';if(op>=10000)return'half_off';if(op>=1000)return'mini_off';return'def';}var villages=[];Array.from(ut.querySelectorAll('tbody')).forEach(function(tbody){var nameEl=tbody.querySelector('.quickedit-label');if(!nameEl)return;var fullText=nameEl.textContent.trim();var cm=fullText.match(/\((\d+)\|(\d+)\)/);if(!cm)return;var x=+cm[1],y=+cm[2];var vname=fullText.replace(/\s*\(\d+\|\d+\).*/,'').trim()||(x+'|'+y);var vid=tbody.querySelector('a[href*=&quot;village=&quot;]');var vidm=vid?(vid.href||'').match(/village=(\d+)/):null;var allRows=Array.from(tbody.querySelectorAll('tr'));var vlastniRow=null,celkemRow=null;allRows.forEach(function(tr){var ft=tr.querySelector('td');if(!ft)return;var txt=ft.textContent.replace(/[\s\u00a0]+/g,' ').trim().toLowerCase();if(txt==='celkem')celkemRow=tr;});for(var ri=0;ri<allRows.length;ri++){var cells=allRows[ri].querySelectorAll('td');if(cells.length>=colOrder.length&amp;&amp;allRows[ri]!==celkemRow){vlastniRow=allRows[ri];break;}}var avail={},celk={},travel={};if(vlastniRow)avail=readRowNoLabel(vlastniRow);if(celkemRow)celk=readRowWithLabel(celkemRow);Object.keys(celk).forEach(function(k){travel[k]=Math.max(0,(celk[k]||0)-(avail[k]||0));});var opAvail=offPop(avail);var opTotal=offPop(celk);var nobleAvail=avail.noble||0;var nobleTrav=travel.noble||0;var nobleTotal=nobleAvail+nobleTrav;villages.push({village_name:vname,village_id:vidm?vidm[1]:null,x:x,y:y,player_name:pn,available:avail,traveling:travel,category:classify(opAvail),category_total:classify(opTotal),noble:nobleAvail,noble_traveling:nobleTrav,noble_total:nobleTotal,noble_train:nobleTotal>=4,off_pop:opAvail,off_pop_total:opTotal});});if(!villages.length){show('Zadne vesnice nenalezeny.');return;}function cnt(f,cat){return villages.filter(function(v){return v[f]===cat;}).length;}var totalNobles=villages.reduce(function(s,v){return s+v.noble_total;},0);var totalTrains=villages.filter(function(v){return v.noble_train;}).length;var sum={exported_at:new Date().toISOString(),world:location.hostname.split('.')[0],player_name:pn,total:villages.length,available:{fullka:cnt('category','fullka'),triq_off:cnt('category','triq_off'),half_off:cnt('category','half_off'),mini_off:cnt('category','mini_off'),nobles_available:villages.reduce(function(s,v){return s+v.noble;},0)},total_incl_traveling:{fullka:cnt('category_total','fullka'),triq_off:cnt('category_total','triq_off'),half_off:cnt('category_total','half_off'),mini_off:cnt('category_total','mini_off'),nobles_total:totalNobles,noble_trains:totalTrains},villages:villages};var json=JSON.stringify(sum,null,2);window.__dkJson=json;var cb='<button onclick=&quot;navigator.clipboard.writeText(window.__dkJson)&quot; style=&quot;margin-top:10px;margin-right:6px;padding:4px 12px;background:#205020;border:1px solid #4a9a4a;color:#a0e0a0;cursor:pointer;border-radius:4px;&quot;>Kopirovat</button><button onclick=&quot;document.getElementById(\'dk-hrac-box\').remove()&quot; style=&quot;margin-top:10px;padding:4px 12px;background:#3d2a0a;border:1px solid #d4a84b;color:#e8d5a3;cursor:pointer;border-radius:4px;&quot;>Zavrit</button>';if(navigator.clipboard){navigator.clipboard.writeText(json).then(function(){show('Dostupne: Fullka:'+sum.available.fullka+' 3/4:'+sum.available.triq_off+' 1/2:'+sum.available.half_off+' Mini:'+sum.available.mini_off+' Slechtici:'+sum.available.nobles_available+'<br>Celkem vč. na cestě: Fullka:'+sum.total_incl_traveling.fullka+' 3/4:'+sum.total_incl_traveling.triq_off+' 1/2:'+sum.total_incl_traveling.half_off+' Mini:'+sum.total_incl_traveling.mini_off+'<br>Slechtici celkem:'+totalNobles+' Vlaky (≥4):'+totalTrains+'<br><span style=&quot;color:#7ec87e&quot;>JSON zkopirovan!</span><br>'+cb);}).catch(function(){var w=window.open('','_blank');w.document.write('<pre>'+json+'</pre>');show('JSON v novem okne.<br>'+cb);});}else{var w=window.open('','_blank');w.document.write('<pre>'+json+'</pre>');show('JSON v novem okne.<br>'+cb);}})();" title="⬆ Přetáhni na lištu záložek"
               style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,#c4922a,#8b5e10);color:#fff3d0;border:1px solid #d4a84b;border-radius:5px;padding:7px 14px;font-size:13px;font-weight:700;text-decoration:none;cursor:grab;user-select:none;white-space:nowrap;">
               ⚔️ DK Export jednotek
             </a>
@@ -429,9 +429,13 @@
       <div class="panel-header">
         <span>📋 Výsledný plán</span>
         <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;" onclick="saveAction()" title="Uloží toto kolo do plánu a uvolní použité vesnice pro další kolo">➕ Přidat do plánu</button>
           <button class="btn btn-sm btn-green" id="save-plan-btn" onclick="saveToMyPlans()">💾 Uložit</button>
           <button class="btn btn-sm" style="background:#1e1508;border:1px solid var(--border);color:var(--dim);" onclick="clearAll()">✕ Smazat</button>
         </div>
+      </div>
+      <div id="saved-actions-bar" style="display:none;padding:6px 14px;border-bottom:1px solid var(--border);background:#140e04;font-size:12px;color:var(--dim);">
+        📋 Uložené kola: <span id="saved-actions-list"></span>
       </div>
       <div id="attack-summary" style="display:none;"></div>
       <div id="results-filter-bar" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:#140e04;">
@@ -477,6 +481,7 @@ let targets = { sharp:{}, noble:{}, fake:{}, fakenob:{} };
 // targets.sharp = { list:[{x,y,name,id,owner,arrivalTime}] }
 
 let attackRows = [];
+let savedActions = [];   // [{label, rows}] – uložená kola pro sjednocení více plánů
 let cdInterval = null;
 const playedRows = new Set(JSON.parse(localStorage.getItem('dk_myplan_played')||'[]'));
 function rowKey(r){ return `${r.srcX}|${r.srcY}|${r.sendTime}`; }
@@ -1390,6 +1395,64 @@ function startAlarm(evt,rowIdx,link){
   window.open(link,'tw_'+Date.now());
 }
 
+// ── SJEDNOCENÍ VÍCE KOL DO JEDNOHO PLÁNU ─────────────────────
+function saveAction(){
+  if(!attackRows.length){toast('Nejprve vypočítej plán!','err');return;}
+
+  const times=attackRows.map(r=>r.arrivalTime);
+  const minT=Math.min(...times), maxT=Math.max(...times);
+  const label=minT===maxT
+    ? `Kolo ${savedActions.length+1} (příchod ${fmtDT(new Date(minT))})`
+    : `Kolo ${savedActions.length+1} (příchod ${fmtDT(new Date(minT))}–${fmtDT(new Date(maxT))})`;
+
+  savedActions.push({label, rows:[...attackRows]});
+
+  // Uvolni použité vesnice z poolu, ať se nepoužijí znovu v dalším kole
+  const usedSrcs=new Set(attackRows.map(r=>`${r.srcX}|${r.srcY}`));
+  jsonVillages=jsonVillages.filter(v=>!usedSrcs.has(`${v.x}|${v.y}`));
+  if(jsonVillages.length){ applyMode(); updateSrcCounts(); applyFilter(); }
+  else { offVillages=[]; nobleVillages=[]; document.getElementById('src-overview').style.display='none'; }
+
+  attackRows=[];
+  renderResults();
+  refreshSavedActionsBar();
+  toast(`✓ Kolo uloženo: ${label} – zbývá ${jsonVillages.length} vesnic v poolu`,'ok',5000);
+}
+
+function refreshSavedActionsBar(){
+  const bar=document.getElementById('saved-actions-bar');
+  const list=document.getElementById('saved-actions-list');
+  if(!savedActions.length){ bar.style.display='none'; return; }
+  bar.style.display='block';
+  list.innerHTML=savedActions.map((a,i)=>{
+    const sharp=a.rows.filter(r=>!r.isFake&&!r.isNoble&&!r.isFakeNoble).length;
+    const fakes=a.rows.filter(r=>r.isFake).length;
+    const nobles=a.rows.filter(r=>r.isNoble).length;
+    return `<span style="display:inline-flex;align-items:center;gap:6px;background:#1a1208;border:1px solid var(--border);border-radius:5px;padding:3px 9px;margin-right:6px;margin-bottom:4px;">
+      <strong style="color:var(--gold2);">${a.label}</strong>
+      <span style="color:var(--dim);">⚔️${sharp} 💨${fakes} 👑${nobles}</span>
+      <button onclick="editSavedAction(${i})" title="Vrátit zpět k editaci" style="background:#2a1e0e;border:1px solid var(--border);border-radius:3px;padding:1px 6px;color:var(--gold);cursor:pointer;font-size:11px;">✏️</button>
+    </span>`;
+  }).join('');
+}
+
+function editSavedAction(idx){
+  const action=savedActions[idx];
+  if(!action) return;
+  if(attackRows.length && !confirm('Aktuální nevypočítané/needitované kolo bude ztraceno. Pokračovat?')) return;
+
+  attackRows=[...action.rows];
+  savedActions.splice(idx,1);
+  refreshSavedActionsBar();
+  renderResults();
+  toast('✏️ Kolo vráceno k editaci – uprav cíle/vesnice a klikni "Vypočítat plán"','info',6000);
+}
+
+function clearSavedActions(){
+  savedActions=[];
+  refreshSavedActionsBar();
+}
+
 // ── SAVE / EDIT ──────────────────────────────────────────────
 let editingAssignmentId = null;
 
@@ -1397,6 +1460,7 @@ function buildPlanInput(){
   return {
     jsonVillages,
     targetState,
+    savedActions,
     settings: {
       sharpCount: document.getElementById('sharp-count').value,
       fakeCount: document.getElementById('fake-count').value,
@@ -1413,7 +1477,8 @@ function updateSaveButtonLabel(){
 }
 
 async function saveToMyPlans(){
-  if(!attackRows.length){toast('Nejprve vypočítej plán!','err');return;}
+  const allRows=[...savedActions.flatMap(a=>a.rows), ...attackRows];
+  if(!allRows.length){toast('Nejprve vypočítej plán (nebo přidej kolo do plánu)!','err');return;}
   const{data:{session}}=await sb.auth.getSession();
   if(!session){toast('Nejsi přihlášen!','err');return;}
   const{data:profile}=await sb.from('profiles').select('email,player_name').eq('id',session.user.id).single();
@@ -1422,18 +1487,18 @@ async function saveToMyPlans(){
   const planInput=buildPlanInput();
 
   if (editingAssignmentId) {
-    const{error}=await sb.from('plan_assignments').update({rows_data:attackRows, plan_input:planInput}).eq('id',editingAssignmentId);
+    const{error}=await sb.from('plan_assignments').update({rows_data:allRows, plan_input:planInput}).eq('id',editingAssignmentId);
     if(error){toast('Chyba: '+error.message,'err');return;}
     toast('✓ Plán upraven','ok',5000);
     return;
   }
 
   const label=`Osobní – ${nick} – ${new Date().toLocaleDateString('cs')} ${new Date().toLocaleTimeString('cs',{hour:'2-digit',minute:'2-digit'})}`;
-  const{data,error}=await sb.from('plan_assignments').insert({player_email:email,player_name:nick,rows_data:attackRows,plan_label:label,plan_input:planInput}).select('id').single();
+  const{data,error}=await sb.from('plan_assignments').insert({player_email:email,player_name:nick,rows_data:allRows,plan_label:label,plan_input:planInput}).select('id').single();
   if(error){toast('Chyba: '+error.message,'err');return;}
   editingAssignmentId = data?.id || null;
   updateSaveButtonLabel();
-  toast(`✓ Uloženo jako "${label}"`,'ok',5000);
+  toast(`✓ Uloženo jako "${label}" (${allRows.length} příkazů celkem)`,'ok',5000);
 }
 
 async function loadForEdit(id){
@@ -1442,6 +1507,9 @@ async function loadForEdit(id){
   if(!a.plan_input){toast('Tento plán nelze editovat (uložen ve starším formátu)','err',6000);return;}
   editingAssignmentId=id;
   const input=a.plan_input;
+
+  savedActions = input.savedActions||[];
+  refreshSavedActionsBar();
 
   jsonVillages = input.jsonVillages||[];
   if(jsonVillages.length){
@@ -1477,6 +1545,8 @@ async function loadForEdit(id){
 
 function clearAll(){
   attackRows=[];
+  savedActions=[];
+  refreshSavedActionsBar();
   renderResults();
   clearInterval(cdInterval);
 }
