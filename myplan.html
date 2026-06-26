@@ -889,13 +889,19 @@ async function calculate() {
     }
   }
 
-  // ── Fejky — nejblíže cíli mají prioritu (zdroje se mohou opakovat) ──
+  // ── Fejky — nejblíže cíli mají prioritu, max FAKE_MAX_REUSE použití na vesnici ──
+  const FAKE_MAX_REUSE = 3;
   if (fakeCount>0) {
     const fakeSrc = jsonVillages.length ? jsonVillages : offVillages;
+    const fakeUseCount = new Map();
+    let fakeShortage = false;
     for (const tgt of fakeTgts) {
       const sorted = [...fakeSrc].sort(byDistTo(tgt));
       for (let f=0; f<fakeCount; f++) {
-        const src = sorted[f % sorted.length];
+        const src = sorted.find(v => (fakeUseCount.get(`${v.x}|${v.y}`)||0) < FAKE_MAX_REUSE);
+        if (!src) { fakeShortage = true; break; }
+        const key = `${src.x}|${src.y}`;
+        fakeUseCount.set(key, (fakeUseCount.get(key)||0)+1);
         const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
         const sendTime = tgt.arrivalTime - travel;
         attackRows.push({
@@ -907,15 +913,21 @@ async function calculate() {
         });
       }
     }
+    if (fakeShortage) toast(`⚠ Nedostatek vesnic na fejky (každá max ${FAKE_MAX_REUSE}×)!`, 'info', 5000);
   }
 
-  // ── Fejk vlaky — nejblíže cíli mají prioritu ──
+  // ── Fejk vlaky — nejblíže cíli mají prioritu, max FAKE_MAX_REUSE použití na vesnici ──
   if (fakeNobCnt>0) {
     const fakeSrc = jsonVillages.length ? jsonVillages : offVillages;
+    const fakeNobUseCount = new Map();
+    let fakeNobShortage = false;
     for (const tgt of fakeNobTgts) {
       const sorted = [...fakeSrc].sort(byDistTo(tgt));
       for (let f=0; f<fakeNobCnt; f++) {
-        const src = sorted[f % sorted.length];
+        const src = sorted.find(v => (fakeNobUseCount.get(`${v.x}|${v.y}`)||0) < FAKE_MAX_REUSE);
+        if (!src) { fakeNobShortage = true; break; }
+        const key = `${src.x}|${src.y}`;
+        fakeNobUseCount.set(key, (fakeNobUseCount.get(key)||0)+1);
         const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
         const sendTime = tgt.arrivalTime - travel;
         attackRows.push({
@@ -927,6 +939,7 @@ async function calculate() {
         });
       }
     }
+    if (fakeNobShortage) toast(`⚠ Nedostatek vesnic na fejk vlaky (každá max ${FAKE_MAX_REUSE}×)!`, 'info', 5000);
   }
 
   // ── Šlechtici — nejblíže cíli mají prioritu ──
