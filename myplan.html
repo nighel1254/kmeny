@@ -423,7 +423,7 @@
       <div class="panel-header">
         <span>📋 Výsledný plán</span>
         <div style="display:flex;gap:8px;">
-          <button class="btn btn-sm btn-green" onclick="saveToMyPlans()">💾 Uložit</button>
+          <button class="btn btn-sm btn-green" id="save-plan-btn" onclick="saveToMyPlans()">💾 Uložit</button>
           <button class="btn btn-sm" style="background:#1e1508;border:1px solid var(--border);color:var(--dim);" onclick="clearAll()">✕ Smazat</button>
         </div>
       </div>
@@ -896,13 +896,13 @@ async function calculate() {
       const sorted = [...fakeSrc].sort(byDistTo(tgt));
       for (let f=0; f<fakeCount; f++) {
         const src = sorted[f % sorted.length];
-        const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'spear');
+        const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
         const sendTime = tgt.arrivalTime - travel;
         attackRows.push({
           srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
           srcCategory:src.category||'def', srcOwner:src.player_name||'',
           tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
-          unit:'spear', sendTime, arrivalTime:tgt.arrivalTime, travel,
+          unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
           night:isNight(sendTime), isFake:true, isNoble:false, isFakeNoble:false
         });
       }
@@ -916,13 +916,13 @@ async function calculate() {
       const sorted = [...fakeSrc].sort(byDistTo(tgt));
       for (let f=0; f<fakeNobCnt; f++) {
         const src = sorted[f % sorted.length];
-        const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'noble');
+        const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
         const sendTime = tgt.arrivalTime - travel;
         attackRows.push({
           srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
           srcCategory:src.category||'def', srcOwner:src.player_name||'',
           tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
-          unit:'noble', sendTime, arrivalTime:tgt.arrivalTime, travel,
+          unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
           night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:true
         });
       }
@@ -1081,7 +1081,28 @@ function startAlarm(evt,rowIdx,link){
   window.open(link,'tw_'+Date.now());
 }
 
-// ── SAVE ───────────────────────────────────────────────────
+// ── SAVE / EDIT ──────────────────────────────────────────────
+let editingAssignmentId = null;
+
+function buildPlanInput(){
+  return {
+    jsonVillages,
+    targetState,
+    settings: {
+      sharpCount: document.getElementById('sharp-count').value,
+      fakeCount: document.getElementById('fake-count').value,
+      fakeNobCnt: document.getElementById('fakenob-count').value,
+      noblePerTgt: document.getElementById('noble-per-target').value,
+      planMode
+    }
+  };
+}
+
+function updateSaveButtonLabel(){
+  const btn=document.getElementById('save-plan-btn');
+  if(btn) btn.innerHTML = editingAssignmentId ? '💾 Uložit změny' : '💾 Uložit';
+}
+
 async function saveToMyPlans(){
   if(!attackRows.length){toast('Nejprve vypočítej plán!','err');return;}
   const{data:{session}}=await sb.auth.getSession();
@@ -1089,10 +1110,60 @@ async function saveToMyPlans(){
   const{data:profile}=await sb.from('profiles').select('email,player_name').eq('id',session.user.id).single();
   const nick=profile?.player_name||'?';
   const email=profile?.email||session.user.email;
+  const planInput=buildPlanInput();
+
+  if (editingAssignmentId) {
+    const{error}=await sb.from('plan_assignments').update({rows_data:attackRows, plan_input:planInput}).eq('id',editingAssignmentId);
+    if(error){toast('Chyba: '+error.message,'err');return;}
+    toast('✓ Plán upraven','ok',5000);
+    return;
+  }
+
   const label=`Osobní – ${nick} – ${new Date().toLocaleDateString('cs')} ${new Date().toLocaleTimeString('cs',{hour:'2-digit',minute:'2-digit'})}`;
-  const{error}=await sb.from('plan_assignments').insert({player_email:email,player_name:nick,rows_data:attackRows,plan_label:label});
+  const{data,error}=await sb.from('plan_assignments').insert({player_email:email,player_name:nick,rows_data:attackRows,plan_label:label,plan_input:planInput}).select('id').single();
   if(error){toast('Chyba: '+error.message,'err');return;}
+  editingAssignmentId = data?.id || null;
+  updateSaveButtonLabel();
   toast(`✓ Uloženo jako "${label}"`,'ok',5000);
+}
+
+async function loadForEdit(id){
+  const{data:a,error}=await sb.from('plan_assignments').select('*').eq('id',id).single();
+  if(error||!a){toast('Plán k editaci nenalezen','err');return;}
+  if(!a.plan_input){toast('Tento plán nelze editovat (uložen ve starším formátu)','err',6000);return;}
+  editingAssignmentId=id;
+  const input=a.plan_input;
+
+  jsonVillages = input.jsonVillages||[];
+  if(jsonVillages.length){
+    applyMode();
+    document.getElementById('src-overview').style.display='block';
+    updateSrcCounts();
+    applyFilter();
+  }
+
+  const s=input.settings||{};
+  if(s.sharpCount!=null)document.getElementById('sharp-count').value=s.sharpCount;
+  if(s.fakeCount!=null)document.getElementById('fake-count').value=s.fakeCount;
+  if(s.fakeNobCnt!=null)document.getElementById('fakenob-count').value=s.fakeNobCnt;
+  if(s.noblePerTgt!=null)document.getElementById('noble-per-target').value=s.noblePerTgt;
+  if(s.planMode) setMode(s.planMode);
+
+  for(const type of ['sharp','noble','fake','fakenob']){
+    const list=(input.targetState&&input.targetState[type])||[];
+    targetState[type]=list;
+    if(list.length){
+      const coordsEl=document.getElementById(`${type}-coords`);
+      if(coordsEl) coordsEl.value=list.map(c=>`${c.x}|${c.y}`).join('\n');
+      const info=document.getElementById(`${type}-count-info`);
+      if(info) info.textContent=`✓ ${list.length} cílů`;
+      document.getElementById(`${type}-tgt-wrap`).style.display='block';
+      renderTargetList(type);
+    }
+  }
+
+  updateSaveButtonLabel();
+  toast('✏️ Plán načten k editaci – uprav a klikni "Vypočítat plán"','info',6000);
 }
 
 function clearAll(){
@@ -1128,6 +1199,9 @@ async function init(){
   document.body.style.visibility='visible';
 
   loadWorldConfig();
+
+  const editId=new URLSearchParams(location.search).get('edit');
+  if(editId) loadForEdit(editId);
 }
 window.addEventListener('DOMContentLoaded',init);
 </script>

@@ -295,6 +295,7 @@ async function loadPlans(email) {
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;">
+          ${!a.plan_id ? `<button class="btn-open" style="border-color:var(--gold2);color:var(--gold2);" onclick="editPlan('${a.id}')">✎ Upravit</button>` : ''}
           <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít</button>
           <button class="btn-del" onclick="deletePlan('${a.id}',this)">🗑</button>
         </div>
@@ -309,6 +310,10 @@ async function loadPlans(email) {
       </div>
     </div>`;
   }).join('');
+}
+
+function editPlan(assignmentId) {
+  window.location.href = `myplan.html?edit=${assignmentId}`;
 }
 
 async function openPlan(assignmentId) {
