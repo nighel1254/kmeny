@@ -2325,6 +2325,18 @@ function sortIndicator(col) {
   return sortAsc ? '↑' : '↓';
 }
 
+// Vrátí klíč podle toho, jaký typ se ve sloupci "Typ" skutečně ZOBRAZUJE
+// (kombinace isFake/isFakeNoble/isNoble/srcCategory – ne jen samotná kategorie zdroje)
+function typeSortKey(r) {
+  if (r.isFake && r.isFakeNoble) return '1_fejk_vlak';
+  if (r.isFake)                  return '2_fejk';
+  if (r.isNoble || r.srcCategory === 'noble') return '3_vlak';
+  if (r.srcCategory === 'fullka')   return '4_fullka';
+  if (r.srcCategory === 'triq_off') return '5_triq';
+  if (r.srcCategory === 'half_off') return '6_half';
+  return '7_ostatni';
+}
+
 function applySortToVisible(arr) {
   const dir = sortAsc ? 1 : -1;
   return [...arr].sort((a, b) => {
@@ -2332,7 +2344,7 @@ function applySortToVisible(arr) {
       case 'idx':    return dir * (attackRows.indexOf(a) - attackRows.indexOf(b));
       case 'player': return dir * (a.srcPlayer||'').localeCompare(b.srcPlayer||'');
       case 'src':    return dir * (`${a.srcX}|${a.srcY}`).localeCompare(`${b.srcX}|${b.srcY}`);
-      case 'type':   return dir * (a.srcCategory||'').localeCompare(b.srcCategory||'');
+      case 'type':   return dir * typeSortKey(a).localeCompare(typeSortKey(b));
       case 'tgt':    return dir * (`${a.tgtX}|${a.tgtY}`).localeCompare(`${b.tgtX}|${b.tgtY}`);
       case 'send':   return dir * (a.sendTime - b.sendTime);
       case 'arrive': return dir * (a.arrivalTime - b.arrivalTime);
@@ -2427,10 +2439,10 @@ function editAction(idx) {
   if (!action) return;
 
   attackRows = [...action.rows];
-  warnings = [];
+  lastNightWarnings = [];
 
   const usedCoords = new Set(action.rows.map(r => `${r.srcX}|${r.srcY}`));
-  const restored = jsonVillages.filter(v => usedCoords.has(`${v.x}|${v.y}`) && !srcVillages.find(s => s.x===v.x && s.y===v.y));
+  const restored = importedJsonVillages.filter(v => usedCoords.has(`${v.x}|${v.y}`) && !srcVillages.find(s => s.x===v.x && s.y===v.y));
   srcVillages = [...srcVillages, ...restored];
 
   savedActions.splice(idx, 1);
@@ -3351,7 +3363,10 @@ function restoreAutosave() {
   if (_autosaveState && applyPlanState(_autosaveState)) {
     toast('Plán obnoven z automatického uložení.', 'ok');
   }
-  dismissAutosave();
+  // Jen skryj banner – data jsou teď živá v plánu a autosave() je bude dál udržovat aktuální.
+  // (NEmazat DB řádek – na rozdíl od "Zahodit" tady chceme data zachovat.)
+  document.getElementById('autosave-banner').style.display = 'none';
+  _autosaveState = null;
 }
 
 async function dismissAutosave() {
