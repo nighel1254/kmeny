@@ -153,6 +153,11 @@
 <body style="visibility:hidden">
 <div id="toast-container"></div>
 
+<div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #2a1e00;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);">
+  <span style="flex:1;">🔔 Zvukové upozornění 2 min před odesláním</span>
+  <button id="audio-unlock-btn" onclick="unlockAudio()" style="background:#2a1e00;color:var(--gold);border:1px solid #3a2800;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;white-space:nowrap;">Zapnout</button>
+</div>
+
 <div class="header">
   <div style="display:flex;align-items:center;gap:10px;">
     <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:24px;height:24px;filter:sepia(1)saturate(4)hue-rotate(330deg) drop-shadow(0 1px 4px rgba(0,0,0,.8));">
@@ -164,6 +169,7 @@
       <span style="color:var(--gold);">⚔️</span>
       <span style="font-size:13px;font-weight:600;color:var(--gold2);" id="nav-user-name">…</span>
     </div>
+    <button id="notif-btn" onclick="enableNotifications()" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">🔔 Notifikace</button>
     <a href="dashboard.html" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;text-decoration:none;">← Moje plány</a>
     <button onclick="doLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">Odhlásit</button>
   </div>
@@ -428,6 +434,10 @@
         </div>
       </div>
       <div id="attack-summary" style="display:none;"></div>
+      <div id="results-filter-bar" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:#140e04;">
+        <input type="text" id="results-search" placeholder="🔍 Filtr – vesnice, hráč, typ…" oninput="renderResults()"
+          style="width:100%;background:#1a1208;border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:20px;font-size:12px;outline:none;">
+      </div>
       <div class="panel-body attack-table-wrap" id="results-area">
         <div style="text-align:center;padding:40px;color:var(--dim);">
           <div style="font-size:36px;margin-bottom:8px;">⚔️</div>
@@ -470,6 +480,212 @@ let attackRows = [];
 let cdInterval = null;
 const playedRows = new Set(JSON.parse(localStorage.getItem('dk_myplan_played')||'[]'));
 function rowKey(r){ return `${r.srcX}|${r.srcY}|${r.sendTime}`; }
+
+// ── ZVUK SIRÉNY ────────────────────────────────────────────
+let audioUnlocked = localStorage.getItem('dk_audio_unlocked') === '1';
+let _audioResumeInterval = null;
+
+function unlockAudio() {
+  if (audioUnlocked) {
+    audioUnlocked = false;
+    localStorage.removeItem('dk_audio_unlocked');
+    if (_audioResumeInterval) { clearInterval(_audioResumeInterval); _audioResumeInterval = null; }
+    const btn = document.getElementById('audio-unlock-btn');
+    const banner = document.getElementById('audio-banner');
+    if (banner) { banner.style.background='#0f0c02'; banner.style.borderColor='#2a1e00'; }
+    if (btn) { btn.textContent='Zapnout'; btn.style.background='#2a1e00'; btn.style.color='var(--gold)'; }
+    return;
+  }
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf; src.connect(ctx.destination); src.start(0);
+    ctx.close();
+
+    audioUnlocked = true;
+    localStorage.setItem('dk_audio_unlocked', '1');
+
+    const banner = document.getElementById('audio-banner');
+    const btn = document.getElementById('audio-unlock-btn');
+    if (banner) { banner.style.background='#0a1a0a'; banner.style.borderColor='#1a4a1a'; }
+    if (btn) { btn.textContent='✓ Zapnuto'; btn.style.background='#205020'; btn.style.color='#80d080'; }
+
+    setTimeout(() => playSiren(0.15), 200);
+
+    _audioResumeInterval = setInterval(() => {
+      if (!audioUnlocked) return;
+      try {
+        const ctx2 = new (window.AudioContext || window.webkitAudioContext)();
+        const buf2 = ctx2.createBuffer(1, 1, 22050);
+        const src2 = ctx2.createBufferSource();
+        src2.buffer = buf2; src2.connect(ctx2.destination); src2.start(0);
+        setTimeout(() => ctx2.close(), 100);
+      } catch(e) {}
+    }, 25000);
+  } catch(e) { console.warn('Audio unlock failed:', e); }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && audioUnlocked) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const buf = ctx.createBuffer(1,1,22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf; src.connect(ctx.destination); src.start(0);
+      setTimeout(() => ctx.close(), 200);
+    } catch(e) {}
+    checkSirenAlerts();
+  }
+});
+
+function playSiren(volume = 0.4) {
+  if (!audioUnlocked) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    const notes = [
+      { freq: 523, t: 0,    dur: 0.12 }, { freq: 659, t: 0.13, dur: 0.12 },
+      { freq: 784, t: 0.26, dur: 0.12 }, { freq: 1047,t: 0.39, dur: 0.25 },
+      { freq: 784, t: 0.65, dur: 0.12 }, { freq: 1047,t: 0.78, dur: 0.4  },
+    ];
+    notes.forEach(({ freq, t, dur }) => {
+      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'triangle'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime + t);
+      gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + t + 0.01);
+      gain.gain.setValueAtTime(volume, ctx.currentTime + t + dur - 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + dur);
+      osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + dur + 0.05);
+    });
+    setTimeout(() => ctx.close(), 1500);
+  } catch(e) { console.warn('Audio error:', e); }
+}
+
+const siren2minAlerted = new Set();
+function checkSirenAlerts() {
+  if (!audioUnlocked) return;
+  const now = Date.now();
+  attackRows.forEach(r => {
+    const key = rowKey(r);
+    if (playedRows.has(key) || siren2minAlerted.has(key)) return;
+    const diff = r.sendTime - now;
+    if (diff > 0 && diff <= 120000) {
+      siren2minAlerted.add(key);
+      playSiren();
+      const tEl = document.createElement('div');
+      tEl.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.8);';
+      tEl.innerHTML = `⏰ 2 minuty do odeslání!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</span>`;
+      document.body.appendChild(tEl);
+      setTimeout(() => tEl.remove(), 8000);
+    }
+  });
+}
+
+// ── WEB PUSH NOTIFIKACE ────────────────────────────────────
+const VAPID_PUBLIC = 'BHrpp7MbdTooRg22UB1ePAGUfmJR2oHhH_BTqhzDKxGnrsJLpprM9vJdz914Nqcy5NCBJsjtAUvJoN5NUo4OzOY';
+let swRegistration = null;
+
+async function initServiceWorker() {
+  if (!('serviceWorker' in navigator)) return null;
+  try {
+    swRegistration = await navigator.serviceWorker.register('/kmeny/sw.js');
+    await navigator.serviceWorker.ready;
+    return swRegistration;
+  } catch(e) { console.warn('SW failed:', e); return null; }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function enableNotifications() {
+  if (localStorage.getItem('dk_notif_enabled') === '1') {
+    localStorage.removeItem('dk_notif_enabled');
+    updateNotifButton(false);
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const deviceId = localStorage.getItem('dk_device_id') || 'default';
+      if (session) await sb.from('push_subscriptions').delete().eq('user_id', session.user.id).eq('device_id', deviceId);
+    } catch(e) {}
+    toast('Notifikace vypnuty.', 'info');
+    return;
+  }
+
+  if (!('Notification' in window)) { toast('Prohlížeč nepodporuje notifikace.', 'err'); return; }
+
+  const reg = await initServiceWorker();
+  if (!reg) { toast('Service Worker se nepodařilo spustit.', 'err'); return; }
+
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') { toast('Notifikace nebyly povoleny.', 'err'); return; }
+
+  try {
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC)
+      });
+    }
+
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { toast('Nejsi přihlášen.', 'err'); return; }
+
+    const alarms = attackRows
+      .filter(r => !playedRows.has(rowKey(r)))
+      .map(r => ({ send_time: Math.round(r.sendTime), src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r) }))
+      .filter(a => a.send_time - Date.now() > 60000);
+
+    let deviceId = localStorage.getItem('dk_device_id');
+    if (!deviceId) { deviceId = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('dk_device_id', deviceId); }
+
+    const subJson = JSON.stringify(sub.toJSON());
+    await sb.from('push_subscriptions').upsert({
+      user_id: session.user.id, device_id: deviceId, subscription: subJson,
+      alarms: alarms, updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,device_id' });
+
+    localStorage.setItem('dk_notif_enabled', '1');
+    updateNotifButton(true);
+    toast(`✓ Notifikace zapnuty! Naplánováno ${alarms.length} upozornění.`, 'ok', 5000);
+  } catch(e) {
+    console.error('Push subscription failed:', e);
+    toast('Nepodařilo se aktivovat notifikace: ' + e.message, 'err', 6000);
+  }
+}
+
+function updateNotifButton(enabled) {
+  const btn = document.getElementById('notif-btn');
+  if (!btn) return;
+  if (enabled) { btn.textContent = '🔔 Notifikace ✓'; btn.style.color = '#60d060'; btn.style.borderColor = '#1a4a1a'; }
+  else { btn.textContent = '🔔 Notifikace'; btn.style.color = ''; btn.style.borderColor = ''; }
+}
+
+async function scheduleNotifications(rows) {
+  if (localStorage.getItem('dk_notif_enabled') !== '1') return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    const reg = await initServiceWorker();
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const alarms = rows
+      .filter(r => !playedRows.has(rowKey(r)))
+      .map(r => ({ send_time: Math.round(r.sendTime), src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r) }))
+      .filter(a => a.send_time - Date.now() > 60000);
+    const deviceId = localStorage.getItem('dk_device_id') || 'default';
+    await sb.from('push_subscriptions').update({
+      alarms: alarms, updated_at: new Date().toISOString()
+    }).eq('user_id', session.user.id).eq('device_id', deviceId);
+  } catch(e) { console.warn('Schedule update failed:', e); }
+}
 
 // ── UNIT IMGS ──────────────────────────────────────────────
 const UNIT_EMOJI = {ram:'🪨',lk:'🐎',scout:'🔍',axe:'🪓',tk:'🛡️',spear:'⚔️',sword:'🗡️',catapult:'💣',paladin:'✨',noble:'👑'};
@@ -983,6 +1199,7 @@ async function calculate() {
   attackRows = attackRows.filter(r => r.sendTime > _now);
   if (!attackRows.length) { toast('⚠ Všechny útoky jsou v minulosti — zkontroluj časy dopadu!', 'err', 6000); return; }
   renderResults();
+  setTimeout(() => scheduleNotifications(attackRows), 500);
 }
 
 // ── RENDER ─────────────────────────────────────────────────
@@ -1007,12 +1224,15 @@ function typeChip(r){
 
 function renderResults(){
   const area=document.getElementById('results-area');
+  const filterBar=document.getElementById('results-filter-bar');
   const now=Date.now();
   if(!attackRows.length){
     area.innerHTML='<div style="text-align:center;padding:40px;color:var(--dim);"><div style="font-size:36px;margin-bottom:8px;">⚔️</div><div>Žádné útoky</div></div>';
     document.getElementById('attack-summary').style.display='none';
+    if(filterBar) filterBar.style.display='none';
     return;
   }
+  if(filterBar) filterBar.style.display='block';
 
   // Summary
   const sumEl=document.getElementById('attack-summary');
@@ -1033,16 +1253,27 @@ function renderResults(){
   let warn='';
   if(nightRows.length) warn=`<div class="warning-box">🌙 <strong>${nightRows.length} útoků</strong> musí být odesláno v noci (00:00–06:00).</div>`;
 
+  // Filter (search)
+  const search=(document.getElementById('results-search')?.value||'').trim().toLowerCase();
+  let visible=attackRows;
+  if(search){
+    visible=attackRows.filter(r=>
+      `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcOwner||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''} ${r.unit||''}`
+        .toLowerCase().includes(search)
+    );
+  }
+
   let html=`<table class="attacks"><thead><tr>
     <th>#</th><th>Zdroj</th><th>Typ</th><th>Cíl</th><th>Čas odeslání</th><th>Čas příchodu</th><th>Cesta</th><th>Odpočet</th><th>▶</th>
   </tr></thead><tbody>`;
 
-  attackRows.forEach((r,i)=>{
+  visible.forEach((r,i)=>{
+    const rowIdx=attackRows.indexOf(r);
     const past=r.sendTime<now, played=playedRows.has(rowKey(r));
     const rowCls=played?'played-row':past?'past-row':r.night?'night-row':'';
     const sendCls=r.night?'send-time night':'send-time';
     const gameLink=r.srcId?(r.tgtId?`${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`:`${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`):`${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
-    html+=`<tr class="${rowCls}" data-rowidx="${i}">
+    html+=`<tr class="${rowCls}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span>${r.srcOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.srcOwner})</span>`:''}</td>
       <td>${typeChip(r)}</td>
@@ -1051,7 +1282,10 @@ function renderResults(){
       <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
       <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
       <td><span class="countdown" data-send="${r.sendTime}"></span></td>
-      <td><a class="play-btn" href="#" onclick="startAlarm(event,${i},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a></td>
+      <td style="white-space:nowrap;">
+        <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
+        <button onclick="replanRow(${rowIdx})" title="Přeplánovat tento příkaz (zapomněl jsem odeslat)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>
+      </td>
     </tr>`;
   });
 
@@ -1059,7 +1293,67 @@ function renderResults(){
   area.innerHTML=warn+`<div class="attack-table-wrap">${html}</div>`;
   updateCountdowns();
   clearInterval(cdInterval);
-  cdInterval=setInterval(updateCountdowns,500);
+  cdInterval=setInterval(()=>{updateCountdowns();checkSirenAlerts();},500);
+}
+
+// ── PŘEPLÁNOVÁNÍ JEDNOHO PŘÍKAZU ────────────────────────────
+function replanRow(rowIdx){
+  const row=attackRows[rowIdx];
+  if(!row) return;
+  const pool=jsonVillages.length?jsonVillages:offVillages;
+  if(!pool.length){toast('Žádné zdrojové vesnice k dispozici.','err');return;}
+
+  const now=Date.now();
+  const usageCount={};
+  attackRows.forEach((r,i)=>{
+    if(i===rowIdx) return;
+    const key=`${r.srcX}|${r.srcY}`;
+    usageCount[key]=(usageCount[key]||0)+1;
+  });
+
+  const catPriority={fullka:3,triq_off:2,half_off:1,mini_off:0};
+  const origCatVal=catPriority[row.srcCategory]??-1;
+
+  const candidates=[];
+  for(const v of pool){
+    const vx=v.x, vy=v.y;
+    if(vx===row.srcX&&vy===row.srcY) continue; // stejná vesnice jako už zapomenutý příkaz
+    if(row.srcCategory!=='noble'){
+      const vCat=v._category||v.category||'def';
+      const vCatVal=catPriority[vCat]??-1;
+      if(origCatVal>=0 && vCatVal<origCatVal) continue; // musí být stejná nebo lepší kategorie
+    }
+    const unit=row.unit||'ram';
+    const travel=travelMs(vx,vy,row.tgtX,row.tgtY,unit);
+    const sendTime=row.arrivalTime-travel;
+    if(sendTime<now+60000) continue; // nesmí být v minulosti
+    candidates.push({
+      srcX:vx, srcY:vy, srcName:v.village_name||`${vx}|${vy}`, srcId:v.village_id||null,
+      srcCategory:row.srcCategory==='noble'?'noble':(v._category||v.category||'def'),
+      srcOwner:v.player_name||'',
+      tgtX:row.tgtX, tgtY:row.tgtY, tgtName:row.tgtName, tgtId:row.tgtId, tgtOwner:row.tgtOwner,
+      unit, sendTime, arrivalTime:row.arrivalTime, travel,
+      night:isNight(sendTime), isFake:row.isFake, isNoble:row.isNoble, isFakeNoble:row.isFakeNoble,
+      usage:usageCount[`${vx}|${vy}`]||0
+    });
+  }
+
+  if(!candidates.length){
+    toast('⚠ Nenalezena žádná vhodná náhradní vesnice (čas by vyšel v minulosti).','err',6000);
+    return;
+  }
+
+  candidates.sort((a,b)=>{
+    if(a.night!==b.night) return a.night?1:-1;
+    if(a.usage!==b.usage) return a.usage-b.usage;
+    const da=Math.abs(a.srcX-row.srcX)+Math.abs(a.srcY-row.srcY);
+    const db=Math.abs(b.srcX-row.srcX)+Math.abs(b.srcY-row.srcY);
+    return da-db;
+  });
+
+  attackRows[rowIdx]=candidates[0];
+  renderResults();
+  toast(`✓ Přeplánováno: nový zdroj ${candidates[0].srcX}|${candidates[0].srcY}${candidates[0].night?' (⚠ noc!)':''}`,'ok',5000);
 }
 
 function updateCountdowns(){
@@ -1212,6 +1506,14 @@ async function init(){
   document.body.style.visibility='visible';
 
   loadWorldConfig();
+
+  if (audioUnlocked) {
+    const banner=document.getElementById('audio-banner');
+    const abtn=document.getElementById('audio-unlock-btn');
+    if (banner) { banner.style.background='#0a1a0a'; banner.style.borderColor='#1a4a1a'; }
+    if (abtn) { abtn.textContent='✓ Zapnuto'; abtn.style.background='#205020'; abtn.style.color='#80d080'; }
+  }
+  if (localStorage.getItem('dk_notif_enabled')==='1') updateNotifButton(true);
 
   const editId=new URLSearchParams(location.search).get('edit');
   if(editId) loadForEdit(editId);
