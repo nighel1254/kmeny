@@ -2720,7 +2720,7 @@ function playerDataToUrl(playerName, rows) {
 }
 
 function openExport() {
-  const allRows = [...savedActions.flatMap(a => a.rows), ...attackRows];
+  const allRows = getAllRowsIncludingCurrent(); // dedupuje překryv mezi savedActions a attackRows
   if (!allRows.length) { toast('Nejprve vypočítej plán nebo ulož akci!', 'err'); return; }
 
   const hideNight = document.getElementById('hide-night').checked;
