@@ -2619,7 +2619,18 @@ function applyPlanState(state) {
   const allRowsForCoords = [...savedActions.flatMap(a => a.rows), ...attackRows];
   const reconstructed = targetsFromRows(allRowsForCoords);
   if (reconstructed.length) {
-    coordTargets = reconstructed;
+    // Najdi nejčastější (převažující) čas příchodu mezi cíli – ten bude "globální".
+    // Cíle s tímto časem se nastaví na arrivalTime=null (= řídí se globálním polem, takže
+    // jeho pozdější změna se znovu propíše); cíle s jiným (vlastním) časem si ho zachovají.
+    const counts = new Map();
+    reconstructed.forEach(c => counts.set(c.arrivalTime, (counts.get(c.arrivalTime) || 0) + 1));
+    let modeTime = null, modeCount = 0;
+    for (const [t, cnt] of counts) { if (cnt > modeCount) { modeTime = t; modeCount = cnt; } }
+
+    coordTargets = reconstructed.map(c => c.arrivalTime === modeTime ? { ...c, arrivalTime: null } : c);
+    const globalInput = document.getElementById('global-arrival');
+    if (globalInput && modeTime) globalInput.value = toLocalDT(modeTime);
+
     const pasteEl = document.getElementById('coords-paste');
     if (pasteEl) pasteEl.value = coordTargets.map(c => `${c.x}|${c.y}`).join('\n');
     renderCoordList();
