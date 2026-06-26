@@ -73,8 +73,13 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const FAKE_DOMAIN = '@dk.cs112.tw';
 
 // Nick → fake email
+// Háčky/čárky a jiné znaky, co Supabase v emailu nepovolí, se odstraní/normalizují.
+// Pro čistě ASCII nicky (bez diakritiky) je výstup stejný jako dřív – staré přihlášení nepřestane fungovat.
 function nickToEmail(nick) {
-  return nick.toLowerCase().trim() + FAKE_DOMAIN;
+  const slug = nick.toLowerCase().trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // č→c, ř→r, š→s, ý→y, …
+    .replace(/[^a-z0-9._-]/g, '_'); // cokoliv jiného (mezery, hranaté závorky apod.)
+  return slug + FAKE_DOMAIN;
 }
 
 function showTab(tab) {
