@@ -137,8 +137,8 @@ const twImg = (url, style='') => `<img src="${url}" style="width:18px;height:18p
 const NOBLE_FLIP = `<img src="${API_IMG}/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;transform:rotate(180deg);" onerror="this.style.display='none'">`;
 const NOBLE_NORM = `<img src="${API_IMG}/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
 const AXE_RED = twImg(LARGE_ICO);
-const AXE_YEL = twImg(MEDIUM_ICO);
-const AXE_BRN = twImg(SMALL_ICO);
+const AXE_YEL = `<img src="${API_IMG}/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(20deg)" onerror="this.style.display='none'">`;
+const AXE_BRN = `<img src="${API_IMG}/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(3)brightness(0.85)" onerror="this.style.display='none'">`;
 const AXE_GRN = twImg(MEDIUM_ICO,'filter:hue-rotate(90deg)saturate(1.4)');
 
 function typeChip(r) {

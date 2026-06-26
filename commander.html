@@ -2012,14 +2012,16 @@ function renderResults(nightWarnings) {
     let typeHtml;
     const AXE_RED=twImg(LARGE_ICO);
     const AXE_GRN=twImg(MEDIUM_ICO,'filter:hue-rotate(90deg)saturate(1.4)');
+    const AXE_YEL=`<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(20deg)" onerror="this.style.display='none'">`;
+    const AXE_BRN=`<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(3)brightness(0.85)" onerror="this.style.display='none'">`;
     if (row.isFake && row.isFakeNoble) {
       typeHtml = `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
     } else if (row.isFake) {
       typeHtml = `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${AXE_GRN} fejk</span>`;
     } else {
       typeHtml = row.srcCategory === 'fullka'   ? `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`
-               : row.srcCategory === 'triq_off' ? `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_RED} 3/4 off</span>`
-               : row.srcCategory === 'half_off' ? `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_RED} 1/2 off</span>`
+               : row.srcCategory === 'triq_off' ? `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 3/4 off</span>`
+               : row.srcCategory === 'half_off' ? `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 1/2 off</span>`
                : row.srcCategory === 'noble'    ? `<span class="chip chip-noble">${NOBLE_NORM} vlak</span>`
                : '';
     }

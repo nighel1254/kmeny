@@ -1211,15 +1211,17 @@ const NOBLE_NORM=`<img src="${API_IMG}/unit_snob.png" style="width:16px;height:1
 const NOBLE_FLIP=`<img src="${API_IMG}/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;transform:rotate(180deg);" onerror="this.style.display='none'">`;
 const AXE_RED=twImg(LARGE_ICO);
 const AXE_GRN=twImg(MEDIUM_ICO,'filter:hue-rotate(90deg)saturate(1.4)');
+const AXE_YEL=`<img src="${API_IMG}/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;filter:sepia(1)saturate(4)hue-rotate(20deg)" onerror="this.style.display='none'">`;
+const AXE_BRN=`<img src="${API_IMG}/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;filter:sepia(1)saturate(3)brightness(0.85)" onerror="this.style.display='none'">`;
 
 function typeChip(r){
   if(r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#fff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
   if(r.isFake)      return `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${AXE_GRN} fejk</span>`;
   if(r.isNoble)     { const pos=r.trainPos?` (${r.trainPos}/${r.trainTotal||'?'})`:''; return `<span class="chip" style="background:#2a0020;color:#ff80c0;border:1px solid #802060">${NOBLE_NORM} vlak${pos}</span>`; }
   if(r.srcCategory==='fullka')   return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`;
-  if(r.srcCategory==='triq_off') return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_RED} 3/4 off</span>`;
-  if(r.srcCategory==='half_off') return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_RED} 1/2 off</span>`;
-  return `<span class="chip" style="background:#1a0800;color:#c06020;border:1px solid #604010">${AXE_RED} mini off</span>`;
+  if(r.srcCategory==='triq_off') return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 3/4 off</span>`;
+  if(r.srcCategory==='half_off') return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 1/2 off</span>`;
+  return `<span class="chip" style="background:#1a0800;color:#c06020;border:1px solid #604010">${AXE_BRN} mini off</span>`;
 }
 
 function renderResults(){
