@@ -1209,8 +1209,8 @@ const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
 const twImg=(url,st='')=>`<img src="${url}" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;${st}" onerror="this.style.display='none'">`;
 const NOBLE_NORM=`<img src="${API_IMG}/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'">`;
 const NOBLE_FLIP=`<img src="${API_IMG}/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;transform:rotate(180deg);" onerror="this.style.display='none'">`;
-const AXE_RED=`<img src="${API_IMG}/unit_ram.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;filter:sepia(1)saturate(4)hue-rotate(330deg)" onerror="this.style.display='none'">`;
-const AXE_GRN=`<img src="${API_IMG}/unit_ram.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;filter:sepia(1)saturate(4)hue-rotate(90deg)brightness(1.3)" onerror="this.style.display='none'">`;
+const AXE_RED=twImg(LARGE_ICO);
+const AXE_GRN=twImg(MEDIUM_ICO,'filter:hue-rotate(90deg)saturate(1.4)');
 
 function typeChip(r){
   if(r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#fff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
