@@ -139,6 +139,7 @@
   .smart-time-input{font-family:monospace;color:var(--dim) !important;border-color:rgba(107,79,42,.5) !important;background:#0a0804 !important;}
   .smart-time-input:focus{border-color:var(--gold) !important;color:var(--text) !important;}
   .smart-time-input::placeholder{color:#4a3a1a;font-style:italic;}
+  .range-fill-box{margin-top:8px;padding:8px;border:1px dashed rgba(107,79,42,.5);border-radius:6px;background:rgba(0,0,0,.15);display:flex;flex-direction:column;gap:5px;}
   @media(max-width:700px){
     .main{flex-direction:column;padding:8px;gap:10px}
     .left-col{width:100%;min-width:unset}
@@ -255,6 +256,14 @@
               <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:175px;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid;outline:none;" oninput="smartPasteTime('sharp',this)">
             </div>
           </div>
+          <div class="range-fill-box">
+            <span style="font-size:11px;color:var(--dim);">Rozprostřít dopady – od: do:</span>
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+              <input type="datetime-local" id="sharp-range-from" step="1" style="flex:1;min-width:150px;padding:3px 6px;font-size:11px;">
+              <input type="datetime-local" id="sharp-range-to" step="1" style="flex:1;min-width:150px;padding:3px 6px;font-size:11px;">
+              <button class="btn btn-sm" style="background:#1e1508;border:1px solid var(--border);color:var(--gold2);font-size:11px;" onclick="distributeArrival('sharp')">📐 Rozprostřít</button>
+            </div>
+          </div>
           <div class="target-list">
             <div class="tgt-header"><span>Souřadnice</span><span>Název</span><span>Čas dopadu</span><span></span></div>
             <div id="sharp-tgt-body"></div>
@@ -293,6 +302,14 @@
               <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:175px;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid;outline:none;" oninput="smartPasteTime('noble',this)">
             </div>
           </div>
+          <div class="range-fill-box">
+            <span style="font-size:11px;color:var(--dim);">Rozprostřít dopady – od: do:</span>
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+              <input type="datetime-local" id="noble-range-from" step="1" style="flex:1;min-width:150px;padding:3px 6px;font-size:11px;">
+              <input type="datetime-local" id="noble-range-to" step="1" style="flex:1;min-width:150px;padding:3px 6px;font-size:11px;">
+              <button class="btn btn-sm" style="background:#1e1508;border:1px solid var(--border);color:var(--gold2);font-size:11px;" onclick="distributeArrival('noble')">📐 Rozprostřít</button>
+            </div>
+          </div>
           <div class="target-list">
             <div class="tgt-header"><span>Souřadnice</span><span>Název</span><span>Čas dopadu</span><span></span></div>
             <div id="noble-tgt-body"></div>
@@ -327,6 +344,14 @@
               <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:175px;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid;outline:none;" oninput="smartPasteTime('fake',this)">
             </div>
           </div>
+          <div class="range-fill-box">
+            <span style="font-size:11px;color:var(--dim);">Rozprostřít dopady – od: do:</span>
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+              <input type="datetime-local" id="fake-range-from" step="1" style="flex:1;min-width:150px;padding:3px 6px;font-size:11px;">
+              <input type="datetime-local" id="fake-range-to" step="1" style="flex:1;min-width:150px;padding:3px 6px;font-size:11px;">
+              <button class="btn btn-sm" style="background:#1e1508;border:1px solid var(--border);color:var(--gold2);font-size:11px;" onclick="distributeArrival('fake')">📐 Rozprostřít</button>
+            </div>
+          </div>
           <div class="target-list">
             <div class="tgt-header"><span>Souřadnice</span><span>Název</span><span>Čas dopadu</span><span></span></div>
             <div id="fake-tgt-body"></div>
@@ -359,6 +384,14 @@
                 <input type="datetime-local" id="fakenob-global-fill" step="1" style="width:175px;padding:3px 6px;font-size:11px;" onchange="fillAllArrival('fakenob',this.value)">
               </div>
               <input type="text" class="smart-time-input" placeholder="dnes v 11:36:15:091" style="width:175px;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid;outline:none;" oninput="smartPasteTime('fakenob',this)">
+            </div>
+          </div>
+          <div class="range-fill-box">
+            <span style="font-size:11px;color:var(--dim);">Rozprostřít dopady – od: do:</span>
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+              <input type="datetime-local" id="fakenob-range-from" step="1" style="flex:1;min-width:150px;padding:3px 6px;font-size:11px;">
+              <input type="datetime-local" id="fakenob-range-to" step="1" style="flex:1;min-width:150px;padding:3px 6px;font-size:11px;">
+              <button class="btn btn-sm" style="background:#1e1508;border:1px solid var(--border);color:var(--gold2);font-size:11px;" onclick="distributeArrival('fakenob')">📐 Rozprostřít</button>
             </div>
           </div>
           <div class="target-list">
@@ -779,12 +812,30 @@ function fillAllArrival(type,val){
   toast('✓ Čas dopadu nastaven pro všechny cíle','ok',2000);
 }
 
+function distributeArrival(type){
+  if(!targetState[type].length){toast('Nejprve načti cíle!','err');return;}
+  const fromVal=document.getElementById(`${type}-range-from`).value;
+  const toVal=document.getElementById(`${type}-range-to`).value;
+  if(!fromVal||!toVal){toast('Vyplň "od" i "do"!','err');return;}
+  const from=new Date(fromVal).getTime();
+  const to=new Date(toVal).getTime();
+  if(to<=from){toast('"Do" musí být později než "od"!','err');return;}
+  const n=targetState[type].length;
+  targetState[type].forEach((c,i)=>{
+    c.arrivalTime = n===1 ? from : Math.round(from+(to-from)*i/(n-1));
+  });
+  renderTargetList(type);
+  toast(`✓ Časy rozprostřeny pro ${n} cílů`,'ok',3000);
+}
+
 // ── TRAVEL TIME ────────────────────────────────────────────
 function travelMs(x1,y1,x2,y2,unit){
   const dist=Math.sqrt((x2-x1)**2+(y2-y1)**2);
   const speedS=UNIT_SPEEDS_S[unit]||1800;
   return dist*speedS/(worldSpeed*unitSpeedMult)*1000;
 }
+function distSq(a,b){ return (a.x-b.x)**2+(a.y-b.y)**2; }
+function byDistTo(tgt){ return (a,b)=>distSq(a,tgt)-distSq(b,tgt); }
 
 // ── CALCULATE ──────────────────────────────────────────────
 async function calculate() {
@@ -818,18 +869,19 @@ async function calculate() {
   const fakeNobCnt = parseInt(document.getElementById('fakenob-count').value)||0;
   const noblePerTgt= parseInt(document.getElementById('noble-per-target').value)||4;
 
-  // ── Ostré útoky — každá vesnice se použije jen jednou ──
+  // ── Ostré útoky — každá vesnice se použije jen jednou, nejblíže cíli má prioritu ──
   const usedSharpSrcs = new Set();
   for (const tgt of sharpTgts) {
+    const candidates = offVillages.filter(v => !usedSharpSrcs.has(`${v.x}|${v.y}`)).sort(byDistTo(tgt));
     for (let s=0; s<sharpCount; s++) {
-      const src = offVillages.find(v => !usedSharpSrcs.has(`${v.x}|${v.y}`));
+      const src = candidates.shift();
       if (!src) { toast(`⚠ Nedostatek útočných vesnic! (${usedSharpSrcs.size} použito)`, 'info', 5000); break; }
       usedSharpSrcs.add(`${src.x}|${src.y}`);
       const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
       const sendTime = tgt.arrivalTime - travel;
       attackRows.push({
         srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-        srcCategory:src.category,
+        srcCategory:src.category, srcOwner:src.player_name||'',
         tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
         unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
         night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:false
@@ -837,19 +889,18 @@ async function calculate() {
     }
   }
 
-  // ── Fejky ───────────────────────────────────────────────
+  // ── Fejky — nejblíže cíli mají prioritu (zdroje se mohou opakovat) ──
   if (fakeCount>0) {
-    // Použij všechny vesnice jako zdroj fejků (i obranné) – rotujeme
     const fakeSrc = jsonVillages.length ? jsonVillages : offVillages;
-    let srcIdx=0;
     for (const tgt of fakeTgts) {
+      const sorted = [...fakeSrc].sort(byDistTo(tgt));
       for (let f=0; f<fakeCount; f++) {
-        const src = fakeSrc[srcIdx % fakeSrc.length]; srcIdx++;
+        const src = sorted[f % sorted.length];
         const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'spear');
         const sendTime = tgt.arrivalTime - travel;
         attackRows.push({
           srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-          srcCategory:src.category||'def',
+          srcCategory:src.category||'def', srcOwner:src.player_name||'',
           tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
           unit:'spear', sendTime, arrivalTime:tgt.arrivalTime, travel,
           night:isNight(sendTime), isFake:true, isNoble:false, isFakeNoble:false
@@ -858,18 +909,18 @@ async function calculate() {
     }
   }
 
-  // ── Fejk vlaky ──────────────────────────────────────────
+  // ── Fejk vlaky — nejblíže cíli mají prioritu ──
   if (fakeNobCnt>0) {
     const fakeSrc = jsonVillages.length ? jsonVillages : offVillages;
-    let srcIdx=0;
     for (const tgt of fakeNobTgts) {
+      const sorted = [...fakeSrc].sort(byDistTo(tgt));
       for (let f=0; f<fakeNobCnt; f++) {
-        const src = fakeSrc[srcIdx % fakeSrc.length]; srcIdx++;
+        const src = sorted[f % sorted.length];
         const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'noble');
         const sendTime = tgt.arrivalTime - travel;
         attackRows.push({
           srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-          srcCategory:src.category||'def',
+          srcCategory:src.category||'def', srcOwner:src.player_name||'',
           tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
           unit:'noble', sendTime, arrivalTime:tgt.arrivalTime, travel,
           night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:true
@@ -878,7 +929,7 @@ async function calculate() {
     }
   }
 
-  // ── Šlechtici ───────────────────────────────────────────
+  // ── Šlechtici — nejblíže cíli mají prioritu ──
   if (nobleTgts.length) {
     if (!nobleVillages.length){ toast('⚠ Žádné vesnice se šlechtici v JSON!','err'); }
     else {
@@ -887,16 +938,16 @@ async function calculate() {
       for (const tgt of nobleTgts) {
         let placed=0;
         const tgtNobleRows=[];
-        for (const src of pool) {
+        const sortedPool = pool.filter(v=>v.remaining>0).sort(byDistTo(tgt));
+        for (const src of sortedPool) {
           if (placed >= noblePerTgt) break;
-          if (src.remaining<=0) continue;
           const take = Math.min(src.remaining, noblePerTgt - placed);
           const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'noble');
           const sendTime = tgt.arrivalTime - travel;
           for (let t=0; t<take; t++) {
             const row = {
               srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-              srcCategory:'noble',
+              srcCategory:'noble', srcOwner:src.player_name||'',
               tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
               unit:'noble', sendTime, arrivalTime:tgt.arrivalTime, travel,
               night:isNight(sendTime), isFake:false, isNoble:true, isFakeNoble:false,
@@ -980,7 +1031,7 @@ function renderResults(){
     const gameLink=r.srcId?(r.tgtId?`${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`:`${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`):`${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
     html+=`<tr class="${rowCls}" data-rowidx="${i}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
-      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span></td>
+      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span>${r.srcOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.srcOwner})</span>`:''}</td>
       <td>${typeChip(r)}</td>
       <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
