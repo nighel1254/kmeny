@@ -136,15 +136,19 @@ const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
 const twImg = (url, style='') => `<img src="${url}" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;${style}" onerror="this.style.display='none'">`;
 const NOBLE_FLIP = `<img src="${API_IMG}/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;transform:rotate(180deg);" onerror="this.style.display='none'">`;
 const NOBLE_NORM = `<img src="${API_IMG}/unit_snob.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
+const AXE_RED = `<img src="${API_IMG}/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(330deg)" onerror="this.style.display='none'">`;
+const AXE_YEL = `<img src="${API_IMG}/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(20deg)" onerror="this.style.display='none'">`;
+const AXE_BRN = `<img src="${API_IMG}/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(3)brightness(0.85)" onerror="this.style.display='none'">`;
+const AXE_GRN = `<img src="${API_IMG}/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(90deg)brightness(1.3)" onerror="this.style.display='none'">`;
 
 function typeChip(r) {
   if (r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
-  if (r.isFake)                  return `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${twImg(SMALL_ICO)} fejk</span>`;
-  if (r.srcCategory==='fullka')  return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${twImg(LARGE_ICO)} fullka</span>`;
-  if (r.srcCategory==='triq_off')return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${twImg(SMALL_ICO,'filter:sepia(1) saturate(3) hue-rotate(10deg)')} 3/4 off</span>`;
-  if (r.srcCategory==='half_off')return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${twImg(MEDIUM_ICO)} 1/2 off</span>`;
+  if (r.isFake)                  return `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${AXE_GRN} fejk</span>`;
+  if (r.srcCategory==='fullka')  return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`;
+  if (r.srcCategory==='triq_off')return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 3/4 off</span>`;
+  if (r.srcCategory==='half_off')return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 1/2 off</span>`;
   if (r.srcCategory==='noble')   return `<span class="chip chip-noble">${NOBLE_NORM} vlak</span>`;
-  return '';
+  return `<span class="chip" style="background:#1a0800;color:#c06020;border:1px solid #604010">${AXE_BRN} mini off</span>`;
 }
 
 let attackRows = [], cdInterval = null;
@@ -569,7 +573,6 @@ function renderTable() {
   const sharp  = attackRows.filter(r=>!r.isFake&&!r.isNoble);
   const nobles = attackRows.filter(r=>r.isNoble);
   const fakes  = attackRows.filter(r=>r.isFake);
-  document.getElementById('sum-sharp').textContent = sharp.length;
   document.getElementById('sum-full').textContent  = sharp.filter(r=>r.srcCategory==='fullka').length;
   document.getElementById('sum-triq').textContent  = sharp.filter(r=>r.srcCategory==='triq_off').length;
   document.getElementById('sum-half').textContent  = sharp.filter(r=>r.srcCategory==='half_off').length;
@@ -619,7 +622,7 @@ function renderTable() {
       : `${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
     const rowIdx = attackRows.indexOf(r);
 
-    html += `<tr class="${rowClass}" data-rowidx="${i}">
+    html += `<tr class="${rowClass}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span></td>
       <td>${typeChip(r)}</td>
@@ -629,13 +632,125 @@ function renderTable() {
       <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
       <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
       <td><span class="countdown" data-send="${r.sendTime}"></span></td>
-      <td><a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a></td>
+      <td style="white-space:nowrap;">
+        <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
+        <button onclick="replanRowPlan(${rowIdx})" title="Přeplánovat – vezme jinou vesnici" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>
+      </td>
     </tr>`;
   });
 
   html += '</tbody></table>';
   document.getElementById('tbl-wrap').innerHTML = html;
   updateCountdowns();
+}
+
+// ── PŘEPLÁNOVÁNÍ JEDNOHO PŘÍKAZU ZA BĚHU ────────────────────
+const REPLAN_CAT_PRIORITY = { fullka:3, triq_off:2, half_off:1, mini_off:0 };
+
+function getVillagePool() {
+  const seen = new Map();
+  attackRows.forEach(r => {
+    const key = `${r.srcX}|${r.srcY}`;
+    if (!seen.has(key)) seen.set(key, { x:r.srcX, y:r.srcY, name:r.srcName, id:r.srcId, category:r.srcCategory, player:r.srcPlayer });
+  });
+  return [...seen.values()];
+}
+
+function replanRowPlan(rowIdx) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+  const distOrig = Math.sqrt((row.srcX-row.tgtX)**2 + (row.srcY-row.tgtY)**2);
+  if (!distOrig) { toast('Nelze přeplánovat (nulová vzdálenost).', 'err'); return; }
+  const msPerDist = row.travel / distOrig;
+
+  const now = Date.now();
+  const usageCount = {};
+  attackRows.forEach((r,i) => {
+    if (i === rowIdx) return;
+    const k = `${r.srcX}|${r.srcY}`;
+    usageCount[k] = (usageCount[k]||0) + 1;
+  });
+
+  const origCatVal = REPLAN_CAT_PRIORITY[row.srcCategory] ?? -1;
+  const candidates = [];
+  for (const v of getVillagePool()) {
+    if (v.x === row.srcX && v.y === row.srcY) continue;
+    if (row.srcCategory !== 'noble') {
+      const vCatVal = REPLAN_CAT_PRIORITY[v.category] ?? -1;
+      if (origCatVal >= 0 && vCatVal < origCatVal) continue;
+    }
+    const dist = Math.sqrt((v.x-row.tgtX)**2 + (v.y-row.tgtY)**2);
+    const travel = dist * msPerDist;
+    const sendTime = row.arrivalTime - travel;
+    if (sendTime < now + 60000) continue;
+    candidates.push({
+      srcId:v.id, srcName:v.name, srcPlayer:v.player, srcX:v.x, srcY:v.y,
+      srcCategory: row.srcCategory==='noble' ? 'noble' : v.category,
+      tgtX:row.tgtX, tgtY:row.tgtY, tgtName:row.tgtName, tgtId:row.tgtId, tgtOwner:row.tgtOwner,
+      unit: row.unit, sendTime, arrivalTime: row.arrivalTime, travel,
+      night: isNight(sendTime), isFake: row.isFake, isFakeNoble: row.isFakeNoble, isNoble: row.isNoble, isPast: false,
+      usage: usageCount[`${v.x}|${v.y}`] || 0
+    });
+  }
+
+  if (!candidates.length) { toast('⚠ Nenalezena vhodná náhradní vesnice.', 'err', 6000); return; }
+
+  candidates.sort((a,b) => {
+    if (a.night !== b.night) return a.night ? 1 : -1;
+    if (a.usage !== b.usage) return a.usage - b.usage;
+    const da = Math.abs(a.srcX-row.srcX) + Math.abs(a.srcY-row.srcY);
+    const db = Math.abs(b.srcX-row.srcX) + Math.abs(b.srcY-row.srcY);
+    return da - db;
+  });
+
+  const best = candidates[0];
+  attackRows[rowIdx]._replanProposal = best;
+  showReplanProposal(rowIdx, best);
+}
+
+function showReplanProposal(rowIdx, proposal) {
+  const origTr = document.querySelector(`tr[data-rowidx="${rowIdx}"]`);
+  if (!origTr) return;
+  origTr.style.outline = '2px solid #cc3333';
+  origTr.style.opacity = '0.4';
+
+  document.getElementById(`replan-proposal-${rowIdx}`)?.remove();
+  const pTr = document.createElement('tr');
+  pTr.id = `replan-proposal-${rowIdx}`;
+  pTr.style.cssText = 'background:#1a1500;outline:2px solid var(--gold);';
+  pTr.innerHTML = `
+    <td style="color:var(--gold);font-size:11px;font-weight:600;">↺</td>
+    <td><span class="coords" style="color:var(--gold2)">${proposal.srcX}|${proposal.srcY}</span> <span style="color:var(--dim);font-size:11px;">${proposal.srcName||''}</span> <span style="font-size:10px;color:var(--dim);">(${proposal.usage}×)</span></td>
+    <td>${typeChip(proposal)}</td>
+    <td><span class="coords">${proposal.tgtX}|${proposal.tgtY}</span></td>
+    <td><span class="chip">${UNIT_LABELS[proposal.unit]||proposal.unit}</span>${proposal.night?'<span class="chip chip-night">🌙</span>':''}</td>
+    <td style="color:${proposal.night?'#aa80ff':'var(--gold2)'};font-weight:600;">${fmtDT(new Date(proposal.sendTime))}</td>
+    <td class="arrival-time">${fmtDT(new Date(proposal.arrivalTime))}</td>
+    <td style="color:var(--dim);font-size:11px;">${fmtDur(proposal.travel)}</td>
+    <td></td>
+    <td style="white-space:nowrap;">
+      <button onclick="acceptReplanProposal(${rowIdx})" style="background:#205020;border:none;color:#80d080;border-radius:3px;padding:3px 9px;cursor:pointer;font-size:13px;margin-right:3px;">✓</button>
+      <button onclick="cancelReplanProposal(${rowIdx})" style="background:#502020;border:none;color:#d08080;border-radius:3px;padding:3px 9px;cursor:pointer;font-size:13px;">✗</button>
+    </td>`;
+  origTr.parentNode.insertBefore(pTr, origTr.nextSibling);
+  toast('↺ Návrh připraven ke schválení.', 'info', 4000);
+}
+
+function acceptReplanProposal(rowIdx) {
+  const proposal = attackRows[rowIdx]?._replanProposal;
+  if (!proposal) { cancelReplanProposal(rowIdx); return; }
+  delete proposal._replanProposal;
+  attackRows[rowIdx] = proposal;
+  attackRows.sort((a,b) => a.sendTime - b.sendTime);
+  renderTable();
+  toast('✓ Příkaz přeplánován.', 'ok');
+}
+
+function cancelReplanProposal(rowIdx) {
+  document.getElementById(`replan-proposal-${rowIdx}`)?.remove();
+  const tr = document.querySelector(`tr[data-rowidx="${rowIdx}"]`);
+  if (tr) { tr.style.outline=''; tr.style.opacity=''; }
+  if (attackRows[rowIdx]) delete attackRows[rowIdx]._replanProposal;
 }
 
 function render(data) {
@@ -656,13 +771,12 @@ function render(data) {
       </div>
     </div>
     <div class="summary-bar">
-      <span>⚔️ <strong id="sum-sharp">0</strong></span>
-      <span style="color:#f5c842">🟡 <strong id="sum-full">0</strong></span>
-      <span style="color:#50d0d0">🔵 <strong id="sum-triq">0</strong></span>
-      <span style="color:#a0c8ff">🔷 <strong id="sum-half">0</strong></span>
-      <span style="color:#80d080">👑 <strong id="sum-noble">0</strong></span>
-      <span style="color:#ffffff">↑👑 <strong id="sum-fake-noble">0</strong></span>
-      <span style="color:#40cc40">💨 <strong id="sum-fake">0</strong></span>
+      <span style="color:#ff4040">${AXE_RED} <strong id="sum-full">0</strong></span>
+      <span style="color:#f0c040">${AXE_YEL} <strong id="sum-triq">0</strong></span>
+      <span style="color:#c07840">${AXE_BRN} <strong id="sum-half">0</strong></span>
+      <span style="color:#ff80c0">${NOBLE_NORM} <strong id="sum-noble">0</strong></span>
+      <span style="color:#ffffff">${NOBLE_FLIP} <strong id="sum-fake-noble">0</strong></span>
+      <span style="color:#40cc40">${AXE_GRN} <strong id="sum-fake">0</strong></span>
       <span style="color:var(--dim);margin-left:4px;">Celkem: <strong id="sum-total">0</strong></span>
     </div>
     <div id="warnings-wrap" style="display:none;"></div>
