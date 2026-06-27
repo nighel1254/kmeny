@@ -185,6 +185,7 @@
       <li>Napiš, kolik útoků chceš poslat z každé útočné vesnice, a pod to vlož souřadnice cílů (jeden cíl na řádek).</li>
       <li>U každého cíle pak nastavíš, v kolik hodin má útok dorazit – buď ručně u každého cíle, nebo najednou pro všechny pomocí pole „Vyplnit vše".</li>
       <li>O zbytek se appka postará sama – pro každý cíl vybere vždy nejbližší vesnici, která ještě nebyla použita, takže žádná vesnice neútočí na dva cíle najednou.</li>
+      <li>Tlačítko <strong>„Rozprostřít"</strong> rozloží zadaný čas příchodu rovnoměrně mezi cíle v rozsahu „od–do", který zadáš. Zároveň zkontroluje, jestli to nejbližší vesnice na ten čas vůbec stihne – pokud ne, čas u toho cíle automaticky o pár minut posune později (ale nikdy za hranici, kterou jsi zadal/a jako „do"). Pokud by se to ani tak nestihlo, appka tě na to upozorní.</li>
     </ul>
 
     <h4>Šlechtici (vlaky na dobývání vesnic)</h4>
@@ -209,7 +210,8 @@
       <li><strong>Přidat do plánu</strong> – uloží to, co se právě spočítalo, jako hotové kolo a uvolní použité vesnice, abys mohl/a naplánovat další várku útoků (třeba další sadu fejků), aniž bys ztratil/a to, co už máš spočítané.</li>
       <li><strong>Uložit</strong> – uloží celý plán, takže ho potom najdeš ve svém přehledu plánů a budeš ho moct kdykoliv znovu otevřít nebo upravit.</li>
       <li><strong>Smazat</strong> – vyčistí aktuálně spočítané výsledky, pokud chceš začít znovu.</li>
-      <li>Do vyhledávacího pole nad tabulkou můžeš napsat název vesnice, jméno hráče nebo typ útoku a tabulka se podle toho přefiltruje.</li>
+      <li>Do vyhledávacího pole nad tabulkou můžeš napsat název vesnice, jméno hráče nebo typ útoku a tabulka se podle toho přefiltruje. Napsáním slova „nový" (nebo „new") zobrazíš jen příkazy, které appka nově dopočítala při přeplánování.</li>
+      <li>Když si znovu otevřeš dříve uložený plán a dáš ho přepočítat, appka ti znovu nabídne <strong>všechny</strong> tvé vesnice (ne jen ty, co ti v plánu ještě zbývaly) – a útoky, které už jsi podle stavu „odešlo" skutečně poslal/a, se do nového počítání nezapočítávají znovu (tj. appka ví, kolik fejků/útoků na cíl už splnilo zadanou podmínku, a doplní jen to, co chybí). Nově spočítané/nahrazené příkazy se navíc viditelně označí značkou „✨ NOVÝ".</li>
     </ul>
     <button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button>
   </div>
@@ -1438,7 +1440,7 @@ function renderResults(){
   let visible=attackRows;
   if(search){
     visible=attackRows.filter(r=>
-      `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcOwner||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''} ${r.unit||''}`
+      `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcOwner||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''} ${r.unit||''} ${r.isNew?'new nový novy':''}`
         .toLowerCase().includes(search)
     );
   }

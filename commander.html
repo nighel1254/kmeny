@@ -293,6 +293,7 @@
       <li>Vybrat si, čí vesnice se použijí, můžeš dvěma způsoby: buď zaškrtneš konkrétní hráče ze seznamu (případně „Vše" pro celý kmen, nebo „Nic" pro vynulování výběru), nebo si vesnice vyfiltruješ podle toho, jak silné jsou.</li>
       <li>Pokud nějakou skupinu hráčů používáš často (třeba pravidelný okruh útočníků), můžeš si ji pod libovolným názvem uložit a příště ji jen vybrat ze seznamu, místo aby se znovu zaškrtávalo jeden po druhém.</li>
       <li>Appka ti nahoře ukazuje přehled, kolik máš z vybraných hráčů momentálně k dispozici jakých vesnic a šlechtických vlaků – kolik celkem, kolik už je použito v rozpracovaném plánu a kolik ještě zbývá.</li>
+      <li>Tlačítko <strong>„🔁 Nahradit chybějící hráče"</strong> použiješ, když máš už hotový plán a po cestě někoho z hráčů odškrtneš (přestal se zapojovat) – appka pak nahradí JEN příkazy odstraněných hráčů jinou vhodnou vesnicí, ostatní příkazy zůstanou beze změny. Nově vzniklé/nahrazené příkazy se v tabulce viditelně označí značkou „✨ NOVÝ" a najdeš je i přes vyhledávání (napiš třeba „nový").</li>
     </ul>
 
     <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">⚔️ Druhy útoků, které můžeš naplánovat</h4>
@@ -307,9 +308,10 @@
     <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">📋 Výsledný plán</h4>
     <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
       <li>Po výpočtu appka vypíše tabulku se všemi útoky – kliknutím na název sloupce (hráč, zdroj, typ, cíl, časy, doba cesty) si je můžeš přeřadit.</li>
-      <li>Do vyhledávacího pole můžeš napsat název vesnice, jméno hráče nebo typ útoku, a tabulka se přefiltruje.</li>
+      <li>Do vyhledávacího pole můžeš napsat název vesnice, jméno hráče nebo typ útoku, a tabulka se přefiltruje. Napsáním slova „nový" (nebo „new") si rychle zobrazíš jen příkazy, které appka nově dopočítala (např. po nahrazení chybějících hráčů).</li>
       <li>Přepínač „Skrýt noční" skryje útoky, které by se posílaly v noci.</li>
-      <li>Jednotlivé řádky lze i ručně upravit přímo v tabulce, pokud chceš něčemu přiřadit jinou vesnici nebo jiný čas.</li>
+      <li><strong>Appka se sama snaží noční odesílání minimalizovat</strong> – když nějakému útoku vyjde čas odeslání mezi 0:00–6:00, automaticky zkusí najít jinou stejně silnou (nebo silnější) vesnici stejného hráče/kmene, ze které vyjde odeslání přes den, a pokud takovou najde a nic to nerozbije (kapacita 5 fejků na vesnici, počet šlechticů ve vesnici, žádný čas v minulosti), použije ji místo původní. Pokud žádná taková vesnice neexistuje, útok zůstane v noci – to znamená, že to jinak opravdu nejde.</li>
+      <li>Jednotlivé řádky lze i ručně upravit přímo v tabulce, pokud chceš něčemu přiřadit jinou vesnici nebo jiný čas – u nočních řádků pomůže tlačítko ↺, které najde a nabídne náhradní denní vesnici.</li>
     </ul>
 
     <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">📤 Jak plán dostat k hráčům</h4>
@@ -1690,6 +1692,80 @@ function travelMs(x1,y1,x2,y2,unit) {
 
 function isNight(ts) { const h = new Date(ts).getHours(); return h>=NIGHT_START && h<NIGHT_END; }
 
+// ── MINIMALIZACE NOČNÍCH ODESÍLÁNÍ ──────────────────────────
+// Po spočítání plánu zkusí za každý řádek, který vychází na noční odeslání,
+// najít náhradní vesnici STEJNÉ (nebo lepší) síly/kategorie, ze které vychází
+// odeslání ve dne – při zachování všech pravidel (kategorie, kapacita fejků 5×,
+// počet šlechticů ve vesnici, žádný čas v minulosti). Pokud žádná taková
+// vesnice neexistuje, řádek zůstane beze změny (noc je v takovém případě nutná).
+function minimizeNightSends(rows) {
+  const pool = srcVillages.length ? srcVillages : jsonVillages;
+  if (!pool || !pool.length) return;
+  const now = Date.now();
+  const catPriority = { fullka: 3, triq_off: 2, half_off: 1 };
+  const FAKE_CAP = (typeof FAKE_MAX_REUSE !== 'undefined') ? FAKE_MAX_REUSE : 5;
+
+  const usage = new Map();
+  rows.forEach(r => {
+    const k = `${r.srcX}|${r.srcY}`;
+    usage.set(k, (usage.get(k)||0) + 1);
+  });
+
+  let swapped = 0;
+  const nightRows = rows.filter(r => r.night && !r.isPast);
+  for (const row of nightRows) {
+    const isFakeKind = row.isFake || row.isFakeNoble;
+    const isNobleKind = row.isNoble || row.srcCategory === 'noble';
+    const origKey = `${row.srcX}|${row.srcY}`;
+    const origCatVal = catPriority[row.srcCategory] || 0;
+
+    let best = null, bestDist = Infinity;
+    for (const v of pool) {
+      const vx = v.x, vy = v.y;
+      if (!vx || !vy) continue;
+      const key = `${vx}|${vy}`;
+      if (key === origKey) continue;
+
+      if (isNobleKind) {
+        const nobleCount = v.noble || (v.units && v.units.noble) || 0;
+        if (!nobleCount) continue;
+        const usedNobles = rows.filter(r => (r.isNoble || r.srcCategory === 'noble') && r.srcX === vx && r.srcY === vy).length;
+        if (usedNobles >= nobleCount) continue;
+      } else if (isFakeKind) {
+        if ((usage.get(key) || 0) >= FAKE_CAP) continue;
+      } else {
+        // Ostrý útok: vesnice musí být ještě nepoužitá a stejná nebo silnější kategorie
+        if ((usage.get(key) || 0) >= 1) continue;
+        const vCatVal = catPriority[v.category] || 0;
+        if (vCatVal < origCatVal) continue;
+      }
+
+      const travelNew = travelMs(vx, vy, row.tgtX, row.tgtY, row.unit);
+      const sendNew = row.arrivalTime - travelNew;
+      if (sendNew < now + 60000) continue;   // nesmí vyjít do minulosti
+      if (isNight(sendNew)) continue;        // hledáme jen denní alternativu
+
+      const dist = Math.hypot(vx - row.tgtX, vy - row.tgtY);
+      if (dist < bestDist) { bestDist = dist; best = { v, vx, vy, travelNew, sendNew }; }
+    }
+
+    if (best) {
+      usage.set(origKey, (usage.get(origKey) || 1) - 1);
+      usage.set(`${best.vx}|${best.vy}`, (usage.get(`${best.vx}|${best.vy}`) || 0) + 1);
+      row.srcX = best.vx; row.srcY = best.vy;
+      row.srcName = best.v.village_name || best.v.name || `${best.vx}|${best.vy}`;
+      row.srcPlayer = best.v.player_name || '';
+      row.srcId = best.v.id || null;
+      if (!isNobleKind) row.srcCategory = best.v.category || row.srcCategory;
+      row.travel = best.travelNew;
+      row.sendTime = best.sendNew;
+      row.night = false;
+      swapped++;
+    }
+  }
+  return swapped;
+}
+
 // ── PRAVIDLO 20:1 (poměr celkových bodů útočníka/obránce) ───
 // Součet bodů VŠECH vesnic hráče nesmí přesáhnout 20× body hráče, na kterého útočí.
 function getPlayerPointsByName() {
@@ -2242,11 +2318,15 @@ async function calculate() {
   // výsledek se s nimi může překrývat (vesnice se teď znovu nabízí z plného poolu) – viditelně ho odliš.
   if (savedActions.length > 0) rows.forEach(r => r.isNew = true);
 
+  // Zkus za noční odeslání dosadit stejně silnou vesnici, ze které vychází odeslání ve dne.
+  const nightSwapped = minimizeNightSends(rows) || 0;
+
   rows.sort((a,b)=>a.sendTime-b.sendTime);
   attackRows = rows;
 
   // ── VAROVÁNÍ – noční útoky bez denní alternativy ──────────
   const nightWarnings = [...extraWarnings];
+  if (nightSwapped > 0) nightWarnings.push(`⚠️ ${nightSwapped} útok${nightSwapped===1?'':'ů'} bylo přesunuto na jinou, stejně silnou vesnici tak, aby odeslání vyšlo přes den`);
 
   if (fakeCount === 0) {
     const byTgt = {};
@@ -2308,7 +2388,7 @@ function renderResults(nightWarnings) {
   });
   if (search) {
     visible = visible.filter(r =>
-      `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${typeSearchText(r)}`.toLowerCase().includes(search)
+      `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${typeSearchText(r)} ${r.isNew?'new nový novy':''}`.toLowerCase().includes(search)
     );
   }
 
@@ -2975,8 +3055,6 @@ function openExport() {
       lines.push('');
     });
 
-    // Unikátní URL pro tohoto hráče
-    lines.push(`   🔗 Osobní odkaz: ${playerDataToUrl(player, rows)}`);
     lines.push('');
   }
 
