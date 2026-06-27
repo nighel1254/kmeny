@@ -1096,6 +1096,22 @@ function fillAllArrival(type,val){
   toast('✓ Čas dopadu nastaven pro všechny cíle','ok',2000);
 }
 
+// Nejkratší možný čas cesty k cíli ze zdrojového poolu pro daný typ útoku
+// (= nejbližší vesnice, kterou by appka při výpočtu plánu pro tento cíl reálně mohla použít).
+function minFeasibleTravel(type, tgt){
+  let pool, unit;
+  if (type==='noble') { pool = nobleVillages; unit='noble'; }
+  else if (type==='fake' || type==='fakenob') { pool = jsonVillages.length?jsonVillages:offVillages; unit='ram'; }
+  else { pool = offVillages; unit='ram'; }
+  if (!pool || !pool.length) return null;
+  let min = Infinity;
+  for (const v of pool) {
+    const t = travelMs(v.x, v.y, tgt.x, tgt.y, unit);
+    if (t < min) min = t;
+  }
+  return isFinite(min) ? min : null;
+}
+
 function distributeArrival(type){
   if(!targetState[type].length){toast('Nejprve načti cíle!','err');return;}
   const fromVal=document.getElementById(`${type}-range-from`).value;
@@ -1105,11 +1121,28 @@ function distributeArrival(type){
   const to=new Date(toVal).getTime();
   if(to<=from){toast('"Do" musí být později než "od"!','err');return;}
   const n=targetState[type].length;
+  const now=Date.now();
+  let bumped=0, unreachable=0;
   targetState[type].forEach((c,i)=>{
-    c.arrivalTime = n===1 ? from : Math.round(from+(to-from)*i/(n-1));
+    let t = n===1 ? from : Math.round(from+(to-from)*i/(n-1));
+    const minTravel = minFeasibleTravel(type, c);
+    if (minTravel != null) {
+      // Nejdřívější čas dopadu, který by ještě stihla i ta nejbližší vesnice (s minutovou rezervou)
+      const earliestFeasible = now + 60000 + minTravel;
+      if (t < earliestFeasible) {
+        t = earliestFeasible;
+        bumped++;
+        if (t > to) unreachable++;
+      }
+    }
+    c.arrivalTime = t;
   });
   renderTargetList(type);
-  toast(`✓ Časy rozprostřeny pro ${n} cílů`,'ok',3000);
+  if (bumped) {
+    toast(`✓ Časy rozprostřeny pro ${n} cílů (${bumped}× posunuto později, aby to nejbližší vesnice stihla${unreachable?` – u ${unreachable} cílů to přesáhlo zadané "do"`:''})`,'ok',5000);
+  } else {
+    toast(`✓ Časy rozprostřeny pro ${n} cílů`,'ok',3000);
+  }
 }
 
 // ── TRAVEL TIME ────────────────────────────────────────────
