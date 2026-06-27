@@ -1127,19 +1127,26 @@ function distributeArrival(type){
     let t = n===1 ? from : Math.round(from+(to-from)*i/(n-1));
     const minTravel = minFeasibleTravel(type, c);
     if (minTravel != null) {
-      // Nejdřívější čas dopadu, který by ještě stihla i ta nejbližší vesnice (s minutovou rezervou)
+      // Nejdřívější čas dopadu, který by ještě stihla i ta nejbližší vesnice (s minutovou rezervou).
+      // Posun se ale nikdy nesmí dostat za zadané "do" – tam ho prostě přimkneme a cíl nahlásíme jako nedosažitelný.
       const earliestFeasible = now + 60000 + minTravel;
       if (t < earliestFeasible) {
-        t = earliestFeasible;
         bumped++;
-        if (t > to) unreachable++;
+        if (earliestFeasible <= to) {
+          t = earliestFeasible;
+        } else {
+          t = to;
+          unreachable++;
+        }
       }
     }
     c.arrivalTime = t;
   });
   renderTargetList(type);
-  if (bumped) {
-    toast(`✓ Časy rozprostřeny pro ${n} cílů (${bumped}× posunuto později, aby to nejbližší vesnice stihla${unreachable?` – u ${unreachable} cílů to přesáhlo zadané "do"`:''})`,'ok',5000);
+  if (unreachable) {
+    toast(`⚠ ${unreachable} cíl(ů) nelze v zadaném rozsahu "od–do" vůbec stihnout (žádná vesnice by to nedohnala ani na konci rozsahu) – uprav rozsah nebo tyto cíle zkontroluj.`,'err',8000);
+  } else if (bumped) {
+    toast(`✓ Časy rozprostřeny pro ${n} cílů (${bumped}× posunuto později v rámci rozsahu, aby to nejbližší vesnice stihla)`,'ok',5000);
   } else {
     toast(`✓ Časy rozprostřeny pro ${n} cílů`,'ok',3000);
   }
