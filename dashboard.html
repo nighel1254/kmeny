@@ -343,7 +343,7 @@ async function loadPlans(email) {
         ${nobles.length ? `<span class="stat" style="color:#ff80c0;">${NOBLE_IMG} <strong>${nobles.length}</strong> vlaků</span>` : ''}
         ${fakes.length  ? `<span class="stat" style="color:#50cc50;">${AXE_GRN} <strong>${fakes.length}</strong> fejků</span>` : ''}
         ${fakeN.length  ? `<span class="stat" style="color:#cc80ff;">${NOBLE_IMG} <strong>${fakeN.length}</strong> f.vlaků</span>` : ''}
-        ${!rows.length  ? `<span style="color:var(--dim);">Prázdný plán</span>` : ''}
+        ${!rows.length  ? `<span style="color:#50cc50;">🟢 Žádné útoky pro tebe – máš volnou ruku</span>` : ''}
         <span class="stat" style="color:var(--dim);margin-left:auto;">Celkem: <strong>${rows.length}</strong></span>
       </div>
     </div>`;
