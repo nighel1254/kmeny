@@ -416,11 +416,11 @@
           <div id="src-from-json-wrap" style="display:none;">
             <label style="color:var(--gold2);">Vyber hráče z importu kmene (jeden, víc, nebo celý kmen)</label>
             <div style="display:flex;align-items:center;gap:10px;margin:4px 0 6px;font-size:12px;">
-              <a href="#" onclick="setAllSrcPlayerChecks(true);return false;" style="color:var(--gold);">☑ Vše</a>
+              <a href="#" onclick="setAllSrcPlayerChecks(true);loadPlayersFromJson();return false;" style="color:var(--gold);">☑ Vše</a>
               <a href="#" onclick="setAllSrcPlayerChecks(false);return false;" style="color:var(--dim);">☐ Nic</a>
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-              <select id="src-player-group-select" onchange="applyPlayerGroup(this.value)" style="flex:1;font-size:12px;padding:4px 6px;">
+              <select id="src-player-group-select" onchange="applyPlayerGroup(this.value);loadPlayersFromJson();" style="flex:1;font-size:12px;padding:4px 6px;">
                 <option value="">— skupina hráčů —</option>
               </select>
               <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);padding:4px 8px;" onclick="saveCurrentAsGroup()" title="Uložit zaškrtnuté hráče jako skupinu">💾</button>
@@ -1056,7 +1056,7 @@ function importJson() {
     const list = document.getElementById('src-player-checklist');
     list.innerHTML = players.map(p =>
       `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;">
-        <input type="checkbox" class="src-player-cb" value="${p}" style="width:auto;accent-color:var(--gold);">
+        <input type="checkbox" class="src-player-cb" value="${p}" onchange="loadPlayersFromJson()" style="width:auto;accent-color:var(--gold);">
         <span>${p}</span>
       </label>`
     ).join('');
@@ -2569,7 +2569,7 @@ function restoreInputSnapshot(snap) {
       const list = document.getElementById('src-player-checklist');
       if (list) list.innerHTML = players.map(p =>
         `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;">
-          <input type="checkbox" class="src-player-cb" value="${p}" style="width:auto;accent-color:var(--gold);">
+          <input type="checkbox" class="src-player-cb" value="${p}" onchange="loadPlayersFromJson()" style="width:auto;accent-color:var(--gold);">
           <span>${p}</span>
         </label>`
       ).join('');
