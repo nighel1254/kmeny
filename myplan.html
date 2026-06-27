@@ -534,7 +534,8 @@ let UNIT_SPEEDS_S = { spear:1080, sword:1320, axe:1080, scout:540, lk:600, tk:66
 let apiSpeedsLoaded = false, worldSpeed=1, unitSpeedMult=1;
 
 // State
-let jsonVillages  = [];   // raw z bookmarkletu
+let jsonVillages  = [];   // pracovní/zbývající pool (zmenšuje se s "Přidat do plánu" v rámci jednoho sezení)
+let importedJsonVillages = []; // CELÝ neměnný import z bookmarkletu – při editaci uloženého plánu z něj obnovujeme plný pool
 let offVillages   = [];   // filtrovane offky [{x,y,name,id,category}]
 let nobleVillages = [];   // vesnice se šlechtici [{x,y,name,id,noble}]
 let allVillagesMap = {};  // {x|y: {name,id}}
@@ -874,6 +875,7 @@ function importJson() {
       if (!v.category_total) v.category_total = v.category;
       if (v.noble_total === undefined) v.noble_total = v.noble || 0;
     });
+    importedJsonVillages = [...jsonVillages];
     applyMode();
 
     // Offky
@@ -915,7 +917,7 @@ async function saveJsonToDb(data) {
 
 function clearJson() {
   document.getElementById('json-paste').value='';
-  jsonVillages=[];offVillages=[];nobleVillages=[];
+  jsonVillages=[];importedJsonVillages=[];offVillages=[];nobleVillages=[];
   document.getElementById('src-overview').style.display='none';
   setStatus('json-status','info','');
   document.getElementById('json-status').style.display='none';
@@ -1331,6 +1333,10 @@ async function calculate() {
     }
   }
 
+  // Pokud už existují dříve uložená/přidaná kola (savedActions), tento čerstvě přepočítaný
+  // výsledek se s nimi může překrývat (vesnice se teď znovu nabízí z plného poolu) – viditelně ho odliš.
+  if (savedActions.length > 0) attackRows.forEach(r => r.isNew = true);
+
   attackRows.sort((a,b)=>a.sendTime-b.sendTime);
   const _now = Date.now();
   attackRows = attackRows.filter(r => r.sendTime > _now);
@@ -1415,7 +1421,7 @@ function renderResults(){
     html+=`<tr class="${rowCls}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span>${r.srcOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.srcOwner})</span>`:''}</td>
-      <td>${typeChip(r)}</td>
+      <td>${typeChip(r)}${r.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
       <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
       <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
@@ -1591,6 +1597,7 @@ let editingAssignmentId = null;
 function buildPlanInput(){
   return {
     jsonVillages,
+    importedJsonVillages,
     targetState,
     savedActions,
     settings: {
@@ -1644,7 +1651,13 @@ async function loadForEdit(id){
   savedActions = input.savedActions||[];
   refreshSavedActionsBar();
 
-  jsonVillages = input.jsonVillages||[];
+  // Vždy obnov CELÝ původní import (ne jen to, co po předchozích kolech zbylo) –
+  // při přeplánování chceme mít znovu k dispozici všechny kmenové jednotky.
+  // Starší uložené plány nemají importedJsonVillages – pro ně použij jako fallback jsonVillages.
+  importedJsonVillages = (input.importedJsonVillages && input.importedJsonVillages.length)
+    ? input.importedJsonVillages
+    : (input.jsonVillages || []);
+  jsonVillages = [...importedJsonVillages];
   if(jsonVillages.length){
     applyMode();
     document.getElementById('src-overview').style.display='block';
