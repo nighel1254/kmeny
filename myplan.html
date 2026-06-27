@@ -1199,14 +1199,28 @@ async function calculate() {
   const fakeNobCnt = parseInt(document.getElementById('fakenob-count').value)||0;
   const noblePerTgt= parseInt(document.getElementById('noble-per-target').value)||4;
 
+  // ── Historie již ODESLANÝCH útoků (z předchozích kol, potvrzeno kliknutím ▶/"Odešlo") ──
+  // Co už bylo reálně odesláno, se počítá do splnění požadovaného počtu – znovu se to neplánuje.
+  const _historyRows = savedActions.flatMap(a => a.rows).filter(r => playedRows.has(rowKey(r)));
+  const sentCountAtTarget = (x, y, pred) => _historyRows.filter(r => r.tgtX===x && r.tgtY===y && pred(r)).length;
+  const sentCountFromSrc  = (x, y, pred) => _historyRows.filter(r => r.srcX===x && r.srcY===y && pred(r)).length;
+  const PRED_SHARP = r => !r.isFake && !r.isNoble && !r.isFakeNoble;
+  const PRED_FAKE  = r => r.isFake && !r.isFakeNoble;
+  const PRED_FN    = r => r.isFakeNoble;
+  const PRED_NOBLE = r => r.isNoble;
+
   // ── Ostré útoky — každá vesnice se použije jen jednou, nejblíže cíli má prioritu ──
   // Vesnice, ze které by odeslání vyšlo do minulosti (nestihne to), se přeskočí –
   // vezme se další nejbližší, která to ještě reálně zvládne.
   const _calcNow = Date.now();
-  const usedSharpSrcs = new Set();
+  // Vesnice, které už podle historie reálně odeslaly ostrý útok, se znovu nenabízí.
+  const usedSharpSrcs = new Set(_historyRows.filter(PRED_SHARP).map(r => `${r.srcX}|${r.srcY}`));
   for (const tgt of sharpTgts) {
+    const already = sentCountAtTarget(tgt.x, tgt.y, PRED_SHARP);
+    const need = Math.max(0, sharpCount - already);
+    if (need === 0) continue; // cíl už má splněný požadovaný počet ostrých útoků
     const candidates = offVillages.filter(v => !usedSharpSrcs.has(`${v.x}|${v.y}`)).sort(byDistTo(tgt));
-    for (let s=0; s<sharpCount; s++) {
+    for (let s=0; s<need; s++) {
       const idx = candidates.findIndex(v => tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'ram') > _calcNow + 60000);
       if (idx === -1) { toast(`⚠ Cíl ${tgt.x}|${tgt.y}: žádná volná vesnice to už nestihne odeslat včas!`, 'info', 5000); break; }
       const src = candidates.splice(idx,1)[0];
@@ -1228,26 +1242,43 @@ async function calculate() {
   // Cílem je použít co nejvíc různých vesnic rovnoměrně, než se kterákoli vesnice opakuje.
   const FAKE_MAX_REUSE = 5;
 
-  function runFakeRoundRobin(targets, count, srcPool, kindLabel, rowBuilder) {
+  function runFakeRoundRobin(targets, count, srcPool, kindLabel, histPred, rowBuilder) {
     if (count<=0 || !targets.length) return;
-    const totalNeeded = targets.length * count;
-    const capacity = srcPool.length * FAKE_MAX_REUSE;
+
+    // Kolik už bylo na cíl reálně odesláno (podle historie) – to se odečte od potřebného počtu.
+    const neededPerTgt = new Map();
+    let totalNeeded = 0;
+    for (const tgt of targets) {
+      const already = sentCountAtTarget(tgt.x, tgt.y, histPred);
+      const need = Math.max(0, count - already);
+      neededPerTgt.set(tgt, need);
+      totalNeeded += need;
+    }
+    if (totalNeeded === 0) { toast(`✓ Všechny cíle už mají splněný požadovaný počet ${kindLabel} (podle odeslaných útoků) – nic se nepřidává.`, 'info', 4000); return; }
+
+    // Kolik už ta která vesnice podle historie reálně poslala – to se odečte z limitu FAKE_MAX_REUSE.
+    const useCount = new Map();
+    for (const src of srcPool) {
+      const already = sentCountFromSrc(src.x, src.y, histPred);
+      if (already > 0) useCount.set(`${src.x}|${src.y}`, already);
+    }
+    const capacity = srcPool.reduce((s,src) => s + Math.max(0, FAKE_MAX_REUSE - (useCount.get(`${src.x}|${src.y}`)||0)), 0);
     let effectiveMax = FAKE_MAX_REUSE;
     if (totalNeeded > capacity) {
       const over = totalNeeded - capacity;
       const ok = confirm(
-        `⚠ Chceš poslat ${totalNeeded} ${kindLabel}, ale ${srcPool.length} vesnic × max ${FAKE_MAX_REUSE} = kapacita jen ${capacity}.\n\n`+
-        `Přesahuje to o ${over} útoků – některé vesnice budou muset poslat víc než ${FAKE_MAX_REUSE}× (např. ${FAKE_MAX_REUSE+1}× a více).\n\n`+
+        `⚠ Ještě potřebuješ poslat ${totalNeeded} ${kindLabel} (po odečtení už odeslaných), ale zbývající kapacita vesnic je jen ${capacity}.\n\n`+
+        `Přesahuje to o ${over} útoků – některé vesnice budou muset poslat víc než ${FAKE_MAX_REUSE}× celkem (např. ${FAKE_MAX_REUSE+1}× a více).\n\n`+
         `Klikni OK, pokud si jsi vědom, že z některých vesnic půjde víc než ${FAKE_MAX_REUSE} ${kindLabel}, a chceš pokračovat.`
       );
       if (!ok) { toast(`${kindLabel} zrušeny – uprav počet nebo přidej vesnice.`, 'info', 5000); return; }
       effectiveMax = Infinity;
     }
-    const useCount = new Map();
     let shortage = false;
     for (const tgt of targets) {
+      let needed = neededPerTgt.get(tgt);
+      if (needed <= 0) continue; // cíl už má splněno podle historie
       const sorted = [...srcPool].sort(byDistTo(tgt));
-      let needed = count;
       while (needed > 0) {
         let assignedThisRound = 0;
         for (const src of sorted) {
@@ -1264,12 +1295,12 @@ async function calculate() {
         if (assignedThisRound === 0) { shortage = true; break; }
       }
     }
-    if (shortage) toast(`⚠ Nedostatek vesnic na ${kindLabel} (každá max ${effectiveMax===Infinity?'∞':FAKE_MAX_REUSE}×)!`, 'info', 5000);
+    if (shortage) toast(`⚠ Nedostatek vesnic na ${kindLabel} (každá max ${effectiveMax===Infinity?'∞':FAKE_MAX_REUSE}× celkem vč. už odeslaných)!`, 'info', 5000);
   }
 
   if (fakeCount>0) {
     const fakeSrc = jsonVillages.length ? jsonVillages : offVillages;
-    runFakeRoundRobin(fakeTgts, fakeCount, fakeSrc, 'fejky', (src, tgt) => {
+    runFakeRoundRobin(fakeTgts, fakeCount, fakeSrc, 'fejky', PRED_FAKE, (src, tgt) => {
       const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
       const sendTime = tgt.arrivalTime - travel;
       attackRows.push({
@@ -1284,7 +1315,7 @@ async function calculate() {
 
   if (fakeNobCnt>0) {
     const fakeSrc = jsonVillages.length ? jsonVillages : offVillages;
-    runFakeRoundRobin(fakeNobTgts, fakeNobCnt, fakeSrc, 'fejk vlaky', (src, tgt) => {
+    runFakeRoundRobin(fakeNobTgts, fakeNobCnt, fakeSrc, 'fejk vlaky', PRED_FN, (src, tgt) => {
       const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
       const sendTime = tgt.arrivalTime - travel;
       attackRows.push({
@@ -1301,10 +1332,14 @@ async function calculate() {
   if (nobleTgts.length) {
     if (!nobleVillages.length){ toast('⚠ Žádné vesnice se šlechtici v JSON!','err'); }
     else {
-      // Pracovní pool šlechticů
-      const pool = nobleVillages.map(v=>({...v, remaining: v._noble}));
+      // Pracovní pool šlechticů – odečti šlechtice, které vesnice podle historie už reálně odeslala.
+      const pool = nobleVillages.map(v=>{
+        const sentFromHere = sentCountFromSrc(v.x, v.y, PRED_NOBLE);
+        return {...v, remaining: Math.max(0, v._noble - sentFromHere)};
+      });
       for (const tgt of nobleTgts) {
-        let placed=0;
+        // Kolik šlechticů už na tento cíl bylo reálně odesláno – train pokračuje odsud, ne od nuly.
+        let placed = sentCountAtTarget(tgt.x, tgt.y, PRED_NOBLE);
         const tgtNobleRows=[];
         const sortedPool = pool.filter(v=>v.remaining>0 && tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'noble') > _calcNow + 60000).sort(byDistTo(tgt));
         for (const src of sortedPool) {
