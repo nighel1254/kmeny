@@ -1711,6 +1711,10 @@ function minimizeNightSends(rows) {
     usage.set(k, (usage.get(k)||0) + 1);
   });
 
+  const ratioCheckEnabled = document.getElementById('ratio-check-enabled')?.checked ?? true;
+  const playerPoints      = ratioCheckEnabled ? getPlayerPointsByName() : null;
+  const ratioViolations   = new Map();
+
   let swapped = 0;
   const nightRows = rows.filter(r => r.night && !r.isPast);
   for (const row of nightRows) {
@@ -1725,6 +1729,7 @@ function minimizeNightSends(rows) {
       if (!vx || !vy) continue;
       const key = `${vx}|${vy}`;
       if (key === origKey) continue;
+      if (!ratioAllowed(ratioCheckEnabled, playerPoints, v.player_name || '', row.tgtOwner, ratioViolations)) continue;
 
       if (isNobleKind) {
         const nobleCount = v.noble || (v.units && v.units.noble) || 0;
