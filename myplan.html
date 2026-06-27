@@ -1158,12 +1158,16 @@ async function calculate() {
   const noblePerTgt= parseInt(document.getElementById('noble-per-target').value)||4;
 
   // ── Ostré útoky — každá vesnice se použije jen jednou, nejblíže cíli má prioritu ──
+  // Vesnice, ze které by odeslání vyšlo do minulosti (nestihne to), se přeskočí –
+  // vezme se další nejbližší, která to ještě reálně zvládne.
+  const _calcNow = Date.now();
   const usedSharpSrcs = new Set();
   for (const tgt of sharpTgts) {
     const candidates = offVillages.filter(v => !usedSharpSrcs.has(`${v.x}|${v.y}`)).sort(byDistTo(tgt));
     for (let s=0; s<sharpCount; s++) {
-      const src = candidates.shift();
-      if (!src) { toast(`⚠ Nedostatek útočných vesnic! (${usedSharpSrcs.size} použito)`, 'info', 5000); break; }
+      const idx = candidates.findIndex(v => tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'ram') > _calcNow + 60000);
+      if (idx === -1) { toast(`⚠ Cíl ${tgt.x}|${tgt.y}: žádná volná vesnice to už nestihne odeslat včas!`, 'info', 5000); break; }
+      const src = candidates.splice(idx,1)[0];
       usedSharpSrcs.add(`${src.x}|${src.y}`);
       const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
       const sendTime = tgt.arrivalTime - travel;
@@ -1209,6 +1213,8 @@ async function calculate() {
           const key = `${src.x}|${src.y}`;
           const used = useCount.get(key)||0;
           if (used >= effectiveMax) continue;
+          // Přeskoč vesnici, ze které by odeslání vyšlo do minulosti (nestihne to)
+          if (tgt.arrivalTime - travelMs(src.x,src.y,tgt.x,tgt.y,'ram') <= Date.now() + 60000) continue;
           useCount.set(key, used+1);
           rowBuilder(src, tgt);
           needed--; assignedThisRound++;
@@ -1258,7 +1264,7 @@ async function calculate() {
       for (const tgt of nobleTgts) {
         let placed=0;
         const tgtNobleRows=[];
-        const sortedPool = pool.filter(v=>v.remaining>0).sort(byDistTo(tgt));
+        const sortedPool = pool.filter(v=>v.remaining>0 && tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'noble') > _calcNow + 60000).sort(byDistTo(tgt));
         for (const src of sortedPool) {
           if (placed >= noblePerTgt) break;
           const take = Math.min(src.remaining, noblePerTgt - placed);
