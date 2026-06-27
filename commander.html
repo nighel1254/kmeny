@@ -1812,9 +1812,17 @@ function replaceRemovedPlayersRows() {
       return out;
     }
 
-    // Sluč VŠECHNY uložené kola + aktuální kolo do jednoho seznamu, ať jsou nahrazené (✨ NOVÝ)
-    // řádky vidět v tabulce – ta jinak zobrazuje jen aktuální (neuložené) kolo, ne savedActions.
-    const merged = processRows([...savedActions.flatMap(a => a.rows), ...attackRows]);
+    // Sluč VŠECHNY uložené kola + aktuální kolo do jednoho seznamu (s deduplikací podle
+    // zdroj|cíl|čas odeslání – pro jistotu, kdyby se odjinud dostal překryv), ať jsou nahrazené
+    // (✨ NOVÝ) řádky vidět v tabulce – ta jinak zobrazuje jen aktuální (neuložené) kolo, ne savedActions.
+    const _seenRowKeys = new Set();
+    const combined = [...savedActions.flatMap(a => a.rows), ...attackRows].filter(r => {
+      const k = `${r.srcX}|${r.srcY}|${r.sendTime}`;
+      if (_seenRowKeys.has(k)) return false;
+      _seenRowKeys.add(k);
+      return true;
+    });
+    const merged = processRows(combined);
     savedActions = [];
     attackRows = merged;
 
@@ -3705,6 +3713,15 @@ async function saveCurrentPlanToDB() {
   if (_plansOpen) loadPlansFromDB('personal');
 }
 
+// "rows" v uloženém plánu je u panelového uložení (Uložit plán / Osobní verze) postaveno
+// z getAllRows()/getAllRowsIncludingCurrent(), takže běžně OBSAHUJE i vše, co je v savedActions –
+// kdyby se obojí naskládalo do samostatných proměnných beze změny, vše by se zdvojilo.
+// Sem patří jen řádky, které v savedActions chybí (= reálně rozpracované, nepřidané kolo).
+function extraRowsNotInSavedActions(rows, savedActions) {
+  const savedKeys = new Set(savedActions.flatMap(a => a.rows).map(r => `${r.srcX}|${r.srcY}|${r.sendTime}`));
+  return (rows || []).filter(r => !savedKeys.has(`${r.srcX}|${r.srcY}|${r.sendTime}`));
+}
+
 async function loadAutosaveFromDB() {
   try {
     const { data: { session } } = await sb.auth.getSession();
@@ -3713,9 +3730,10 @@ async function loadAutosaveFromDB() {
       .select('data, created_at, updated_at').eq('created_by', session.user.id)
       .eq('type','personal').eq('label','⚙️ Autosave').single();
     if (!plan) return;
+    const savedActionsRestored = plan.data?.savedActions || [];
     const state = {
-      savedActions: plan.data?.savedActions || [],
-      attackRows:   plan.data?.rows || [],
+      savedActions: savedActionsRestored,
+      attackRows:   extraRowsNotInSavedActions(plan.data?.rows, savedActionsRestored),
       srcVillages: [], jsonVillages: plan.data?.jsonVillages || [],
       snapshot:     plan.data?.snapshot || null,
       version: 2, savedAt: new Date(plan.updated_at || plan.created_at).getTime()
@@ -3729,9 +3747,10 @@ async function loadAutosaveFromDB() {
 async function loadPlanFromDB(planId) {
   const { data: plan } = await sb.from('plans').select('data, label').eq('id', planId).single();
   if (!plan) { toast('Plán nenalezen.', 'err'); return; }
+  const savedActionsRestored = plan.data?.savedActions || [];
   const state = {
-    savedActions: plan.data?.savedActions || [],
-    attackRows:   plan.data?.rows || [],
+    savedActions: savedActionsRestored,
+    attackRows:   extraRowsNotInSavedActions(plan.data?.rows, savedActionsRestored),
     srcVillages: [], jsonVillages: plan.data?.jsonVillages || [],
     snapshot:     plan.data?.snapshot || null,
     version: 2, savedAt: Date.now()
