@@ -430,6 +430,7 @@
             <div id="src-player-checklist" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:6px 8px;background:var(--panel);"></div>
             <div class="btn-row" style="margin-top:8px;">
               <button class="btn btn-primary btn-sm" onclick="loadPlayersFromJson()">▶ Načíst vybrané</button>
+              <button id="replace-removed-btn" class="btn btn-sm" style="background:#1a1a2e;border:1px solid #3a3a6a;color:#a0a0ff;" onclick="replaceRemovedPlayersRows()" title="Už načtený plán: nahradí JEN příkazy hráčů, které jsi výše odškrtnul, ostatní příkazy nechá beze změny">🔁 Nahradit chybějící hráče</button>
             </div>
           </div>
           <div id="src-from-json-empty" style="font-size:12px;color:var(--dim);padding:8px 0;">
@@ -724,7 +725,7 @@
     </div>
 
     <div style="text-align:center;">
-      <button class="btn btn-primary" style="font-size:15px;padding:10px 28px;" onclick="calculate()">
+      <button id="calc-btn" class="btn btn-primary" style="font-size:15px;padding:10px 28px;" onclick="calculate()">
         ⚔️ Vypočítat plán
       </button>
     </div>
@@ -1739,7 +1740,102 @@ function bestArrivalTime(from, to, srcList, tgt, unit) {
 }
 
 // ── CALCULATE ──────────────────────────────────────────────
+// ── NAHRADIT JEN PŘÍKAZY ODSTRANĚNÝCH HRÁČŮ ─────────────────
+// Na rozdíl od calculate() (přepočítá VŠECHNO znovu od nuly z aktuálně zadaných cílů)
+// tahle funkce nechá veškerý už existující plán (savedActions i aktuální kolo) beze změny
+// a jen u řádků, jejichž hráč je teď odškrtnutý, najde náhradní vesnici z hráčů, kteří zůstali zaškrtnutí.
+// Náhradní příkazy se oznáčí isNew, aby šly v tabulce vidět.
+function replaceRemovedPlayersRows() {
+  const checkedPlayers = new Set([...document.querySelectorAll('.src-player-cb:checked')].map(cb => cb.value));
+  if (!checkedPlayers.size) { toast('Zaškrtni alespoň jednoho hráče, jehož vesnice se mají použít jako náhrada!', 'err'); return; }
+  if (!jsonVillages.length) { toast('Nejprve načti JSON s kmenovými jednotkami!', 'err'); return; }
+  if (!savedActions.length && !attackRows.length) { toast('Není načtený žádný plán k úpravě.', 'err'); return; }
+
+  const btn = document.getElementById('replace-removed-btn');
+  if (btn) { btn.classList.add('btn-loading'); btn.dataset.origHtml = btn.innerHTML; btn.innerHTML = '<span class="spin-icon">⟳</span> Nahrazuji…'; }
+
+  try {
+    // Vesnice hráčů, co zůstávají, a co už jsou v plánu obsazené – ty nová náhrada nesmí znovu použít
+    const usedKey = new Set();
+    const noteUsed = r => { if (r.srcPlayer && checkedPlayers.has(r.srcPlayer)) usedKey.add(`${r.srcX}|${r.srcY}`); };
+    savedActions.forEach(a => a.rows.forEach(noteUsed));
+    attackRows.forEach(noteUsed);
+
+    const fakeReuse = new Map(); // vesnice → kolikrát použita pro fejky v rámci téhle náhrady (max 5×)
+    let replaced = 0, removed = 0, failed = 0;
+
+    const distSq2 = (a,b) => (a.x-b.x)**2 + (a.y-b.y)**2;
+
+    function pickReplacement(row) {
+      let candidates = jsonVillages.filter(v => checkedPlayers.has(v.player_name));
+      if (row.isNoble) {
+        candidates = candidates.filter(v => (v.noble || (v.units && v.units.noble) || 0) > 0 && !usedKey.has(`${v.x}|${v.y}`));
+      } else if (row.isFake || row.isFakeNoble) {
+        candidates = candidates.filter(v => (fakeReuse.get(`${v.x}|${v.y}`) || 0) < 5);
+      } else {
+        candidates = candidates.filter(v => ['fullka','triq_off','half_off'].includes(v.category) && !usedKey.has(`${v.x}|${v.y}`));
+      }
+      if (!candidates.length) return null;
+      candidates.sort((a,b) => distSq2(a, {x:row.tgtX,y:row.tgtY}) - distSq2(b, {x:row.tgtX,y:row.tgtY}));
+      return candidates[0];
+    }
+
+    function rebuildRow(row, src) {
+      const travel = travelMs(src.x, src.y, row.tgtX, row.tgtY, row.unit);
+      const sendTime = row.arrivalTime - travel;
+      const key = `${src.x}|${src.y}`;
+      if (row.isFake || row.isFakeNoble) fakeReuse.set(key, (fakeReuse.get(key)||0)+1);
+      else usedKey.add(key);
+      return {
+        ...row,
+        srcId: src.id || src.village_id || null,
+        srcName: src.name || src.village_name,
+        srcPlayer: src.player_name || '',
+        srcX: src.x, srcY: src.y,
+        srcCategory: row.isNoble ? 'noble' : (src.category || null),
+        travel, sendTime,
+        night: isNight(sendTime), isPast: sendTime < Date.now(),
+        isNew: true
+      };
+    }
+
+    function processRows(rows) {
+      const out = [];
+      rows.forEach(r => {
+        if (!r.srcPlayer || checkedPlayers.has(r.srcPlayer)) { out.push(r); return; }
+        removed++;
+        const src = pickReplacement(r);
+        if (!src) { failed++; return; }
+        out.push(rebuildRow(r, src));
+        replaced++;
+      });
+      return out;
+    }
+
+    // Sluč VŠECHNY uložené kola + aktuální kolo do jednoho seznamu, ať jsou nahrazené (✨ NOVÝ)
+    // řádky vidět v tabulce – ta jinak zobrazuje jen aktuální (neuložené) kolo, ne savedActions.
+    const merged = processRows([...savedActions.flatMap(a => a.rows), ...attackRows]);
+    savedActions = [];
+    attackRows = merged;
+
+    if (!removed) { toast('Žádné příkazy odstraněných hráčů k nahrazení – ve vybraných hráčích už útoky jen z nich.', 'info', 5000); return; }
+
+    refreshSavedActionsBar();
+    renderResults();
+    autosave();
+    toast(
+      `🔁 Nahrazeno ${replaced}/${removed} příkazů odstraněných hráčů${failed ? ` – ${failed} se nepodařilo nahradit (chybí dostupné vesnice)` : ''}. Ostatní příkazy beze změny.`,
+      failed ? 'info' : 'ok', 7000
+    );
+  } finally {
+    if (btn) { btn.classList.remove('btn-loading'); btn.innerHTML = btn.dataset.origHtml || '🔁 Nahradit chybějící hráče'; }
+  }
+}
+
 async function calculate() {
+  const _calcBtn = document.getElementById('calc-btn');
+  if (_calcBtn) { _calcBtn.classList.add('btn-loading'); _calcBtn.dataset.origHtml = _calcBtn.innerHTML; _calcBtn.innerHTML = '<span class="spin-icon">⟳</span> Počítám…'; }
+  try {
   if (!srcVillages.length) { toast('Nejprve načti zdrojového hráče nebo importuj JSON!', 'err'); return; }
 
   // Načti allVillages pokud ještě nemáme (potřeba pro body cílů)
@@ -2183,6 +2279,9 @@ async function calculate() {
   // }
 
   renderResults(nightWarnings);
+  } finally {
+    if (_calcBtn) { _calcBtn.classList.remove('btn-loading'); _calcBtn.innerHTML = _calcBtn.dataset.origHtml || '⚔️ Vypočítat plán'; }
+  }
 }
 
 // ── RENDER ─────────────────────────────────────────────────
