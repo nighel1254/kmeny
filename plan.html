@@ -83,6 +83,15 @@
   .play-btn:hover{background:#2a2010;border-color:var(--gold)}
   .error{background:#2a0a0a;border:1px solid #8b2020;border-radius:8px;padding:20px;text-align:center;color:#ff8080;margin:40px auto;max-width:500px}
   .warning-box{background:#1a0800;border-left:3px solid #6b2000;padding:6px 12px;margin:6px 12px;font-size:11px;color:#cc7733;border-radius:0 4px 4px 0;}
+  .help-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px;}
+  .help-overlay.open{opacity:1;pointer-events:auto;}
+  .help-modal{background:linear-gradient(180deg,#261a09,#1e1408);border:1px solid var(--gold);border-radius:10px;padding:22px 24px;width:560px;max-width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.8);}
+  .help-modal h3{color:var(--gold2);font-size:16px;margin-bottom:12px;}
+  .help-modal h4{color:var(--gold2);font-size:13px;margin:14px 0 4px;}
+  .help-modal p,.help-modal li{font-size:12.5px;color:var(--text);line-height:1.5;}
+  .help-modal ul{margin:4px 0 0 18px;}
+  .help-modal .btn-ghost{margin-top:16px;background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer;}
+  .help-modal .btn-ghost:hover{border-color:var(--text);color:var(--text);}
   /* ── MOBILE ──────────────────────────────────────────────── */
   @media (max-width: 480px) {
     .top-bar { padding: 8px 12px; gap: 6px; }
@@ -101,6 +110,35 @@
 <div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #2a1e00;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);">
   <span style="flex:1;">🔔 Zvukové upozornění 2 min před odesláním</span>
   <button id="audio-unlock-btn" onclick="unlockAudio()" class="">Zapnout</button>
+</div>
+
+<div class="help-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="help-modal">
+    <h3>❓ Nápověda – Plán útoků</h3>
+    <p>Tato stránka zobrazuje konkrétní seznam příkazů k odeslání (ostré útoky, vlaky, fejky) s odpočtem do odeslání.</p>
+    <h4>Tabulka příkazů</h4>
+    <ul>
+      <li>Sloupce: zdrojová vesnice, typ útoku (barevný štítek – fullka/3-4 off/1-2 off/vlak/fejk/fejk vlak), cíl, jednotka, čas odeslání, čas příchodu, doba cesty a živý odpočet.</li>
+      <li>Kliknutím na záhlaví sloupce (Zdroj/Typ/Cíl/Čas odeslání/příchodu/Cesta) přepneš řazení podle dané hodnoty.</li>
+      <li><strong>Noční řádky</strong> (fialově podbarvené) jsou útoky, které musí odejít v noci (0:00–6:00) – nahoře se zobrazí souhrnné upozornění.</li>
+      <li><strong>▶ tlačítko</strong> u řádku otevře útok přímo ve hře (na správné vesnici a cíli). Pokud do odeslání zbývá méně než 5 minut, řádek se po 10 s automaticky označí jako odeslaný.</li>
+      <li><strong>↺ tlačítko</strong> – „Přeplánovat" – pokud zjistíš, že daná vesnice nemůže útok odeslat, vyhledá náhradní vesnici stejné nebo vyšší kategorie, ukáže návrh k odsouhlasení (✓/✗).</li>
+    </ul>
+    <h4>Odpočet a stavy řádků</h4>
+    <ul>
+      <li>Zelený odpočet = čas v pořádku, oranžový = méně než 10 minut, červený = méně než minutu.</li>
+      <li>Po proběhnutí času se řádek změní na „Odešlo" (pokud jsi klikl na ▶) nebo „Zmeškal" – obojí lze ručně překlikávat (slouží jako manuální potvrzení).</li>
+      <li>Přepínač „⚔️ Odeslané" v horní liště skryje již odeslané řádky ze seznamu. Přepínač „🌙 Noční" skryje noční útoky.</li>
+      <li>Vyhledávací pole filtruje podle vesnice, hráče, typu nebo cíle.</li>
+    </ul>
+    <h4>🔔 Upozornění</h4>
+    <ul>
+      <li><strong>Zvukové upozornění</strong> (banner nahoře) – po zapnutí přehraje fanfáru 2 minuty před každým odesláním, dokud máš stránku otevřenou.</li>
+      <li><strong>Web Push notifikace</strong> (tlačítko v horní liště) – po povolení dostaneš systémové oznámení i když stránku nemáš otevřenou (vyžaduje podporu prohlížeče a HTTPS).</li>
+    </ul>
+    <p>Odkaz na tuto stránku obsahuje celý plán zakódovaný v URL (za #) – stačí ho mít uložený, není potřeba se přihlašovat.</p>
+    <button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button>
+  </div>
 </div>
 
 <div id="app">
@@ -766,6 +804,7 @@ function render(data) {
       </div>
       <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;">
         <a href="dashboard.html" class="nav-btn primary">← Moje plány</a>
+        <button class="nav-btn" onclick="document.getElementById('help-modal').classList.add('open')">❓ Nápověda</button>
         <button id="notif-btn" onclick="enableNotifications()" class="nav-btn">🔔 Notifikace</button>
         <button onclick="planLogout()" class="nav-btn">Odhlásit</button>
       </div>

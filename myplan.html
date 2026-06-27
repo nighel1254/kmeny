@@ -148,10 +148,65 @@
     table{font-size:11px;min-width:660px}
     th,td{padding:5px 7px}
   }
+  .help-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px;}
+  .help-overlay.open{opacity:1;pointer-events:auto;}
+  .help-modal{background:linear-gradient(180deg,#2e2210,#261a09);border:1px solid var(--gold);border-radius:10px;padding:22px 24px;width:620px;max-width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.8);}
+  .help-modal h3{color:var(--gold2);font-size:16px;margin-bottom:12px;}
+  .help-modal h4{color:var(--gold2);font-size:13px;margin:14px 0 4px;}
+  .help-modal p,.help-modal li{font-size:12.5px;color:var(--text);line-height:1.5;}
+  .help-modal ul{margin:4px 0 0 18px;}
+  .help-modal .btn-ghost{margin-top:16px;background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer;}
+  .help-modal .btn-ghost:hover{border-color:var(--text);color:var(--text);}
 </style>
 </head>
 <body style="visibility:hidden">
 <div id="toast-container"></div>
+
+<div class="help-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="help-modal">
+    <h3>❓ Nápověda – Můj plán útoků</h3>
+    <p>Osobní plánovač – navrhne ti přesný časový plán útoků z tvých vlastních vesnic na zadané cíle.</p>
+    <h4>Krok 1 – Export jednotek ze hry</h4>
+    <ul>
+      <li>Přetáhni tlačítko „⚔️ DK Export jednotek" na lištu záložek (Ctrl+Shift+B v Chrome).</li>
+      <li>Ve hře jdi na <em>Přehled → Vesnice → Vojenské jednotky</em> a klikni na bookmarklet. Vyexportuje JSON se stavem jednotek ve všech vesnicích (doma i na cestě) a automaticky ho zkopíruje do schránky.</li>
+    </ul>
+    <h4>Krok 2 – Vložení JSON</h4>
+    <ul>
+      <li>Vlož zkopírovaný JSON do textového pole – aplikace ho rozparsuje a roztřídí vesnice do kategorií: <strong>fullka</strong> (≥18k off populace), <strong>3/4 off</strong> (15-18k), <strong>1/2 off</strong> (10-15k), <strong>mini off</strong> a vesnice se <strong>šlechtici</strong>.</li>
+      <li>Přepínač „🏠 Dostupné / 🗺️ Celkem" určuje, jestli se počítá jen aktuálně doma stojící vojsko, nebo i jednotky momentálně na cestě (návratu z výpravy).</li>
+      <li>Checkboxy fullka/3-4/1-2/mini umožní vyřadit slabší vesnice z výběru zdrojů.</li>
+    </ul>
+    <h4>Ostré útoky</h4>
+    <ul>
+      <li>Zadej, kolik útoků chceš poslat z každé offové vesnice, a cílové souřadnice (jeden cíl na řádek).</li>
+      <li>Po načtení cílů nastav u každého cíl čas příchodu (lze i hromadně – „Vyplnit vše" nebo rozsahem časů).</li>
+      <li>Algoritmus vybírá pro každý cíl vždy nejbližší dosud nepoužité vesnice, takže žádná vesnice neútočí na dva cíle zároveň.</li>
+    </ul>
+    <h4>Šlechtici (vlaky)</h4>
+    <ul>
+      <li>Nastav počet šlechticů na jeden cíl (vlak) a cílové souřadnice. Aplikace poskládá vlak z nejbližších vesnic se šlechtici, případně z více vesnic najednou, pokud jedna nemá dost.</li>
+    </ul>
+    <h4>Fejky a Fejk vlaky</h4>
+    <ul>
+      <li>Fejky = naoko útoky (beranidla), Fejk vlaky = naoko šlechtické vlaky – obojí slouží k zamaskování ostrého útoku/vlaku.</li>
+      <li>Rozdělování vesnic je <strong>round-robin</strong>: nejprve se použije každá dostupná vesnice jednou, pak se jede druhé kolo přes všechny znovu atd., max. 5× ze stejné vesnice. Pokud by bylo potřeba poslat víc, zobrazí se potvrzovací dialog, který musíš odkliknout.</li>
+    </ul>
+    <h4>⚙️ Pravidlo poměru 20:1</h4>
+    <ul>
+      <li>Pokud je v commander.html/myplan.html zapnuté omezení podle bodů (cíl musí mít alespoň 20× méně bodů než útočník), platí stejně pro všechny typy útoků (ostré, fejky, vlaky).</li>
+    </ul>
+    <h4>Výsledný plán a export</h4>
+    <ul>
+      <li><strong>⚔️ Vypočítat plán</strong> – spočítá všechny zadané útoky a zobrazí je v tabulce vpravo, seřazené podle času odeslání.</li>
+      <li><strong>➕ Přidat do plánu</strong> – uloží aktuálně vypočítané kolo útoků a uvolní použité vesnice, abys mohl naplánovat další kolo (např. další várku fejků) bez ztráty již vypočítaných útoků.</li>
+      <li><strong>💾 Uložit</strong> – uloží celý plán na server (uvidíš ho pak v Moje plány / dashboard.html), případně přepíše plán, který upravuješ.</li>
+      <li><strong>✕ Smazat</strong> – vyčistí aktuální výsledky.</li>
+      <li>Vyhledávací pole nad tabulkou filtruje podle vesnice, hráče nebo typu útoku.</li>
+    </ul>
+    <button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button>
+  </div>
+</div>
 
 <div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #2a1e00;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);">
   <span style="flex:1;">🔔 Zvukové upozornění 2 min před odesláním</span>
@@ -169,6 +224,7 @@
       <span style="color:var(--gold);">⚔️</span>
       <span style="font-size:13px;font-weight:600;color:var(--gold2);" id="nav-user-name">…</span>
     </div>
+    <button onclick="document.getElementById('help-modal').classList.add('open')" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">❓ Nápověda</button>
     <button id="notif-btn" onclick="enableNotifications()" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">🔔 Notifikace</button>
     <a href="dashboard.html" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;text-decoration:none;">← Moje plány</a>
     <button onclick="doLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">Odhlásit</button>
@@ -1110,57 +1166,76 @@ async function calculate() {
     }
   }
 
-  // ── Fejky — nejblíže cíli mají prioritu, max FAKE_MAX_REUSE použití na vesnici ──
-  const FAKE_MAX_REUSE = 3;
-  if (fakeCount>0) {
-    const fakeSrc = jsonVillages.length ? jsonVillages : offVillages;
-    const fakeUseCount = new Map();
-    let fakeShortage = false;
-    for (const tgt of fakeTgts) {
-      const sorted = [...fakeSrc].sort(byDistTo(tgt));
-      for (let f=0; f<fakeCount; f++) {
-        const src = sorted.find(v => (fakeUseCount.get(`${v.x}|${v.y}`)||0) < FAKE_MAX_REUSE);
-        if (!src) { fakeShortage = true; break; }
-        const key = `${src.x}|${src.y}`;
-        fakeUseCount.set(key, (fakeUseCount.get(key)||0)+1);
-        const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
-        const sendTime = tgt.arrivalTime - travel;
-        attackRows.push({
-          srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-          srcCategory:src.category||'def', srcOwner:src.player_name||'',
-          tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
-          unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
-          night:isNight(sendTime), isFake:true, isNoble:false, isFakeNoble:false
-        });
+  // ── Fejky / Fejk vlaky — round-robin přes všechny vesnice, max FAKE_MAX_REUSE použití na vesnici ──
+  // Kolo 1: z každé vesnice jeden fejk, kolo 2: z každé vesnice druhý, ... až do limitu FAKE_MAX_REUSE.
+  // Cílem je použít co nejvíc různých vesnic rovnoměrně, než se kterákoli vesnice opakuje.
+  const FAKE_MAX_REUSE = 5;
+
+  function runFakeRoundRobin(targets, count, srcPool, kindLabel, rowBuilder) {
+    if (count<=0 || !targets.length) return;
+    const totalNeeded = targets.length * count;
+    const capacity = srcPool.length * FAKE_MAX_REUSE;
+    let effectiveMax = FAKE_MAX_REUSE;
+    if (totalNeeded > capacity) {
+      const over = totalNeeded - capacity;
+      const ok = confirm(
+        `⚠ Chceš poslat ${totalNeeded} ${kindLabel}, ale ${srcPool.length} vesnic × max ${FAKE_MAX_REUSE} = kapacita jen ${capacity}.\n\n`+
+        `Přesahuje to o ${over} útoků – některé vesnice budou muset poslat víc než ${FAKE_MAX_REUSE}× (např. ${FAKE_MAX_REUSE+1}× a více).\n\n`+
+        `Klikni OK, pokud si jsi vědom, že z některých vesnic půjde víc než ${FAKE_MAX_REUSE} ${kindLabel}, a chceš pokračovat.`
+      );
+      if (!ok) { toast(`${kindLabel} zrušeny – uprav počet nebo přidej vesnice.`, 'info', 5000); return; }
+      effectiveMax = Infinity;
+    }
+    const useCount = new Map();
+    let shortage = false;
+    for (const tgt of targets) {
+      const sorted = [...srcPool].sort(byDistTo(tgt));
+      let needed = count;
+      while (needed > 0) {
+        let assignedThisRound = 0;
+        for (const src of sorted) {
+          if (needed <= 0) break;
+          const key = `${src.x}|${src.y}`;
+          const used = useCount.get(key)||0;
+          if (used >= effectiveMax) continue;
+          useCount.set(key, used+1);
+          rowBuilder(src, tgt);
+          needed--; assignedThisRound++;
+        }
+        if (assignedThisRound === 0) { shortage = true; break; }
       }
     }
-    if (fakeShortage) toast(`⚠ Nedostatek vesnic na fejky (každá max ${FAKE_MAX_REUSE}×)!`, 'info', 5000);
+    if (shortage) toast(`⚠ Nedostatek vesnic na ${kindLabel} (každá max ${effectiveMax===Infinity?'∞':FAKE_MAX_REUSE}×)!`, 'info', 5000);
   }
 
-  // ── Fejk vlaky — nejblíže cíli mají prioritu, max FAKE_MAX_REUSE použití na vesnici ──
+  if (fakeCount>0) {
+    const fakeSrc = jsonVillages.length ? jsonVillages : offVillages;
+    runFakeRoundRobin(fakeTgts, fakeCount, fakeSrc, 'fejky', (src, tgt) => {
+      const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
+      const sendTime = tgt.arrivalTime - travel;
+      attackRows.push({
+        srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
+        srcCategory:src.category||'def', srcOwner:src.player_name||'',
+        tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
+        unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
+        night:isNight(sendTime), isFake:true, isNoble:false, isFakeNoble:false
+      });
+    });
+  }
+
   if (fakeNobCnt>0) {
     const fakeSrc = jsonVillages.length ? jsonVillages : offVillages;
-    const fakeNobUseCount = new Map();
-    let fakeNobShortage = false;
-    for (const tgt of fakeNobTgts) {
-      const sorted = [...fakeSrc].sort(byDistTo(tgt));
-      for (let f=0; f<fakeNobCnt; f++) {
-        const src = sorted.find(v => (fakeNobUseCount.get(`${v.x}|${v.y}`)||0) < FAKE_MAX_REUSE);
-        if (!src) { fakeNobShortage = true; break; }
-        const key = `${src.x}|${src.y}`;
-        fakeNobUseCount.set(key, (fakeNobUseCount.get(key)||0)+1);
-        const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
-        const sendTime = tgt.arrivalTime - travel;
-        attackRows.push({
-          srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-          srcCategory:src.category||'def', srcOwner:src.player_name||'',
-          tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
-          unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
-          night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:true
-        });
-      }
-    }
-    if (fakeNobShortage) toast(`⚠ Nedostatek vesnic na fejk vlaky (každá max ${FAKE_MAX_REUSE}×)!`, 'info', 5000);
+    runFakeRoundRobin(fakeNobTgts, fakeNobCnt, fakeSrc, 'fejk vlaky', (src, tgt) => {
+      const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
+      const sendTime = tgt.arrivalTime - travel;
+      attackRows.push({
+        srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
+        srcCategory:src.category||'def', srcOwner:src.player_name||'',
+        tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
+        unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
+        night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:true
+      });
+    });
   }
 
   // ── Šlechtici — nejblíže cíli mají prioritu ──

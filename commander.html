@@ -269,6 +269,7 @@
       <span style="color:var(--gold);">⚔️</span>
       <span style="font-size:13px;font-weight:600;color:var(--gold2);" id="nav-user-name"></span>
     </div>
+    <button onclick="document.getElementById('help-modal').classList.add('open')" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">❓ Nápověda</button>
     <button onclick="openPlansPanel('tribal')" style="font-size:12px;background:#0a1a0a;border:1px solid #205020;color:#60c060;padding:5px 11px;border-radius:4px;cursor:pointer;">🏰 Kmenové plány</button>
     <button onclick="openPlansPanel('personal')" style="font-size:12px;background:#0a0a2a;border:1px solid #202060;color:#6060c0;padding:5px 11px;border-radius:4px;cursor:pointer;">👤 Osobní plány</button>
     <button onclick="openPlansPanel('players')" style="font-size:12px;background:#1a0a1a;border:1px solid #602060;color:#c060c0;padding:5px 11px;border-radius:4px;cursor:pointer;">👥 Hráči</button>
@@ -278,6 +279,54 @@
 
 <!-- Toast container -->
 <div id="toast-container"></div>
+
+<!-- Help modal -->
+<div class="help-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:3000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px;">
+  <div style="background:linear-gradient(180deg,#2e2210,#261a09);border:1px solid var(--gold);border-radius:10px;padding:22px 24px;width:680px;max-width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.8);">
+    <h3 style="color:var(--gold2);font-size:16px;margin-bottom:12px;">❓ Nápověda – Velitelský panel</h3>
+    <p style="font-size:12.5px;color:var(--text);line-height:1.5;">Velitelský panel slouží k plánování útoků pro celý kmen najednou a k rozeslání hotových plánů jednotlivým hráčům.</p>
+
+    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">🏘️ Zdroj útoků</h4>
+    <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
+      <li>Nahraj kmenový JSON pomocí bookmarkletu <strong>DK Export jednotek (kmen)</strong> – spouští se na stránce <em>Kmen → Členové</em> a stáhne jednotky všech hráčů kmene najednou.</li>
+      <li>Vesnice se automaticky rozřadí do kategorií podle off populace: <strong>fullka</strong> (≥18k), <strong>3/4 off</strong> (15-18k), <strong>1/2 off</strong> (10-15k) a vesnice se šlechtici.</li>
+      <li>Záložky „Podle hráče" / „Podle kategorie" umožní vybrat zdrojové vesnice buď výběrem konkrétních hráčů (☑ Vše / ☐ Nic), nebo filtrem podle kategorie (checkboxy fullka/3-4/1-2 off).</li>
+      <li><strong>Skupiny hráčů</strong> – zvolenou kombinaci hráčů lze uložit pod jménem a kdykoliv znovu načíst (uloženo lokálně v prohlížeči).</li>
+      <li><strong>Souhrn kapacity</strong> ukazuje, kolik útočných vesnic jakého typu (a kolik šlechtických vlaků) máš momentálně k dispozici z vybraných hráčů – kolik je celkem, kolik je již použito a kolik zbývá.</li>
+    </ul>
+
+    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">⚔️ Ostré útoky / 👑 Šlechtici / Fejky / Fejk vlaky</h4>
+    <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
+      <li>Stejný princip jako u osobního plánovače, ale napříč všemi vesnicemi vybraných hráčů: zadáš cílové souřadnice, počet útoků/šlechticů na cíl a čas příchodu (jednotlivě nebo hromadně).</li>
+      <li><strong>Ostré útoky</strong> – pro každý cíl se použijí nejbližší nepoužité offové vesnice z vybraných hráčů.</li>
+      <li><strong>Šlechtici</strong> – poskládá vlak z nejbližších vesnic se šlechtici (lze i z více vesnic najednou). Lze omezit jen na vybrané hráče se šlechtici, nebo použít celý kmen.</li>
+      <li><strong>Fejky / Fejk vlaky</strong> – naoko útoky/vlaky pro zamaskování ostrých útoků. Vesnice se rozdělují round-robin (každá vesnice použita jednou, pak druhé kolo atd.), max. 5× ze stejné vesnice; při překročení se zobrazí potvrzovací dialog.</li>
+      <li><strong>Zaškrtávátko poměru 20:1</strong> – pokud je zapnuté, vyřadí jako cíle hráče s méně než 20× nižším bodovým ziskem než útočník (chrání před neefektivními údery). Platí jednotně pro všechny typy útoků.</li>
+    </ul>
+
+    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">📋 Výsledný plán</h4>
+    <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
+      <li>Tabulka všech vypočítaných útoků – lze řadit kliknutím na záhlaví (Hráč/Zdroj/Typ/Cíl/časy/cesta) a filtrovat vyhledáváním (vesnice, hráč, typ).</li>
+      <li>Přepínač „Skrýt noční" skryje útoky, které vychází na noční hodiny (0:00–6:00).</li>
+      <li>Řádky lze jednotlivě upravovat (přiřadit jinou vesnici/čas) přímo v tabulce.</li>
+    </ul>
+
+    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">📤 Export a publikování plánu</h4>
+    <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
+      <li><strong>Export do textu</strong> – vygeneruje přehledný textový seznam příkazů seřazený podle času odeslání, vhodný ke zkopírování.</li>
+      <li><strong>🚀 Publikovat plán hráčům</strong> – rozdělí útoky podle zdrojového hráče a každému přiřadí jen jeho část plánu, kterou pak hráč uvidí ve své sekci „Moje plány" a může ji otevřít jako interaktivní časový plán s odpočty (plan.html).</li>
+      <li>Plán lze také uložit jako šablonu (🏰 Kmenové plány / 👤 Osobní plány) a kdykoliv později znovu otevřít, upravit nebo znovu publikovat.</li>
+    </ul>
+
+    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">👥 Hráči a 💾 Autosave</h4>
+    <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
+      <li>Panel „👥 Hráči" zobrazuje přehled registrovaných hráčů kmene a jejich propojení s nicky ve hře.</li>
+      <li>Rozpracovaný plán se automaticky ukládá – pokud se vrátíš s nedokončenou prací, nabídne se banner „Obnovit" (vrátí rozpracovaný stav) nebo „Zahodit" (trvale smaže uložený rozpracovaný stav).</li>
+    </ul>
+    <button onclick="document.getElementById('help-modal').classList.remove('open')" style="margin-top:16px;background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer;">Zavřít</button>
+  </div>
+</div>
+<style>.help-overlay.open{opacity:1!important;pointer-events:auto!important;}</style>
 
 <!-- Autosave banner -->
 <div id="autosave-banner">

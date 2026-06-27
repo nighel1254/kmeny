@@ -121,9 +121,44 @@
     .hero-card{padding:16px;}
     .btn-hero{width:100%;justify-content:center;}
   }
+  .help-modal{max-width:560px;width:560px;max-height:85vh;overflow-y:auto;text-align:left;}
+  .help-modal h3{color:var(--gold2);font-size:16px;margin-bottom:12px;}
+  .help-modal h4{color:var(--gold2);font-size:13px;margin:14px 0 4px;}
+  .help-modal p,.help-modal li{font-size:12.5px;color:var(--text);line-height:1.5;}
+  .help-modal ul{margin:4px 0 0 18px;}
 </style>
 </head>
 <body style="visibility:hidden">
+
+<!-- Help Modal -->
+<div class="modal-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal help-modal">
+    <h3>❓ Nápověda – Moje plány</h3>
+    <p>Tohle je rozcestník pro hráče. Zobrazuje se po přihlášení, pokud nemáš roli velitele.</p>
+    <h4>📋 Přiřazené plány</h4>
+    <ul>
+      <li>Seznam karet s plány útoků, které ti <strong>velitel kmene přiřadil</strong> přes velitelský panel.</li>
+      <li>Každá karta zobrazuje název plánu, kdy byl přiřazen, čas prvního odeslání/příchodu a počty útoků podle typu (ostré, vlaky, fejky, fejk vlaky).</li>
+      <li><strong>▶ Otevřít</strong> – otevře interaktivní zobrazení plánu (plan.html) s odpočty, zvukovým upozorněním a tlačítky pro odeslání útoku přímo do hry.</li>
+      <li><strong>✎ Upravit</strong> – u plánů, které nejsou svázané s kmenovým plánem (vlastní úpravy), umožní otevřít plán v plánovači a upravit ho.</li>
+      <li><strong>🗑 Smazat</strong> – smaže přiřazení plánu. Po kliknutí máš 5 sekund na zrušení (tlačítko se změní na „↩ Zpět").</li>
+    </ul>
+    <h4>⚔️ Plánovač útoků (hero karta)</h4>
+    <ul>
+      <li>Tlačítko „Otevřít plánovač" tě zavede na osobní plánovač (myplan.html), kde si můžeš sám naplánovat útoky ze svých vesnic – nahrát JSON jednotek, zadat cíle a vygenerovat časový plán.</li>
+    </ul>
+    <h4>🔐 Heslo a odhlášení</h4>
+    <ul>
+      <li>Tlačítko „Heslo" v horní liště otevře dialog pro změnu hesla (min. 6 znaků).</li>
+      <li>Tlačítko „Odhlásit se" tě odhlásí a vrátí na přihlašovací stránku.</li>
+    </ul>
+    <h4>☕ Podpořit</h4>
+    <ul>
+      <li>Tlačítko v horní liště otevře možnosti podpory provozu aplikace (QR platba, Revolut).</li>
+    </ul>
+    <div class="modal-actions"><button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button></div>
+  </div>
+</div>
 
 <!-- Password Change Modal -->
 <div class="modal-overlay" id="pw-modal" onclick="if(event.target===this)closePwModal()">
@@ -157,6 +192,7 @@
       <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:14px;height:14px;filter:sepia(1)saturate(3)hue-rotate(330deg);">
       <span id="user-name">...</span>
     </div>
+    <button class="btn-nav" onclick="document.getElementById('help-modal').classList.add('open')">❓ Nápověda</button>
     <button class="btn-nav" onclick="openPwModal()">🔐 Heslo</button>
     <button class="btn-nav btn-logout" onclick="doLogout()">Odhlásit se</button>
   </div>

@@ -27,9 +27,47 @@
   .tab-btn { flex:1; padding:8px; border:1px solid var(--border); border-radius:4px; background:transparent; color:var(--dim); cursor:pointer; font-size:13px; }
   .tab-btn.active { border-color:var(--gold); color:var(--gold); background:#1e1508; }
   .hint { font-size:11px; color:var(--dim); margin-top:6px; }
+  .help-btn{position:fixed;top:14px;right:14px;background:#1a1208;border:1px solid var(--border);color:var(--dim);border-radius:20px;padding:5px 13px;font-size:12px;cursor:pointer;z-index:500;}
+  .help-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .help-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px;}
+  .help-overlay.open{opacity:1;pointer-events:auto;}
+  .help-modal{background:linear-gradient(180deg,#261a09,#1e1408);border:1px solid var(--gold);border-radius:10px;padding:22px 24px;width:520px;max-width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.8);}
+  .help-modal h3{color:var(--gold2);font-size:16px;margin-bottom:12px;}
+  .help-modal h4{color:var(--gold2);font-size:13px;margin:14px 0 4px;}
+  .help-modal p,.help-modal li{font-size:12.5px;color:var(--text);line-height:1.5;}
+  .help-modal ul{margin:4px 0 0 18px;}
+  .help-modal .btn-ghost{margin-top:16px;background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer;}
+  .help-modal .btn-ghost:hover{border-color:var(--text);color:var(--text);}
 </style>
 </head>
 <body>
+
+<button class="help-btn" onclick="document.getElementById('help-modal').classList.add('open')">❓ Nápověda</button>
+<div class="help-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="help-modal">
+    <h3>❓ Nápověda – Přihlášení / Registrace</h3>
+    <p>Tato stránka slouží k přihlášení do DK Plánovače nebo k vytvoření nového účtu.</p>
+    <h4>Registrace</h4>
+    <ul>
+      <li>Zadej přesně svůj <strong>nick z Divokých kmenů</strong> (na velikosti písmen nezáleží, háčky a čárky jsou v pořádku – systém si nick automaticky upraví do podoby vhodné pro přihlašování).</li>
+      <li>Heslo musí mít alespoň 6 znaků a musí se shodovat v obou polích.</li>
+      <li>Po registraci se rovnou přihlásíš a budeš přesměrován na svůj rozcestník (Moje plány), pokud nejsi velitel kmene – pak rovnou na Velitelský panel.</li>
+      <li>Pokud je nick už zaregistrovaný, dostaneš upozornění.</li>
+    </ul>
+    <h4>Přihlášení</h4>
+    <ul>
+      <li>Zadej svůj nick a heslo, kterým jsi se registroval.</li>
+      <li>Pokud jsi již přihlášen (platná session v prohlížeči), stránka tě automaticky přesměruje dál bez nutnosti se znovu přihlašovat.</li>
+    </ul>
+    <h4>Role</h4>
+    <ul>
+      <li><strong>Hráč</strong> – po přihlášení vidí stránku „Moje plány" (dashboard.html), kde najde plány přiřazené velitelem, a může si vytvořit i svůj vlastní osobní plán.</li>
+      <li><strong>Velitel</strong> – po přihlášení je přesměrován na velitelský panel (commander.html), kde plánuje útoky pro celý kmen a přiřazuje plány jednotlivým hráčům.</li>
+    </ul>
+    <button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button>
+  </div>
+</div>
+
 <div class="card">
   <div class="logo">
     <h1>⚔️ DK Plánovač</h1>
