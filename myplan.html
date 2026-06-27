@@ -165,44 +165,51 @@
 <div class="help-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="help-modal">
     <h3>❓ Nápověda – Můj plán útoků</h3>
-    <p>Osobní plánovač – navrhne ti přesný časový plán útoků z tvých vlastních vesnic na zadané cíle.</p>
-    <h4>Krok 1 – Export jednotek ze hry</h4>
+    <p>Tady si můžeš sám/sama naplánovat útoky ze svých vlastních vesnic. Stačí appce ukázat, kolik máš kde vojska, zadat cíle a ona za tebe spočítá, kdy z které vesnice co odeslat, aby to dorazilo přesně v čas, který chceš.</p>
+
+    <h4>Krok 1 – Ukázat appce, kolik máš vojska</h4>
     <ul>
-      <li>Přetáhni tlačítko „⚔️ DK Export jednotek" na lištu záložek (Ctrl+Shift+B v Chrome).</li>
-      <li>Ve hře jdi na <em>Přehled → Vesnice → Vojenské jednotky</em> a klikni na bookmarklet. Vyexportuje JSON se stavem jednotek ve všech vesnicích (doma i na cestě) a automaticky ho zkopíruje do schránky.</li>
+      <li>Nahoře je zlaté tlačítko „DK Export jednotek". Přetáhni ho myší do lišty se záložkami v prohlížeči (lišta záložek se v Chromu zobrazí klávesovou zkratkou Ctrl+Shift+B, pokud ji nemáš zobrazenou).</li>
+      <li>Ve hře si otevři přehled svých vesnic, kde se ukazují vojenské jednotky (Přehled → Vesnice → Vojenské jednotky), a tam klikni na to tlačítko, co sis přidal/a do záložek. Appka si sama stáhne, kolik máš kde jednotek – doma i právě cestujících – a zkopíruje to do schránky.</li>
     </ul>
-    <h4>Krok 2 – Vložení JSON</h4>
+
+    <h4>Krok 2 – Vložit ty údaje do appky</h4>
     <ul>
-      <li>Vlož zkopírovaný JSON do textového pole – aplikace ho rozparsuje a roztřídí vesnice do kategorií: <strong>fullka</strong> (≥18k off populace), <strong>3/4 off</strong> (15-18k), <strong>1/2 off</strong> (10-15k), <strong>mini off</strong> a vesnice se <strong>šlechtici</strong>.</li>
-      <li>Přepínač „🏠 Dostupné / 🗺️ Celkem" určuje, jestli se počítá jen aktuálně doma stojící vojsko, nebo i jednotky momentálně na cestě (návratu z výpravy).</li>
-      <li>Checkboxy fullka/3-4/1-2/mini umožní vyřadit slabší vesnice z výběru zdrojů.</li>
+      <li>Vlož zkopírovaný text do textového pole na stránce. Appka si vesnice sama rozdělí do skupin podle síly: <strong>fullka</strong> (nejsilnější útočné vesnice), <strong>3/4 off</strong>, <strong>1/2 off</strong>, <strong>slabší vesnice</strong> a vesnice, kde máš <strong>šlechtice</strong>.</li>
+      <li>Přepínačem si zvol, jestli se má počítat jen vojsko, které máš zrovna doma, nebo i to, co se ti zrovna vrací z výpravy a bude doma za chvíli.</li>
+      <li>Zaškrtávacími poličky můžeš vyřadit slabší vesnice, pokud je nechceš do útoku zapojovat.</li>
     </ul>
+
     <h4>Ostré útoky</h4>
     <ul>
-      <li>Zadej, kolik útoků chceš poslat z každé offové vesnice, a cílové souřadnice (jeden cíl na řádek).</li>
-      <li>Po načtení cílů nastav u každého cíl čas příchodu (lze i hromadně – „Vyplnit vše" nebo rozsahem časů).</li>
-      <li>Algoritmus vybírá pro každý cíl vždy nejbližší dosud nepoužité vesnice, takže žádná vesnice neútočí na dva cíle zároveň.</li>
+      <li>Napiš, kolik útoků chceš poslat z každé útočné vesnice, a pod to vlož souřadnice cílů (jeden cíl na řádek).</li>
+      <li>U každého cíle pak nastavíš, v kolik hodin má útok dorazit – buď ručně u každého cíle, nebo najednou pro všechny pomocí pole „Vyplnit vše".</li>
+      <li>O zbytek se appka postará sama – pro každý cíl vybere vždy nejbližší vesnici, která ještě nebyla použita, takže žádná vesnice neútočí na dva cíle najednou.</li>
     </ul>
-    <h4>Šlechtici (vlaky)</h4>
+
+    <h4>Šlechtici (vlaky na dobývání vesnic)</h4>
     <ul>
-      <li>Nastav počet šlechticů na jeden cíl (vlak) a cílové souřadnice. Aplikace poskládá vlak z nejbližších vesnic se šlechtici, případně z více vesnic najednou, pokud jedna nemá dost.</li>
+      <li>Nastav, kolik šlechticů chceš na jeden cíl poslat, a zadej cílové souřadnice. Appka poskládá potřebný počet šlechticů z nejbližších vesnic, které je mají – a pokud jedna vesnice nemá dost, doplní zbytek z další nejbližší.</li>
     </ul>
-    <h4>Fejky a Fejk vlaky</h4>
+
+    <h4>Fejky a fejkové vlaky (útoky na oko)</h4>
     <ul>
-      <li>Fejky = naoko útoky (beranidla), Fejk vlaky = naoko šlechtické vlaky – obojí slouží k zamaskování ostrého útoku/vlaku.</li>
-      <li>Rozdělování vesnic je <strong>round-robin</strong>: nejprve se použije každá dostupná vesnice jednou, pak se jede druhé kolo přes všechny znovu atd., max. 5× ze stejné vesnice. Pokud by bylo potřeba poslat víc, zobrazí se potvrzovací dialog, který musíš odkliknout.</li>
+      <li>Fejky jsou útoky na oko (bez beranidel ve velkém počtu), fejkové vlaky jsou naoko šlechtické vlaky – obojí slouží k zamaskování tvého skutečného útoku nebo vlaku, aby nepřítel nepoznal, který útok je ten opravdový.</li>
+      <li>Appka se snaží použít co nejvíc různých vesnic rovnoměrně: nejdřív vyšle jeden fejk z každé vesnice, a teprve když to nestačí, jede druhé kolo a posílá druhý fejk ze stejných vesnic znovu – a tak dál, maximálně pětkrát z jedné vesnice. Pokud bys chtěl/a poslat tolik fejků, že by to nestačilo ani na pětkrát z každé vesnice, appka se tě nejdřív zeptá, jestli si je opravdu jistý/á, než to udělá.</li>
     </ul>
-    <h4>⚙️ Pravidlo poměru 20:1</h4>
+
+    <h4>⚙️ Pravidlo „nesmí útočit na mnohem slabšího"</h4>
     <ul>
-      <li>Pokud je v commander.html/myplan.html zapnuté omezení podle bodů (cíl musí mít alespoň 20× méně bodů než útočník), platí stejně pro všechny typy útoků (ostré, fejky, vlaky).</li>
+      <li>Pokud je zapnuté zaškrtávací pole pro omezení podle bodů, appka nedovolí, aby silný hráč útočil na hráče, který má 20× méně bodů nebo víc – chrání to slabší hráče před zbytečným masakrem. Platí to stejně pro všechny druhy útoků (ostré útoky, fejky i vlaky).</li>
     </ul>
-    <h4>Výsledný plán a export</h4>
+
+    <h4>Výsledný plán</h4>
     <ul>
-      <li><strong>⚔️ Vypočítat plán</strong> – spočítá všechny zadané útoky a zobrazí je v tabulce vpravo, seřazené podle času odeslání.</li>
-      <li><strong>➕ Přidat do plánu</strong> – uloží aktuálně vypočítané kolo útoků a uvolní použité vesnice, abys mohl naplánovat další kolo (např. další várku fejků) bez ztráty již vypočítaných útoků.</li>
-      <li><strong>💾 Uložit</strong> – uloží celý plán na server (uvidíš ho pak v Moje plány / dashboard.html), případně přepíše plán, který upravuješ.</li>
-      <li><strong>✕ Smazat</strong> – vyčistí aktuální výsledky.</li>
-      <li>Vyhledávací pole nad tabulkou filtruje podle vesnice, hráče nebo typu útoku.</li>
+      <li><strong>Vypočítat plán</strong> – spočítá všechny zadané útoky a vypíše je do tabulky vpravo, seřazené podle toho, kdy se má co odeslat.</li>
+      <li><strong>Přidat do plánu</strong> – uloží to, co se právě spočítalo, jako hotové kolo a uvolní použité vesnice, abys mohl/a naplánovat další várku útoků (třeba další sadu fejků), aniž bys ztratil/a to, co už máš spočítané.</li>
+      <li><strong>Uložit</strong> – uloží celý plán, takže ho potom najdeš ve svém přehledu plánů a budeš ho moct kdykoliv znovu otevřít nebo upravit.</li>
+      <li><strong>Smazat</strong> – vyčistí aktuálně spočítané výsledky, pokud chceš začít znovu.</li>
+      <li>Do vyhledávacího pole nad tabulkou můžeš napsat název vesnice, jméno hráče nebo typ útoku a tabulka se podle toho přefiltruje.</li>
     </ul>
     <button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button>
   </div>
@@ -1109,7 +1116,11 @@ function distributeArrival(type){
 function travelMs(x1,y1,x2,y2,unit){
   const dist=Math.sqrt((x2-x1)**2+(y2-y1)**2);
   const speedS=UNIT_SPEEDS_S[unit]||1800;
-  return dist*speedS/(worldSpeed*unitSpeedMult)*1000;
+  // Rychlost stažená přímo ze serveru (apiSpeedsLoaded) je už pro tento svět hotová
+  // (zahrnuje rychlost světa i rychlost jednotek) – dělit world/unit speedem znovu by ji
+  // zrychlilo podruhé. Dělení použij jen u výchozích (nestažených) hodnot.
+  const divisor = apiSpeedsLoaded ? 1 : (worldSpeed*unitSpeedMult);
+  return dist*speedS/divisor*1000;
 }
 function distSq(a,b){ return (a.x-b.x)**2+(a.y-b.y)**2; }
 function byDistTo(tgt){ return (a,b)=>distSq(a,tgt)-distSq(b,tgt); }

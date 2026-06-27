@@ -283,45 +283,46 @@
 <!-- Help modal -->
 <div class="help-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:3000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px;">
   <div style="background:linear-gradient(180deg,#2e2210,#261a09);border:1px solid var(--gold);border-radius:10px;padding:22px 24px;width:680px;max-width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.8);">
-    <h3 style="color:var(--gold2);font-size:16px;margin-bottom:12px;">❓ Nápověda – Velitelský panel</h3>
-    <p style="font-size:12.5px;color:var(--text);line-height:1.5;">Velitelský panel slouží k plánování útoků pro celý kmen najednou a k rozeslání hotových plánů jednotlivým hráčům.</p>
+    <h3 style="color:var(--gold2);font-size:16px;margin-bottom:12px;">❓ Nápověda – Velitelský plánovač</h3>
+    <p style="font-size:12.5px;color:var(--text);line-height:1.5;">Tady jako velitel naplánuješ útoky pro celý kmen najednou – vybereš, kteří hráči se zapojí, kam a kdy se má útočit, a appka spočítá, z kterých konkrétních vesnic se má co odeslat. Hotový plán pak rozešleš jednotlivým hráčům, kteří si ho otevřou každý u sebe.</p>
 
-    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">🏘️ Zdroj útoků</h4>
+    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">🏘️ Odkud útoky půjdou (vesnice hráčů)</h4>
     <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
-      <li>Nahraj kmenový JSON pomocí bookmarkletu <strong>DK Export jednotek (kmen)</strong> – spouští se na stránce <em>Kmen → Členové</em> a stáhne jednotky všech hráčů kmene najednou.</li>
-      <li>Vesnice se automaticky rozřadí do kategorií podle off populace: <strong>fullka</strong> (≥18k), <strong>3/4 off</strong> (15-18k), <strong>1/2 off</strong> (10-15k) a vesnice se šlechtici.</li>
-      <li>Záložky „Podle hráče" / „Podle kategorie" umožní vybrat zdrojové vesnice buď výběrem konkrétních hráčů (☑ Vše / ☐ Nic), nebo filtrem podle kategorie (checkboxy fullka/3-4/1-2 off).</li>
-      <li><strong>Skupiny hráčů</strong> – zvolenou kombinaci hráčů lze uložit pod jménem a kdykoliv znovu načíst (uloženo lokálně v prohlížeči).</li>
-      <li><strong>Souhrn kapacity</strong> ukazuje, kolik útočných vesnic jakého typu (a kolik šlechtických vlaků) máš momentálně k dispozici z vybraných hráčů – kolik je celkem, kolik je již použito a kolik zbývá.</li>
+      <li>Nejdřív potřebuješ appce ukázat, kolik má kdo v kmeni jaké vojsko. K tomu slouží tlačítko, které si přetáhneš do lišty záložek v prohlížeči – ve hře ho pak spustíš na stránce se seznamem členů kmene a appka si sama stáhne jednotky všech hráčů najednou.</li>
+      <li>Vesnice se appce automaticky rozdělí podle síly: <strong>fullka</strong> (nejsilnější), <strong>3/4 off</strong>, <strong>1/2 off</strong>, a navíc se zvlášť značí vesnice, kde má hráč šlechtice.</li>
+      <li>Vybrat si, čí vesnice se použijí, můžeš dvěma způsoby: buď zaškrtneš konkrétní hráče ze seznamu (případně „Vše" pro celý kmen, nebo „Nic" pro vynulování výběru), nebo si vesnice vyfiltruješ podle toho, jak silné jsou.</li>
+      <li>Pokud nějakou skupinu hráčů používáš často (třeba pravidelný okruh útočníků), můžeš si ji pod libovolným názvem uložit a příště ji jen vybrat ze seznamu, místo aby se znovu zaškrtávalo jeden po druhém.</li>
+      <li>Appka ti nahoře ukazuje přehled, kolik máš z vybraných hráčů momentálně k dispozici jakých vesnic a šlechtických vlaků – kolik celkem, kolik už je použito v rozpracovaném plánu a kolik ještě zbývá.</li>
     </ul>
 
-    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">⚔️ Ostré útoky / 👑 Šlechtici / Fejky / Fejk vlaky</h4>
+    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">⚔️ Druhy útoků, které můžeš naplánovat</h4>
     <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
-      <li>Stejný princip jako u osobního plánovače, ale napříč všemi vesnicemi vybraných hráčů: zadáš cílové souřadnice, počet útoků/šlechticů na cíl a čas příchodu (jednotlivě nebo hromadně).</li>
-      <li><strong>Ostré útoky</strong> – pro každý cíl se použijí nejbližší nepoužité offové vesnice z vybraných hráčů.</li>
-      <li><strong>Šlechtici</strong> – poskládá vlak z nejbližších vesnic se šlechtici (lze i z více vesnic najednou). Lze omezit jen na vybrané hráče se šlechtici, nebo použít celý kmen.</li>
-      <li><strong>Fejky / Fejk vlaky</strong> – naoko útoky/vlaky pro zamaskování ostrých útoků. Vesnice se rozdělují round-robin (každá vesnice použita jednou, pak druhé kolo atd.), max. 5× ze stejné vesnice; při překročení se zobrazí potvrzovací dialog.</li>
-      <li><strong>Zaškrtávátko poměru 20:1</strong> – pokud je zapnuté, vyřadí jako cíle hráče s méně než 20× nižším bodovým ziskem než útočník (chrání před neefektivními údery). Platí jednotně pro všechny typy útoků.</li>
+      <li>U každého druhu útoku zadáš cílové souřadnice, kolik útoků (nebo šlechticů) má na jeden cíl jít, a v kolik hodin to má dorazit – buď u každého cíle samostatně, nebo najednou pro všechny.</li>
+      <li><strong>Ostré útoky</strong> – appka pro každý cíl použije nejbližší vesnice z vybraných hráčů, které ještě nejsou pro nic jiného zabrané.</li>
+      <li><strong>Šlechtici</strong> – appka poskládá potřebný počet šlechticů z nejbližších vesnic, které je mají, klidně i z více vesnic najednou. Můžeš si vybrat, jen kteří hráči se šlechtici se mají zapojit, nebo použít všechny, co je mají.</li>
+      <li><strong>Fejky a fejkové vlaky</strong> – jsou to útoky a vlaky naoko, jejichž smyslem je zamaskovat, který útok je doopravdy nebezpečný. Appka se snaží rozprostřít je rovnoměrně mezi co nejvíc vesnic – nejdřív jeden fejk z každé vesnice, pak teprve druhý atd., maximálně pětkrát ze stejné vesnice. Pokud by bylo potřeba poslat ještě víc, appka se nejdřív zeptá, jestli si to opravdu přeješ.</li>
+      <li><strong>Pravidlo „nesmí útočit na mnohem slabšího"</strong> – když je zaškrtnuté, appka nedovolí, aby hráč útočil na cíl, který má 20× méně bodů nebo víc. Platí to stejně pro všechny druhy útoků v plánu.</li>
     </ul>
 
     <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">📋 Výsledný plán</h4>
     <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
-      <li>Tabulka všech vypočítaných útoků – lze řadit kliknutím na záhlaví (Hráč/Zdroj/Typ/Cíl/časy/cesta) a filtrovat vyhledáváním (vesnice, hráč, typ).</li>
-      <li>Přepínač „Skrýt noční" skryje útoky, které vychází na noční hodiny (0:00–6:00).</li>
-      <li>Řádky lze jednotlivě upravovat (přiřadit jinou vesnici/čas) přímo v tabulce.</li>
+      <li>Po výpočtu appka vypíše tabulku se všemi útoky – kliknutím na název sloupce (hráč, zdroj, typ, cíl, časy, doba cesty) si je můžeš přeřadit.</li>
+      <li>Do vyhledávacího pole můžeš napsat název vesnice, jméno hráče nebo typ útoku, a tabulka se přefiltruje.</li>
+      <li>Přepínač „Skrýt noční" skryje útoky, které by se posílaly v noci.</li>
+      <li>Jednotlivé řádky lze i ručně upravit přímo v tabulce, pokud chceš něčemu přiřadit jinou vesnici nebo jiný čas.</li>
     </ul>
 
-    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">📤 Export a publikování plánu</h4>
+    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">📤 Jak plán dostat k hráčům</h4>
     <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
-      <li><strong>Export do textu</strong> – vygeneruje přehledný textový seznam příkazů seřazený podle času odeslání, vhodný ke zkopírování.</li>
-      <li><strong>🚀 Publikovat plán hráčům</strong> – rozdělí útoky podle zdrojového hráče a každému přiřadí jen jeho část plánu, kterou pak hráč uvidí ve své sekci „Moje plány" a může ji otevřít jako interaktivní časový plán s odpočty (plan.html).</li>
-      <li>Plán lze také uložit jako šablonu (🏰 Kmenové plány / 👤 Osobní plány) a kdykoliv později znovu otevřít, upravit nebo znovu publikovat.</li>
+      <li><strong>Export do textu</strong> – vyrobí přehledný textový seznam všech příkazů seřazený podle času, který si můžeš zkopírovat třeba do Discordu nebo poznámek.</li>
+      <li><strong>Publikovat plán hráčům</strong> – appka rozdělí útoky podle toho, čí vesnice z nich útočí, a každému hráči pak ukáže ve svém přehledu jen tu část plánu, která se týká jeho vesnic. Hráč si ji otevře jako přehledný seznam útoků s odpočítáváním, ze kterého může útoky přímo odesílat.</li>
+      <li>Celý plán si taky můžeš uložit jako šablonu a kdykoliv později znovu otevřít, upravit nebo znovu rozeslat.</li>
     </ul>
 
-    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">👥 Hráči a 💾 Autosave</h4>
+    <h4 style="color:var(--gold2);font-size:13px;margin:14px 0 4px;">👥 Přehled hráčů a záloha rozpracované práce</h4>
     <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
-      <li>Panel „👥 Hráči" zobrazuje přehled registrovaných hráčů kmene a jejich propojení s nicky ve hře.</li>
-      <li>Rozpracovaný plán se automaticky ukládá – pokud se vrátíš s nedokončenou prací, nabídne se banner „Obnovit" (vrátí rozpracovaný stav) nebo „Zahodit" (trvale smaže uložený rozpracovaný stav).</li>
+      <li>V panelu „Hráči" vidíš přehled registrovaných hráčů kmene a jejich propojení s přezdívkami ve hře.</li>
+      <li>Rozpracovaný plán se automaticky zálohuje. Pokud se vrátíš s nedokončenou prací, appka se zeptá, jestli ji chceš obnovit (vrátí se rozpracovaný stav) nebo zahodit (záloha se trvale smaže).</li>
     </ul>
     <button onclick="document.getElementById('help-modal').classList.remove('open')" style="margin-top:16px;background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer;">Zavřít</button>
   </div>

@@ -45,24 +45,25 @@
 <button class="help-btn" onclick="document.getElementById('help-modal').classList.add('open')">❓ Nápověda</button>
 <div class="help-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="help-modal">
-    <h3>❓ Nápověda – Přihlášení / Registrace</h3>
-    <p>Tato stránka slouží k přihlášení do DK Plánovače nebo k vytvoření nového účtu.</p>
-    <h4>Registrace</h4>
+    <h3>❓ Nápověda – Přihlášení a registrace</h3>
+    <p>Tady se buď poprvé zaregistruješ, nebo se přihlásíš, pokud už účet máš.</p>
+    <h4>Jak se zaregistrovat (poprvé)</h4>
     <ul>
-      <li>Zadej přesně svůj <strong>nick z Divokých kmenů</strong> (na velikosti písmen nezáleží, háčky a čárky jsou v pořádku – systém si nick automaticky upraví do podoby vhodné pro přihlašování).</li>
-      <li>Heslo musí mít alespoň 6 znaků a musí se shodovat v obou polích.</li>
-      <li>Po registraci se rovnou přihlásíš a budeš přesměrován na svůj rozcestník (Moje plány), pokud nejsi velitel kmene – pak rovnou na Velitelský panel.</li>
-      <li>Pokud je nick už zaregistrovaný, dostaneš upozornění.</li>
+      <li>Klikni na záložku „Registrace".</li>
+      <li>Do pole „Nick ve hře" napiš přesně svoji přezdívku tak, jak ji máš ve Divokých kmenech (na velkých/malých písmenech nezáleží a háčky/čárky ve jméně vadit nebudou, systém si s tím poradí).</li>
+      <li>Zvol si heslo – musí mít alespoň 6 znaků – a napiš ho ještě jednou do pole pod tím, aby se ověřilo, že jsi ho napsal/a správně.</li>
+      <li>Klikni na „Zaregistrovat se". Pokud je vše v pořádku, budeš automaticky přihlášen/a a aplikace tě sama přesune na správné místo – pokud jsi běžný hráč, uvidíš přehled svých plánů útoků; pokud jsi velitel kmene, dostaneš se přímo do velitelského plánovače.</li>
+      <li>Pokud se zobrazí hláška, že nick je už zaregistrovaný, znamená to, že už účet pod tímto jménem existuje – v tom případě se přihlas, případně nás (velitele) kontaktuj, pokud si nejsi jistý/á.</li>
     </ul>
-    <h4>Přihlášení</h4>
+    <h4>Jak se přihlásit (pokud už účet máš)</h4>
     <ul>
-      <li>Zadej svůj nick a heslo, kterým jsi se registroval.</li>
-      <li>Pokud jsi již přihlášen (platná session v prohlížeči), stránka tě automaticky přesměruje dál bez nutnosti se znovu přihlašovat.</li>
+      <li>Zadej svůj nick a heslo, které jsi použil/a při registraci, a klikni na „Přihlásit se".</li>
+      <li>Pokud jsi v prohlížeči byl/a už dříve přihlášen/a a nedávno ses neodhlašoval/a, aplikace tě po otevření stránky sama přesune dál, aniž bys musel/a cokoliv vyplňovat.</li>
     </ul>
-    <h4>Role</h4>
+    <h4>Co uvidíš podle toho, kým jsi</h4>
     <ul>
-      <li><strong>Hráč</strong> – po přihlášení vidí stránku „Moje plány" (dashboard.html), kde najde plány přiřazené velitelem, a může si vytvořit i svůj vlastní osobní plán.</li>
-      <li><strong>Velitel</strong> – po přihlášení je přesměrován na velitelský panel (commander.html), kde plánuje útoky pro celý kmen a přiřazuje plány jednotlivým hráčům.</li>
+      <li><strong>Běžný hráč</strong> – po přihlášení se ti zobrazí přehled plánů útoků, které ti přiřadil velitel kmene, a zároveň si tam můžeš otevřít vlastní plánovač a naplánovat si útoky sám/sama ze svých vesnic.</li>
+      <li><strong>Velitel kmene</strong> – po přihlášení se rovnou dostaneš do velitelského plánovače, kde se plánují útoky pro celý kmen a rozesílají se jednotlivým hráčům.</li>
     </ul>
     <button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button>
   </div>

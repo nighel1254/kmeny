@@ -114,29 +114,29 @@
 
 <div class="help-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="help-modal">
-    <h3>❓ Nápověda – Plán útoků</h3>
-    <p>Tato stránka zobrazuje konkrétní seznam příkazů k odeslání (ostré útoky, vlaky, fejky) s odpočtem do odeslání.</p>
-    <h4>Tabulka příkazů</h4>
+    <h3>❓ Nápověda – Seznam útoků k odeslání</h3>
+    <p>Tady vidíš podrobný seznam všech útoků z jednoho plánu – z které vesnice, na jaký cíl, kdy se má odeslat a kdy dorazí. Stránka ti navíc odpočítává čas a umí tě i upozornit, aby ti žádný útok neujel.</p>
+    <h4>Co znamená tabulka</h4>
     <ul>
-      <li>Sloupce: zdrojová vesnice, typ útoku (barevný štítek – fullka/3-4 off/1-2 off/vlak/fejk/fejk vlak), cíl, jednotka, čas odeslání, čas příchodu, doba cesty a živý odpočet.</li>
-      <li>Kliknutím na záhlaví sloupce (Zdroj/Typ/Cíl/Čas odeslání/příchodu/Cesta) přepneš řazení podle dané hodnoty.</li>
-      <li><strong>Noční řádky</strong> (fialově podbarvené) jsou útoky, které musí odejít v noci (0:00–6:00) – nahoře se zobrazí souhrnné upozornění.</li>
-      <li><strong>▶ tlačítko</strong> u řádku otevře útok přímo ve hře (na správné vesnici a cíli). Pokud do odeslání zbývá méně než 5 minut, řádek se po 10 s automaticky označí jako odeslaný.</li>
-      <li><strong>↺ tlačítko</strong> – „Přeplánovat" – pokud zjistíš, že daná vesnice nemůže útok odeslat, vyhledá náhradní vesnici stejné nebo vyšší kategorie, ukáže návrh k odsouhlasení (✓/✗).</li>
+      <li>U každého řádku vidíš: zdrojovou vesnici (odkud útok jde), typ útoku (barevný štítek – třeba „fullka", „fejk" nebo „vlak"), cíl (kam útok jde), jakou jednotkou se útočí, čas odeslání, čas příchodu, jak dlouho útok poletí a odpočet do odeslání.</li>
+      <li>Klikni na název sloupce (Zdroj, Typ, Cíl, Čas odeslání, Čas příchodu, Cesta) a seznam se podle toho přeřadí – druhé kliknutí obrátí pořadí.</li>
+      <li>Řádky podbarvené fialově jsou útoky, které musíš odeslat v noci (mezi půlnocí a 6. hodinou ranní) – na takové tě navíc upozorní hláška nahoře.</li>
+      <li>Zelené tlačítko se šipkou u řádku otevře hru přesně na té vesnici a cíli, kam máš útok poslat – ty jen kliknutím odešleš vojsko. Pokud do odeslání zbývá méně než 5 minut, řádek se po 10 vteřinách automaticky označí jako odeslaný.</li>
+      <li>Tlačítko s kroužkovou šipkou (↺) slouží k přeplánování – použij ho, když zjistíš, že daná vesnice nemůže útok poslat (např. jí vojsko ubylo). Aplikace ti navrhne jinou vhodnou vesnici a ty návrh buď potvrdíš (zelená fajfka), nebo zamítneš (červený křížek).</li>
     </ul>
-    <h4>Odpočet a stavy řádků</h4>
+    <h4>Odpočítávání a stav řádků</h4>
     <ul>
-      <li>Zelený odpočet = čas v pořádku, oranžový = méně než 10 minut, červený = méně než minutu.</li>
-      <li>Po proběhnutí času se řádek změní na „Odešlo" (pokud jsi klikl na ▶) nebo „Zmeškal" – obojí lze ručně překlikávat (slouží jako manuální potvrzení).</li>
-      <li>Přepínač „⚔️ Odeslané" v horní liště skryje již odeslané řádky ze seznamu. Přepínač „🌙 Noční" skryje noční útoky.</li>
-      <li>Vyhledávací pole filtruje podle vesnice, hráče, typu nebo cíle.</li>
+      <li>Zelený čas = v pořádku, ještě je čas. Oranžový = zbývá méně než 10 minut. Červený = zbývá méně než minuta.</li>
+      <li>Jakmile čas vyprší, řádek se sám oznáčí buď jako „Odešlo" (pokud jsi předtím kliknul/a na zelené tlačítko s šipkou) nebo jako „Zmeškal" – obojí si můžeš kdykoliv ručně překlikat, pokud se appka spletla.</li>
+      <li>Přepínač „Odeslané" nahoře skryje útoky, které už proběhly. Přepínač „Noční" skryje útoky, co vychází na noc.</li>
+      <li>Do vyhledávacího pole můžeš napsat název vesnice, jméno hráče nebo typ útoku a seznam se podle toho přefiltruje.</li>
     </ul>
-    <h4>🔔 Upozornění</h4>
+    <h4>🔔 Jak tě appka upozorní, že se blíží odeslání</h4>
     <ul>
-      <li><strong>Zvukové upozornění</strong> (banner nahoře) – po zapnutí přehraje fanfáru 2 minuty před každým odesláním, dokud máš stránku otevřenou.</li>
-      <li><strong>Web Push notifikace</strong> (tlačítko v horní liště) – po povolení dostaneš systémové oznámení i když stránku nemáš otevřenou (vyžaduje podporu prohlížeče a HTTPS).</li>
+      <li><strong>Zvukové upozornění</strong> – po zapnutí (tlačítko nahoře) ti appka 2 minuty před každým odesláním zahraje zvukový signál. Funguje, jen pokud máš tuto stránku otevřenou v prohlížeči.</li>
+      <li><strong>Push notifikace</strong> – po povolení (tlačítko nahoře) ti telefon nebo počítač pošle systémové oznámení i ve chvíli, kdy appku zrovna nemáš otevřenou. Vyžaduje to povolení notifikací v prohlížeči.</li>
     </ul>
-    <p>Odkaz na tuto stránku obsahuje celý plán zakódovaný v URL (za #) – stačí ho mít uložený, není potřeba se přihlašovat.</p>
+    <p>Tip: odkaz na tuto stránku v sobě nese celý plán, takže si ho můžeš uložit a otevřít znovu, aniž bys se musel/a znovu přihlašovat.</p>
     <button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button>
   </div>
 </div>

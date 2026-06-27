@@ -134,27 +134,26 @@
 <div class="modal-overlay" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal help-modal">
     <h3>❓ Nápověda – Moje plány</h3>
-    <p>Tohle je rozcestník pro hráče. Zobrazuje se po přihlášení, pokud nemáš roli velitele.</p>
-    <h4>📋 Přiřazené plány</h4>
+    <p>Tohle je tvoje hlavní rozcestí po přihlášení (pokud nejsi velitel kmene). Odsud se dostaneš ke všem útokům, které pro tebe velitel naplánoval, a taky si tu můžeš naplánovat vlastní útoky.</p>
+    <h4>📋 Plány, které ti velitel přiřadil</h4>
     <ul>
-      <li>Seznam karet s plány útoků, které ti <strong>velitel kmene přiřadil</strong> přes velitelský panel.</li>
-      <li>Každá karta zobrazuje název plánu, kdy byl přiřazen, čas prvního odeslání/příchodu a počty útoků podle typu (ostré, vlaky, fejky, fejk vlaky).</li>
-      <li><strong>▶ Otevřít</strong> – otevře interaktivní zobrazení plánu (plan.html) s odpočty, zvukovým upozorněním a tlačítky pro odeslání útoku přímo do hry.</li>
-      <li><strong>✎ Upravit</strong> – u plánů, které nejsou svázané s kmenovým plánem (vlastní úpravy), umožní otevřít plán v plánovači a upravit ho.</li>
-      <li><strong>🗑 Smazat</strong> – smaže přiřazení plánu. Po kliknutí máš 5 sekund na zrušení (tlačítko se změní na „↩ Zpět").</li>
+      <li>Každá karta v seznamu je jeden plán útoků, který pro tebe velitel kmene připravil. Vidíš u ní název plánu, kdy ti byl přiřazen, kdy má jít první útok a kdy má první dorazit, a kolik je v plánu jakých útoků (ostré útoky, šlechtické vlaky, fejky, fejkové vlaky).</li>
+      <li><strong>Tlačítko „Otevřít"</strong> – otevře ti přehledný seznam všech útoků z tohoto plánu s odpočítáváním do odeslání. Odtud taky můžeš jedním kliknutím přímo otevřít hru na správné vesnici a cíli, takže útok jen odešleš.</li>
+      <li><strong>Tlačítko „Upravit"</strong> – objeví se jen u plánů, které jsi vytvořil/a sám/sama (ne u plánů od velitele) – umožní ti otevřít plán znovu v plánovači a něco v něm změnit.</li>
+      <li><strong>Tlačítko s ikonou koše</strong> – smaže plán ze seznamu. Po kliknutí máš 5 sekund na to si to rozmyslet (tlačítko se na chvíli změní na „Zpět") – pak se plán natrvalo odstraní.</li>
     </ul>
-    <h4>⚔️ Plánovač útoků (hero karta)</h4>
+    <h4>⚔️ Vlastní plánovač útoků</h4>
     <ul>
-      <li>Tlačítko „Otevřít plánovač" tě zavede na osobní plánovač (myplan.html), kde si můžeš sám naplánovat útoky ze svých vesnic – nahrát JSON jednotek, zadat cíle a vygenerovat časový plán.</li>
+      <li>Velké tlačítko nahoře „Otevřít plánovač" tě zavede do nástroje, kde si můžeš naplánovat útoky sám/sama ze svých vlastních vesnic – stačí nahrát export svých jednotek ze hry, zadat cíle a aplikace ti spočítá přesný časový rozvrh, kdy z které vesnice co odeslat.</li>
     </ul>
     <h4>🔐 Heslo a odhlášení</h4>
     <ul>
-      <li>Tlačítko „Heslo" v horní liště otevře dialog pro změnu hesla (min. 6 znaků).</li>
-      <li>Tlačítko „Odhlásit se" tě odhlásí a vrátí na přihlašovací stránku.</li>
+      <li>Tlačítko „Heslo" v horní liště ti umožní si kdykoliv nastavit nové heslo (musí mít alespoň 6 znaků).</li>
+      <li>Tlačítko „Odhlásit se" tě odhlásí a vrátí na přihlašovací obrazovku.</li>
     </ul>
-    <h4>☕ Podpořit</h4>
+    <h4>☕ Podpořit provoz aplikace</h4>
     <ul>
-      <li>Tlačítko v horní liště otevře možnosti podpory provozu aplikace (QR platba, Revolut).</li>
+      <li>Tlačítko v horní liště otevře možnosti, jak finančně podpořit provoz této aplikace (QR platba nebo Revolut) – je to čistě dobrovolné.</li>
     </ul>
     <div class="modal-actions"><button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button></div>
   </div>
