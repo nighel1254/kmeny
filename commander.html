@@ -823,7 +823,11 @@ const AXE_GRN = twImg(LARGE_ICO, 'filter:sepia(1)saturate(4)hue-rotate(90deg)');
 const AXE_YEL = twImg(LARGE_ICO, 'filter:sepia(1)saturate(4)hue-rotate(20deg)');
 const AXE_BRN = twImg(LARGE_ICO, 'filter:sepia(1)saturate(3)brightness(0.85)');
 const NOBLE_NORM = `<img src="${API_BASE}/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
+// Vlastní server-to-server proxy (Edge Function game-proxy) – spolehlivá náhrada za veřejné
+// CORS proxy, které byly nespolehlivé a Firefox je navíc blokoval agresivněji než Chrome.
+// Přímý fetch a veřejné proxy zůstávají jako poslední záchranná síť.
 const PROXIES  = [
+  u => `https://ucvgyduiyvfhxbyypyih.supabase.co/functions/v1/game-proxy?url=${encodeURIComponent(u)}`,
   u => u,
   u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,

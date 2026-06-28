@@ -541,8 +541,17 @@
 <script>
 const WORLD    = 'cs112';
 const API_BASE = `https://${WORLD}.divokekmeny.cz`;
-const PROXIES  = [u=>u, u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, u=>`https://corsproxy.io/?${encodeURIComponent(u)}`];
 const SUPABASE_URL = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
+// Vlastní server-to-server proxy (Edge Function game-proxy) – spolehlivá náhrada za veřejné
+// CORS proxy (allorigins.win/corsproxy.io), které byly nespolehlivé a Firefox je navíc
+// blokoval agresivněji než Chrome (proto se jména hráčů u cílů zobrazovala jen "občas").
+// Přímý fetch (u=>u) a veřejné proxy zůstávají jako poslední záchranná síť.
+const PROXIES  = [
+  u => `${SUPABASE_URL}/functions/v1/game-proxy?url=${encodeURIComponent(u)}`,
+  u => u,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+];
 const SUPABASE_KEY = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const API_IMG = `${API_BASE}/graphic/unit`;
