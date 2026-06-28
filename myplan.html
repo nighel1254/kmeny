@@ -146,8 +146,19 @@
     .left-col{width:100%;min-width:unset}
     .right-col{min-width:unset;width:100%}
     .tgt-header,.tgt-row{grid-template-columns:70px 1fr 160px 28px}
-    table{font-size:11px;min-width:660px}
+    table{font-size:11px}
     th,td{padding:5px 7px}
+
+    /* Tabulka útoků se na úzkém displeji rozbije na "karty" – sloupce pod sebou
+       s popiskem, ať se nemusí scrollovat doprava jen aby se viděl čas odeslání. */
+    .attack-table-wrap table, .attack-table-wrap thead, .attack-table-wrap tbody,
+    .attack-table-wrap th, .attack-table-wrap td, .attack-table-wrap tr { display:block; min-width:unset; }
+    .attack-table-wrap thead { display:none; }
+    .attack-table-wrap tr { border:1px solid var(--border); border-radius:6px; margin:0 0 10px; padding:4px 0; background:#161005; }
+    .attack-table-wrap td { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px; border-bottom:1px solid #2a1e0a; font-size:12px; white-space:normal; }
+    .attack-table-wrap td:last-child { border-bottom:none; }
+    .attack-table-wrap td[data-label]::before { content:attr(data-label); color:var(--dim); font-size:10px; text-transform:uppercase; flex-shrink:0; margin-right:8px; }
+    .attack-table-wrap td:not([data-label]) { justify-content:flex-end; }
   }
   .help-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:20px;}
   .help-overlay.open{opacity:1;pointer-events:auto;}
@@ -557,6 +568,8 @@ let targets = { sharp:{}, noble:{}, fake:{}, fakenob:{} };
 // targets.sharp = { list:[{x,y,name,id,owner,arrivalTime}] }
 
 let attackRows = [];
+let planWarnings = []; // cíle/dávky, na které se v posledním přepočtu nenašla volná vesnice
+const CAT_LABEL_SHORT = { fullka:'fullka', triq_off:'3/4', half_off:'1/2', mini_off:'mini', gigafullka:'giga' };
 let savedActions = [];   // [{label, rows}] – uložená kola pro sjednocení více plánů
 let cdInterval = null;
 const playedRows = new Set(JSON.parse(localStorage.getItem('dk_myplan_played')||'[]'));
@@ -1321,6 +1334,7 @@ async function calculate() {
   }
 
   attackRows = [];
+  planWarnings = [];
   const sharpCount = parseInt(document.getElementById('sharp-count').value)||1;
   const fakeCount  = parseInt(document.getElementById('fake-count').value)||0;
   const fakeNobCnt = parseInt(document.getElementById('fakenob-count').value)||0;
@@ -1361,7 +1375,7 @@ async function calculate() {
       });
     for (let s=0; s<need; s++) {
       const idx = candidates.findIndex(c => c.sendTime > _calcNow + 60000);
-      if (idx === -1) { toast(`⚠ Cíl ${tgt.x}|${tgt.y}: žádná volná vesnice to už nestihne odeslat včas!`, 'info', 5000); break; }
+      if (idx === -1) { planWarnings.push(`Cíl ${tgt.x}|${tgt.y} (${tgt.name||''}): žádná volná vesnice to už nestihne odeslat včas — chybí ${need-s} ostrých útoků.`); break; }
       const cand = candidates.splice(idx,1)[0];
       const src = cand.v;
       usedSharpSrcs.add(`${src.x}|${src.y}`);
@@ -1433,7 +1447,7 @@ async function calculate() {
         if (assignedThisRound === 0) { shortage = true; break; }
       }
     }
-    if (shortage) toast(`⚠ Nedostatek vesnic na ${kindLabel} (každá max ${effectiveMax===Infinity?'∞':FAKE_MAX_REUSE}× celkem vč. už odeslaných)!`, 'info', 5000);
+    if (shortage) planWarnings.push(`Nedostatek vesnic na ${kindLabel} (každá max ${effectiveMax===Infinity?'∞':FAKE_MAX_REUSE}× celkem vč. už odeslaných) — některé cíle nedostaly plný počet.`);
   }
 
   if (fakeCount>0) {
@@ -1501,7 +1515,7 @@ async function calculate() {
           placed += take;
         }
         tgtNobleRows.forEach(r => r.trainTotal = placed);
-        if (placed < noblePerTgt) toast(`⚠ Cíl ${tgt.x}|${tgt.y}: pouze ${placed}/${noblePerTgt} šlechticů!`,'info',5000);
+        if (placed < noblePerTgt) planWarnings.push(`Cíl ${tgt.x}|${tgt.y} (${tgt.name||''}): pouze ${placed}/${noblePerTgt} šlechticů — chybí volní šlechtici nebo to nestihnou včas.`);
       }
     }
   }
@@ -1511,6 +1525,30 @@ async function calculate() {
   if (savedActions.length > 0) attackRows.forEach(r => r.isNew = true);
 
   attackRows.sort((a,b)=>a.sendTime-b.sendTime);
+  // Když dvě nesouvisející vesnice vyjdou na stejnou tisícinu vteřiny odeslání (shoda
+  // vzdálenosti), hráč by musel kliknout "odeslat" u dvou příkazů naráz. Čas příchodu je
+  // fixní (to si hráč nastavil), takže se to nesmí tiše posunout – zeptej se, jestli to chce.
+  const collisions = [];
+  for (let i=1; i<attackRows.length; i++) {
+    if (attackRows[i].sendTime === attackRows[i-1].sendTime) collisions.push(i);
+  }
+  if (collisions.length) {
+    const shift = confirm(
+      `⚠ ${collisions.length}× vyšly dva příkazy na úplně stejný čas odeslání (shoda vzdálenosti) – nešlo by je naskládat jinak.\n\n`+
+      `Chceš u nich posunout čas odeslání o 1s (tím se posune i čas příchodu o 1s)? \n\n`+
+      `OK = posunout, Zrušit = nechat stejný čas odeslání u obou.`
+    );
+    if (shift) {
+      const STAGGER_MS = 1000;
+      for (let i=1; i<attackRows.length; i++) {
+        if (attackRows[i].sendTime <= attackRows[i-1].sendTime) {
+          const delta = (attackRows[i-1].sendTime + STAGGER_MS) - attackRows[i].sendTime;
+          attackRows[i].sendTime += delta;
+          attackRows[i].arrivalTime += delta;
+        }
+      }
+    }
+  }
   const _now = Date.now();
   attackRows = attackRows.filter(r => r.sendTime > _now);
   if (!attackRows.length) { toast('⚠ Všechny útoky jsou v minulosti — zkontroluj časy dopadu!', 'err', 6000); return; }
@@ -1588,6 +1626,30 @@ function renderResults(){
   let warn='';
   if(nightRows.length) warn=`<div class="warning-box">🌙 <strong>${nightRows.length} útoků</strong> musí být odesláno v noci (00:00–06:00).</div>`;
 
+  // Cíle/dávky, na které se při posledním přepočtu nenašla volná vesnice – zobraz hned
+  // nahoře nad tabulkou, ať to hráč vidí na první pohled (ne jako mizící popup).
+  if (planWarnings.length) {
+    warn += `<div class="warning-box" style="background:#2a1500;border-color:#805020;cursor:pointer;" onclick="document.getElementById('plan-warn-list').style.display=document.getElementById('plan-warn-list').style.display==='none'?'block':'none'">
+      ⚠ <strong>${planWarnings.length}</strong> cílů/dávek se nepodařilo plně naplánovat ▾
+      <div id="plan-warn-list" style="display:none;margin-top:6px;font-size:12px;font-weight:normal;color:var(--dim);">
+        ${planWarnings.map(w=>`<div style="padding:3px 0;border-top:1px solid rgba(255,255,255,.08);">${w}</div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Vesnice s off jednotkami, které se do plánu nakonec nepoužily jako zdroj – ať hráč
+  // hned vidí, co mu zbylo nevyužité, bez nutnosti to dohledávat v tabulce.
+  const usedSrcKeys = new Set(attackRows.map(r=>`${r.srcX}|${r.srcY}`));
+  const unusedOff = offVillages.filter(v=>!usedSrcKeys.has(`${v.x}|${v.y}`));
+  if (unusedOff.length) {
+    warn += `<div class="warning-box" style="background:#0a1a10;border-color:#206040;color:#80d0a0;cursor:pointer;" onclick="const el=document.getElementById('unused-off-list');el.style.display=el.style.display==='none'?'flex':'none'">
+      <img src="https://dscs.innogamescdn.com/asset/8b28a2b1a4/graphic/icons/header.webp" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'"> <strong>${unusedOff.length}</strong> off vesnic se v tomto plánu nepoužilo ▾
+      <div id="unused-off-list" style="display:none;margin-top:6px;font-size:11px;font-weight:normal;color:var(--dim);flex-wrap:wrap;gap:8px;">
+        ${unusedOff.map(v=>`<span class="coords">${v.x}|${v.y}</span> <span>${v.village_name||''}${v._category?` (${CAT_LABEL_SHORT[v._category]||v._category})`:''}</span>`).join(' &nbsp;·&nbsp; ')}
+      </div>
+    </div>`;
+  }
+
   // Filter (search)
   const search=(document.getElementById('results-search')?.value||'').trim().toLowerCase();
   let visible=attackRows;
@@ -1610,14 +1672,14 @@ function renderResults(){
     let gameLink=r.srcId?(r.tgtId?`${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`:`${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`):`${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
     if (r.isFake) gameLink += fakeTemplateQuery();
     html+=`<tr class="${rowCls}" data-rowidx="${rowIdx}">
-      <td style="color:var(--dim);font-size:11px;">${i+1}</td>
-      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span>${r.srcOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.srcOwner})</span>`:''}${computeSrcOrderLabel(rowIdx)}</td>
-      <td>${typeChip(r)}${r.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
-      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
-      <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
-      <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
-      <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
-      <td><span class="countdown" data-send="${r.sendTime}"></span></td>
+      <td data-label="#" style="color:var(--dim);font-size:11px;">${i+1}</td>
+      <td data-label="Zdroj"><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span>${r.srcOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.srcOwner})</span>`:''}${computeSrcOrderLabel(rowIdx)}</td>
+      <td data-label="Typ">${typeChip(r)}${r.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
+      <td data-label="Cíl"><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td data-label="Odeslání" class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
+      <td data-label="Příchod" class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
+      <td data-label="Cesta" style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
+      <td data-label="Odpočet"><span class="countdown" data-send="${r.sendTime}"></span></td>
       <td style="white-space:nowrap;">
         <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
         <button onclick="replanRow(${rowIdx})" title="Přeplánovat tento příkaz (zapomněl jsem odeslat)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>

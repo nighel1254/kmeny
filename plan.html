@@ -93,14 +93,25 @@
   .help-modal .btn-ghost{margin-top:16px;background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer;}
   .help-modal .btn-ghost:hover{border-color:var(--text);color:var(--text);}
   /* ── MOBILE ──────────────────────────────────────────────── */
-  @media (max-width: 480px) {
+  @media (max-width: 600px) {
     .top-bar { padding: 8px 12px; gap: 6px; }
     .top-bar h1 { font-size: 14px; }
     .summary-bar { overflow-x: auto; flex-wrap: nowrap; gap: 10px; font-size: 11px; padding: 6px 10px; white-space: nowrap; }
     .panel { margin: 6px; }
-    #tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { font-size: 11px; }
-    th, td { padding: 5px 6px; }
+    #my-villages-wrap > div:first-child { gap: 6px 10px !important; }
+
+    /* Tabulka útoků se na úzkém displeji rozbije na "karty" – každý řádek = box,
+       buňky pod sebou s popiskem místo sloupců (sloupce by se jinak musely scrollovat). */
+    #tbl-wrap table, #tbl-wrap thead, #tbl-wrap tbody, #tbl-wrap th, #tbl-wrap td, #tbl-wrap tr { display: block; }
+    #tbl-wrap thead { display: none; }
+    #tbl-wrap tr { border: 1px solid var(--border); border-radius: 6px; margin: 0 0 10px; padding: 4px 0; background: #161005; }
+    #tbl-wrap tr.night-row { background: var(--night) !important; }
+    #tbl-wrap tr.past-row { background: #070503 !important; }
+    #tbl-wrap tr.played-row { background: #040a04 !important; }
+    #tbl-wrap td { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #2a1e0a; font-size: 12px; white-space: normal; }
+    #tbl-wrap td:last-child { border-bottom: none; }
+    #tbl-wrap td[data-label]::before { content: attr(data-label); color: var(--dim); font-size: 10px; text-transform: uppercase; flex-shrink: 0; margin-right: 8px; }
+    #tbl-wrap td:not([data-label]) { justify-content: flex-end; }
   }
 </style>
 </head>
@@ -135,7 +146,7 @@
       <li>Jakmile čas vyprší, řádek se sám oznáčí buď jako „Odešlo" (pokud jsi předtím kliknul/a na zelené tlačítko s šipkou) nebo jako „Zmeškal" – obojí si můžeš kdykoliv ručně překlikat, pokud se appka spletla.</li>
       <li>Přepínač „Odeslané" nahoře skryje útoky, které už proběhly.</li>
       <li>Do vyhledávacího pole můžeš napsat název vesnice, jméno hráče nebo typ útoku a seznam se podle toho přefiltruje.</li>
-      <li>Tlačítko „🔄 Obnovit" stáhne nejnovější verzi plánu ze serveru – použij ho, když jsi něco přidal/a nebo upravil/a na jiném zařízení (např. na mobilu) a chceš to vidět i tady, aniž bys musel/a stránku znovu otevírat přes odkaz.</li>
+      <li>Tlačítko „🔄 Synchronizovat" stáhne nejnovější verzi plánu ze serveru – použij ho, když jsi něco přidal/a nebo upravil/a na jiném zařízení (např. na mobilu) a chceš to vidět i tady, aniž bys musel/a stránku znovu otevírat přes odkaz.</li>
     </ul>
     <h4>🔔 Jak tě appka upozorní, že se blíží odeslání</h4>
     <ul>
@@ -868,12 +879,19 @@ function renderMyVillagesSummary() {
 
   const usedKeys = new Set(attackRows.filter(r => !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
   const cats = [['fullka','Fullka'],['triq_off','3/4 off'],['half_off','1/2 off']];
+  const unusedAll = [];
   const parts = cats.map(([cat,label]) => {
     const vs = playerVillages.filter(v => v.category === cat);
     if (!vs.length) return '';
-    const used = vs.filter(v => usedKeys.has(`${v.x}|${v.y}`)).length;
-    return `<span class="stat">${label}: <strong>${used}</strong>/${vs.length} využito &nbsp;(<span style="color:var(--green)">${vs.length-used} volných</span>)</span>`;
+    const unused = vs.filter(v => !usedKeys.has(`${v.x}|${v.y}`));
+    unusedAll.push(...unused.map(v => ({...v, _catLabel: label})));
+    const used = vs.length - unused.length;
+    return `<span class="stat">${label}: <strong>${used}</strong>/${vs.length} využito &nbsp;(<span style="color:var(--green)">${unused.length} volných</span>)</span>`;
   }).filter(Boolean);
+
+  if (unusedAll.length) {
+    parts.push(`<span class="stat" style="cursor:pointer;color:var(--green);" onclick="toggleUnusedList()" title="Klikni pro zobrazení nevyužitých off vesnic v tomto plánu."><img src="https://dscs.innogamescdn.com/asset/8b28a2b1a4/graphic/icons/header.webp" style="width:14px;height:14px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'"> Nevyužité: <strong>${unusedAll.length}</strong> ▾</span>`);
+  }
 
   const nobleVs = playerVillages.filter(v => (v.noble||0) > 0);
   if (nobleVs.length) {
@@ -892,12 +910,21 @@ function renderMyVillagesSummary() {
   wrap.innerHTML = `<div style="font-size:11px;color:var(--dim);padding:6px 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">🏰 <strong style="color:var(--gold2)">Moje vesnice:</strong> ${parts.join('')}</div>
     <div id="gigafull-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:8px;">
       ${gigaVs.map(v => `<span class="coords" style="cursor:text;" title="Zkopíruj a vlož do pole zdroje u GigaFull řádku">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''}</span>`).join(' &nbsp;·&nbsp; ')}
+    </div>
+    <div id="unused-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:8px;">
+      ${unusedAll.map(v => `<span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''} (${v._catLabel})</span>`).join(' &nbsp;·&nbsp; ')}
     </div>`;
   wrap.style.display = 'block';
 }
 
 function toggleGigaFullList() {
   const el = document.getElementById('gigafull-list');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+
+function toggleUnusedList() {
+  const el = document.getElementById('unused-list');
   if (!el) return;
   el.style.display = el.style.display === 'none' ? 'flex' : 'none';
 }
@@ -1126,15 +1153,15 @@ function buildManualRowHtml(r, rowIdx) {
   if (r._confirmed && complete) {
     // Uložený manuální řádek – jen náhled, ne otevřená editace. Klikni ✎ pro úpravu.
     return `<tr data-rowidx="${rowIdx}" style="background:#1e1508;border-left:2px solid var(--gold);">
-      <td style="color:var(--dim);font-size:11px;">★</td>
-      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span>${computeSrcOrderLabel(rowIdx)}</td>
-      <td>${typeChip(r)}</td>
-      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
-      <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
-      <td class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
-      <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
-      <td style="color:var(--dim);font-size:11px;">${r.travel ? fmtDur(r.travel) : '—'}</td>
-      <td>${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
+      <td data-label="#" style="color:var(--dim);font-size:11px;">★</td>
+      <td data-label="Zdroj"><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span>${computeSrcOrderLabel(rowIdx)}</td>
+      <td data-label="Typ">${typeChip(r)}</td>
+      <td data-label="Cíl"><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td data-label="Jednotka"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
+      <td data-label="Odeslání" class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
+      <td data-label="Příchod" class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
+      <td data-label="Cesta" style="color:var(--dim);font-size:11px;">${r.travel ? fmtDur(r.travel) : '—'}</td>
+      <td data-label="Odpočet">${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
       <td style="white-space:nowrap;">
         ${gameLink ? `<a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>` : ''}
         <button onclick="editManualRow(${rowIdx})" title="Upravit tento řádek" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--gold2);font-size:13px;padding:3px 5px;margin-left:3px;">✎</button>
@@ -1144,18 +1171,18 @@ function buildManualRowHtml(r, rowIdx) {
   }
 
   return `<tr data-rowidx="${rowIdx}" style="background:#1e1508;border-left:2px solid var(--gold);">
-    <td style="color:var(--dim);font-size:11px;">★</td>
-    <td>${srcCell}${computeSrcOrderLabel(rowIdx)}</td>
-    <td><select style="max-width:140px;" onchange="onManualTypeChange(${rowIdx},this.value)">${typeOpts}</select></td>
-    <td>
+    <td data-label="#" style="color:var(--dim);font-size:11px;">★</td>
+    <td data-label="Zdroj">${srcCell}${computeSrcOrderLabel(rowIdx)}</td>
+    <td data-label="Typ"><select style="max-width:140px;" onchange="onManualTypeChange(${rowIdx},this.value)">${typeOpts}</select></td>
+    <td data-label="Cíl">
       <input type="text" id="manual-tgt-${rowIdx}" value="${tgtVal}" placeholder="X|Y" style="width:90px;" oninput="formatCoordInput(this,'manual-tgt-owner-${rowIdx}')" onchange="onManualTgtChange(${rowIdx},this.value)">
       <input type="text" id="manual-tgt-owner-${rowIdx}" value="${r.tgtOwner||''}" placeholder="hráč (cíl)" style="width:90px;margin-top:3px;display:block;font-size:11px;" onchange="onManualTgtOwnerChange(${rowIdx},this.value)">
     </td>
-    <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
-    <td class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
-    <td><input type="datetime-local" id="manual-arrival-${rowIdx}" step="1" value="${toLocalInputValue(r.arrivalTime)}" style="width:175px;" onblur="onManualArrivalChange(${rowIdx},this.value)"></td>
-    <td style="color:var(--dim);font-size:11px;">${r.travel ? fmtDur(r.travel) : '—'}</td>
-    <td>${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
+    <td data-label="Jednotka"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
+    <td data-label="Odeslání" class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
+    <td data-label="Příchod"><input type="datetime-local" id="manual-arrival-${rowIdx}" step="1" value="${toLocalInputValue(r.arrivalTime)}" style="width:175px;" onblur="onManualArrivalChange(${rowIdx},this.value)"></td>
+    <td data-label="Cesta" style="color:var(--dim);font-size:11px;">${r.travel ? fmtDur(r.travel) : '—'}</td>
+    <td data-label="Odpočet">${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
     <td style="white-space:nowrap;">
       ${gameLink ? `<a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>` : ''}
       <button onclick="saveManualRow(${rowIdx})" title="Uložit a potvrdit tento řádek" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:#7ec87e;font-size:13px;padding:3px 5px;margin-left:3px;">💾</button>
@@ -1251,15 +1278,15 @@ function renderTable() {
     if (r.isFake) gameLink += fakeTemplateQuery();
 
     html += `<tr class="${rowClass}" data-rowidx="${rowIdx}">
-      <td style="color:var(--dim);font-size:11px;">${i+1}</td>
-      <td>${buildSrcSelect(r, rowIdx)}${computeSrcOrderLabel(rowIdx)}</td>
-      <td>${typeChip(r)}${r.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
-      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
-      <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
-      <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
-      <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
-      <td style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
-      <td><span class="countdown" data-send="${r.sendTime}"></span></td>
+      <td data-label="#" style="color:var(--dim);font-size:11px;">${i+1}</td>
+      <td data-label="Zdroj">${buildSrcSelect(r, rowIdx)}${computeSrcOrderLabel(rowIdx)}</td>
+      <td data-label="Typ">${typeChip(r)}${r.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
+      <td data-label="Cíl"><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td data-label="Jednotka"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
+      <td data-label="Odeslání" class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
+      <td data-label="Příchod" class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
+      <td data-label="Cesta" style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
+      <td data-label="Odpočet"><span class="countdown" data-send="${r.sendTime}"></span></td>
       <td style="white-space:nowrap;">
         <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
         <button onclick="${playerVillages.length ? `quickSwapRow(${rowIdx})` : `replanRowPlan(${rowIdx})`}" title="Vyměnit za jinou volnou vesnici stejného typu" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>
@@ -1435,7 +1462,7 @@ function render(data) {
           <div class="toggle-track"></div>
           <span class="filter-label">⚔️ Odeslané</span>
         </label>
-        <button onclick="reloadFromServer()" title="Stáhnout nejnovější verzi plánu ze serveru (např. když jsi něco přidal/a na mobilu)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:11px;padding:4px 8px;">🔄 Obnovit</button>
+        <button onclick="reloadFromServer()" title="Synchronizuje změny provedené na PC a na telefonu" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:11px;padding:4px 8px;">🔄 Synchronizovat</button>
         <span id="sum-count" style="font-size:11px;color:var(--dim);white-space:nowrap;margin-left:auto;"></span>
       </div>
       <div id="tbl-wrap"></div>
