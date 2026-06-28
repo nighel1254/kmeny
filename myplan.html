@@ -896,17 +896,40 @@ function unitImg(key,s=18){
 const FAKE_UNIT_KEYS = ['spear','sword','axe','scout','lk','tk','ram','catapult','noble','paladin'];
 const APP_TO_GAME_UNIT = { spear:'spear', sword:'sword', axe:'axe', scout:'spy', lk:'light', tk:'heavy', ram:'ram', catapult:'catapult', noble:'snob', paladin:'knight' };
 let fakeTemplate = {};
+let fakeTemplateUserId = null; // id přihlášeného hráče – pro synchronizaci šablony přes účet
 
 function loadFakeTemplate() {
+  // localStorage = rychlý lokální fallback (funguje i offline), server = zdroj pravdy
+  // mezi prohlížeči/zařízeními. Nejdřív lokální, pak přepiš čerstvými daty ze serveru.
   try { fakeTemplate = JSON.parse(localStorage.getItem('dk_fake_template') || '{}'); } catch(e) { fakeTemplate = {}; }
 }
 
-function saveFakeTemplate() {
+async function syncFakeTemplateFromServer() {
+  if (!fakeTemplateUserId) return;
+  try {
+    const { data, error } = await sb.from('profiles').select('fake_template').eq('id', fakeTemplateUserId).single();
+    if (error) return;
+    if (data?.fake_template && Object.keys(data.fake_template).length) {
+      fakeTemplate = data.fake_template;
+      try { localStorage.setItem('dk_fake_template', JSON.stringify(fakeTemplate)); } catch(e) {}
+      renderFakeTemplateBox();
+    } else if (Object.keys(fakeTemplate).length) {
+      // Hráč má šablonu jen lokálně (starší appka/jiné zařízení) – jednorázově ji odešli na server.
+      await sb.from('profiles').update({ fake_template: fakeTemplate }).eq('id', fakeTemplateUserId);
+    }
+  } catch(e) { console.warn('Fake template server sync failed:', e); }
+}
+
+async function saveFakeTemplate() {
   const obj = {};
   FAKE_UNIT_KEYS.forEach(u => { const el = document.getElementById(`fake-tpl-${u}`); obj[u] = parseInt(el?.value) || 0; });
   fakeTemplate = obj;
   try { localStorage.setItem('dk_fake_template', JSON.stringify(obj)); } catch(e) {}
   toast('✓ Šablona fejku uložena.', 'ok', 2500);
+  if (fakeTemplateUserId) {
+    try { await sb.from('profiles').update({ fake_template: obj }).eq('id', fakeTemplateUserId); }
+    catch(e) { console.warn('Fake template server save failed:', e); }
+  }
 }
 
 function fakeTemplateQuery() {
@@ -1216,7 +1239,7 @@ function renderTargetList(type) {
     const dtVal=c.arrivalTime?toLocalDT(c.arrivalTime):'';
     return `<div class="tgt-row">
       <span class="coords">${c.x}|${c.y}</span>
-      <span style="color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis;">${c.name!==`${c.x}|${c.y}`?c.name:''}</span>
+      <span style="color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${c.name!==`${c.x}|${c.y}`?c.name:''}">${c.name!==`${c.x}|${c.y}`?c.name:''}</span>
       <div style="display:flex;flex-direction:column;gap:2px;">
         <input type="datetime-local" step="1" value="${dtVal}"
           onchange="targetState['${type}'][${i}].arrivalTime=this.value?new Date(this.value).getTime():null">
@@ -2027,8 +2050,10 @@ async function init(){
   document.body.style.visibility='visible';
 
   loadWorldConfig();
+  fakeTemplateUserId = session.user.id;
   loadFakeTemplate();
   renderFakeTemplateBox();
+  syncFakeTemplateFromServer(); // doplní/přepíše čerstvými daty ze serveru, jakmile dorazí
   const soundLeadInput = document.getElementById('sound-lead-input');
   if (soundLeadInput) soundLeadInput.value = getSoundLeadMin();
   const pushLeadInput = document.getElementById('push-lead-input');
