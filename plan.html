@@ -211,7 +211,7 @@ function fakeTemplateBoxHtml() {
     </div>
     <div id="fake-tpl-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(52px,1fr));margin-top:10px;gap:10px;">
       ${FAKE_UNIT_KEYS.map(u => `<label style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;font-size:10px;color:var(--dim);min-width:0;">
-        <span style="display:flex;align-items:center;justify-content:center;height:20px;">${unitImg(u)}</span>
+        <span style="display:flex;align-items:center;justify-content:center;height:20px;">${u==='axe' ? `<img src="${API_IMG}/unit_axe.png" style="width:20px;height:20px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">` : unitImg(u)}</span>
         <input type="number" min="0" id="fake-tpl-${u}" style="width:100%;max-width:55px;padding:3px 4px;text-align:center;box-sizing:border-box;" value="${fakeTemplate[u]||0}" onchange="saveFakeTemplate()">
       </label>`).join('')}
     </div>

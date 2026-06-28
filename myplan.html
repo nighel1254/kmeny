@@ -125,7 +125,7 @@
   .sc-half{background:#1a1a00;color:#f0c040;border:1px solid #606010;}
   .sc-noble{background:#250020;color:#ff80c0;border:1px solid #802060;}
   .sc-trains{background:#160a28;color:#cc80ff;border:1px solid #602080;}
-  .sc-giga{background:#3a0020;color:#ff60c0;border:1px solid #80104a;}
+  .sc-giga{background:#001a3a;color:#4090ff;border:1px solid #104a80;}
   /* Mode toggle */
   .mode-toggle{display:flex;background:#0d0a04;border:1px solid var(--border);border-radius:6px;padding:3px;gap:3px;margin-top:10px;margin-bottom:4px;}
   .mode-btn{flex:1;padding:5px 8px;border:none;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;transition:all .15s;color:var(--dim);background:transparent;}
@@ -283,10 +283,10 @@
         <!-- Přehled načtených vesnic -->
         <div id="src-overview" style="display:none;margin-top:10px;">
           <div class="stat-chips">
-            <span class="stat-chip sc-fullka">🏰 <strong id="cnt-fullka">0</strong> fullka</span>
-            <span class="stat-chip sc-triq">⚔️ <strong id="cnt-triq">0</strong> ¾</span>
-            <span class="stat-chip sc-half">🗡️ <strong id="cnt-half">0</strong> ½</span>
-            <span class="stat-chip sc-giga">💎 <strong id="cnt-giga">0</strong> giga</span>
+            <span class="stat-chip sc-fullka"><img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:14px;height:14px;vertical-align:middle;" onerror="this.style.display='none'"> <strong id="cnt-fullka">0</strong> fullka</span>
+            <span class="stat-chip sc-triq"><img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:14px;height:14px;vertical-align:middle;filter:sepia(1)saturate(3)brightness(0.85);" onerror="this.style.display='none'"> <strong id="cnt-triq">0</strong> ¾</span>
+            <span class="stat-chip sc-half"><img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:14px;height:14px;vertical-align:middle;filter:sepia(1)saturate(4)hue-rotate(20deg);" onerror="this.style.display='none'"> <strong id="cnt-half">0</strong> ½</span>
+            <span class="stat-chip sc-giga"><img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:14px;height:14px;vertical-align:middle;" onerror="this.style.display='none'"><img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:14px;height:14px;vertical-align:middle;margin-left:-4px;" onerror="this.style.display='none'"> <strong id="cnt-giga">0</strong> giga</span>
             <span class="stat-chip sc-noble"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:13px;height:13px;vertical-align:middle;" onerror="this.style.display='none'"> <strong id="cnt-noble">0</strong> šl.</span>
             <span class="stat-chip sc-trains">🚂 <strong id="cnt-trains">0</strong> vlaky</span>
           </div>
@@ -879,7 +879,7 @@ function renderFakeTemplateBox() {
   const body = document.getElementById('fake-tpl-body');
   if (!body) return;
   body.innerHTML = FAKE_UNIT_KEYS.map(u => `<label style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;font-size:10px;color:var(--dim);min-width:0;">
-    <span style="display:flex;align-items:center;justify-content:center;height:18px;">${unitImg(u)}</span>
+    <span style="display:flex;align-items:center;justify-content:center;height:18px;">${u==='axe' ? `<img src="${API_IMG}/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'">` : unitImg(u)}</span>
     <input type="number" min="0" id="fake-tpl-${u}" style="width:100%;max-width:55px;padding:3px 4px;text-align:center;box-sizing:border-box;" value="${fakeTemplate[u]||0}" onchange="saveFakeTemplate()">
   </label>`).join('');
 }
