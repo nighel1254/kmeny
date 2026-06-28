@@ -283,6 +283,14 @@ function fmtDur(ms) { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)
 function fmtHMS(ms) { const s=Math.floor(ms/1000); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`; }
 function isNight(ts){ const h=new Date(ts).getHours(); return h>=NIGHT_START&&h<NIGHT_END; }
 
+// Odkaz na mapu vycentrovanou na konkrétní souřadnici. Hra vyžaduje v URL i nějaké
+// village= ID (jinak mapu vůbec neotevře), ale na vycentrování nemá vliv, čí vesnice to je –
+// použij proto klidně zdrojovou vesnici daného řádku, nebo libovolnou vlastní vesnici.
+function mapLink(x, y, srcId) {
+  const vid = srcId || (playerVillages.find(v=>v.id)?.id) || '';
+  return `${API_BASE}/game.php?village=${vid}&screen=map#${x};${y}`;
+}
+
 function sortIndicator(col) {
   if (currentSort!==col) return '<span style="opacity:.3">↕</span>';
   return sortAsc?'↑':'↓';
@@ -931,13 +939,13 @@ function toggleUnusedList() {
 
 // ── PŘIDAT VLASTNÍ ÚTOK (libovolný typ – hráč si vybere typ, pak zdroj, cíl, čas) ───
 const MANUAL_TYPE_DEFS = {
+  gigafullka: { label:'GigaFull',        unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
   fullka:     { label:'Fullka',          unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
   triq_off:   { label:'3/4 off',         unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
   half_off:   { label:'1/2 off',         unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
-  gigafullka: { label:'GigaFull',        unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
-  noble:      { label:'Vlak (šlechtic)', unit:'noble', isFake:false, isNoble:true,  isFakeNoble:false },
   fake:       { label:'Fejk',            unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:false },
   fakeNoble:  { label:'Fejk vlak',       unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:true  },
+  noble:      { label:'Vlak (šlechtic)', unit:'noble', isFake:false, isNoble:true,  isFakeNoble:false },
 };
 const UNIT_BASE_SPEED_S = { ram:1800, noble:2100 };
 
@@ -1156,7 +1164,7 @@ function buildManualRowHtml(r, rowIdx) {
       <td data-label="#" style="color:var(--dim);font-size:11px;">★</td>
       <td data-label="Zdroj"><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span>${computeSrcOrderLabel(rowIdx)}</td>
       <td data-label="Typ">${typeChip(r)}</td>
-      <td data-label="Cíl"><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td data-label="Cíl"><a href="${mapLink(r.tgtX,r.tgtY,r.srcId)}" target="_blank" rel="noopener" class="coords" style="text-decoration:none;" title="Otevřít mapu na této vesnici">${r.tgtX}|${r.tgtY}</a>${r.tgtOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td data-label="Jednotka"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
       <td data-label="Odeslání" class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
       <td data-label="Příchod" class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
@@ -1281,7 +1289,7 @@ function renderTable() {
       <td data-label="#" style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td data-label="Zdroj">${buildSrcSelect(r, rowIdx)}${computeSrcOrderLabel(rowIdx)}</td>
       <td data-label="Typ">${typeChip(r)}${r.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
-      <td data-label="Cíl"><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td data-label="Cíl"><a href="${mapLink(r.tgtX,r.tgtY,r.srcId)}" target="_blank" rel="noopener" class="coords" style="text-decoration:none;" title="Otevřít mapu na této vesnici">${r.tgtX}|${r.tgtY}</a>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td data-label="Jednotka"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
       <td data-label="Odeslání" class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
       <td data-label="Příchod" class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>

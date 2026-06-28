@@ -553,6 +553,13 @@ function fmtDT(dt) { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHou
 function fmtDur(ms) { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; }
 function isNight(ts) { const h=new Date(ts).getHours(); return h>=NIGHT_START&&h<NIGHT_END; }
 
+// Odkaz na mapu vycentrovanou na konkrétní souřadnici – village= ID ve hře musí být
+// vyplněné, aby se mapa otevřela, ale na vycentrování nemá vliv, čí vesnice to je.
+function mapLink(x, y, srcId) {
+  const vid = srcId || jsonVillages.find(v=>v.village_id)?.village_id || '';
+  return `${API_BASE}/game.php?village=${vid}&screen=map#${x};${y}`;
+}
+
 let UNIT_SPEEDS_S = { spear:1080, sword:1320, axe:1080, scout:540, lk:600, tk:660, ram:1800, catapult:1800, noble:2100, paladin:600 };
 let apiSpeedsLoaded = false, worldSpeed=1, unitSpeedMult=1;
 
@@ -1679,7 +1686,7 @@ function renderResults(){
       <td data-label="#" style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td data-label="Zdroj"><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span>${r.srcOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.srcOwner})</span>`:''}${computeSrcOrderLabel(rowIdx)}</td>
       <td data-label="Typ">${typeChip(r)}${r.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
-      <td data-label="Cíl"><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td data-label="Cíl"><a href="${mapLink(r.tgtX,r.tgtY,r.srcId)}" target="_blank" rel="noopener" class="coords" style="text-decoration:none;" title="Otevřít mapu na této vesnici">${r.tgtX}|${r.tgtY}</a>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td data-label="Odeslání" class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
       <td data-label="Příchod" class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
       <td data-label="Cesta" style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>

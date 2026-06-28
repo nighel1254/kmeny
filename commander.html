@@ -1698,6 +1698,13 @@ function travelMs(x1,y1,x2,y2,unit) {
 
 function isNight(ts) { const h = new Date(ts).getHours(); return h>=NIGHT_START && h<NIGHT_END; }
 
+// Odkaz na mapu vycentrovanou na konkrétní souřadnici – village= ID ve hře musí být
+// vyplněné, aby se mapa otevřela, ale na vycentrování nemá vliv, čí vesnice to je.
+function mapLink(x, y, srcId) {
+  const vid = srcId || importedJsonVillages.find(v=>v.village_id)?.village_id || jsonVillages.find(v=>v.village_id)?.village_id || '';
+  return `${API_BASE}/game.php?village=${vid}&screen=map#${x};${y}`;
+}
+
 // ── MINIMALIZACE NOČNÍCH ODESÍLÁNÍ ──────────────────────────
 // Po spočítání plánu zkusí za každý řádek, který vychází na noční odeslání,
 // najít náhradní vesnici STEJNÉ (nebo lepší) síly/kategorie, ze které vychází
@@ -2521,7 +2528,7 @@ function renderResults(nightWarnings) {
       <td style="color:var(--dim);font-size:11px;white-space:nowrap">${row.srcPlayer||'—'}</td>
       <td><span class="coords">${row.srcX}|${row.srcY}</span> <span style="color:var(--dim)">${row.srcName}</span>${computeSrcOrderLabel(rowIdx)}</td>
       <td>${typeHtml}${row.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
-      <td><span class="coords">${row.tgtX}|${row.tgtY}</span>${row.tgtName && row.tgtName !== `${row.tgtX}|${row.tgtY}` ? ` <span style="color:var(--dim)">${row.tgtName}</span>` : ''}${row.tgtOwner ? ` <span style="color:#8a6aaa;font-size:11px;">(${row.tgtOwner})</span>` : ''}</td>
+      <td><a href="${mapLink(row.tgtX,row.tgtY,row.srcId)}" target="_blank" rel="noopener" class="coords" style="text-decoration:none;" title="Otevřít mapu na této vesnici">${row.tgtX}|${row.tgtY}</a>${row.tgtName && row.tgtName !== `${row.tgtX}|${row.tgtY}` ? ` <span style="color:var(--dim)">${row.tgtName}</span>` : ''}${row.tgtOwner ? ` <span style="color:#8a6aaa;font-size:11px;">(${row.tgtOwner})</span>` : ''}</td>
       <td>
         <span class="chip ${UNIT_CHIPS[row.unit]||''}">${UNIT_LABELS[row.unit]||row.unit}</span>
         ${row.night ? '<span class="chip chip-night">🌙</span>' : ''}
