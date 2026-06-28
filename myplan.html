@@ -302,7 +302,7 @@
 
     <!-- ── OSTRÉ ÚTOKY ── -->
     <div class="panel">
-      <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;filter:sepia(1)saturate(4)hue-rotate(330deg)"> Ostré cíle</span></div>
+      <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Ostré cíle</span></div>
       <div class="panel-body">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
           <label style="margin:0;white-space:nowrap;font-size:13px;">Útoků z každé offky:</label>
@@ -391,7 +391,7 @@
 
     <!-- ── FEJKY ── -->
     <div class="panel">
-      <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;filter:sepia(1)saturate(4)hue-rotate(90deg)brightness(1.3)"> Fejky</span></div>
+      <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;filter:sepia(1)saturate(4)hue-rotate(90deg);"> Fejky</span></div>
       <div class="panel-body">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
           <label style="margin:0;white-space:nowrap;font-size:13px;">Fejků na cíl:</label>
@@ -1442,9 +1442,23 @@ const twImg=(url,st='')=>`<img src="${url}" style="width:16px;height:16px;vertic
 const NOBLE_NORM=`<img src="${API_IMG}/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'">`;
 const NOBLE_FLIP=`<img src="${API_IMG}/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;transform:rotate(180deg);" onerror="this.style.display='none'">`;
 const AXE_RED=twImg(LARGE_ICO);
-const AXE_GRN=twImg(MEDIUM_ICO,'filter:hue-rotate(90deg)saturate(1.4)');
-const AXE_YEL=`<img src="${API_IMG}/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;filter:sepia(1)saturate(4)hue-rotate(20deg)" onerror="this.style.display='none'">`;
-const AXE_BRN=`<img src="${API_IMG}/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;filter:sepia(1)saturate(3)brightness(0.85)" onerror="this.style.display='none'">`;
+const AXE_GRN=twImg(LARGE_ICO,'filter:sepia(1)saturate(4)hue-rotate(90deg)');
+const AXE_YEL=twImg(LARGE_ICO,'filter:sepia(1)saturate(4)hue-rotate(20deg)');
+const AXE_BRN=twImg(LARGE_ICO,'filter:sepia(1)saturate(3)brightness(0.85)');
+
+// Pořadí odeslání pro vesnice, ze kterých jde víc útoků – ať hráč ví, jako kolikátý
+// musí útok odeslat, aby mu nezbylo bez jednotek na ty, co jedou po něm.
+function computeSrcOrderLabel(rowIdx) {
+  const r = attackRows[rowIdx];
+  if (!r || !r.srcX || !r.srcY) return '';
+  const group = attackRows
+    .map((row, idx) => ({ row, idx }))
+    .filter(({ row }) => row.srcX === r.srcX && row.srcY === r.srcY)
+    .sort((a, b) => (a.row.sendTime || 0) - (b.row.sendTime || 0));
+  if (group.length < 2) return '';
+  const pos = group.findIndex(g => g.idx === rowIdx) + 1;
+  return `<span class="chip" style="background:#0a1a2a;color:#7ec8ff;border:1px solid #205070;font-size:10px;padding:1px 5px;margin-left:4px;" title="Pořadí odeslání z této vesnice – odešli nejdřív útok č. 1, jinak nebudeš mít jednotky na ty další.">${pos}/${group.length}</span>`;
+}
 
 function typeChip(r){
   if(r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#fff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
@@ -1510,7 +1524,7 @@ function renderResults(){
     if (r.isFake) gameLink += fakeTemplateQuery();
     html+=`<tr class="${rowCls}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
-      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span>${r.srcOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.srcOwner})</span>`:''}</td>
+      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span>${r.srcOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.srcOwner})</span>`:''}${computeSrcOrderLabel(rowIdx)}</td>
       <td>${typeChip(r)}${r.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
       <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>

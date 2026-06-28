@@ -487,7 +487,7 @@
 
     <!-- Ostré útoky -->
     <div class="panel">
-      <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:16px;height:16px;filter:sepia(1)saturate(4)hue-rotate(330deg)"> Ostré útoky</span></div>
+      <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:16px;height:16px;"> Ostré útoky</span></div>
       <div class="panel-body">
 
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
@@ -622,7 +622,7 @@
 
     <!-- Fejk nastavení -->
     <div class="panel">
-      <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;filter:sepia(1)saturate(4)hue-rotate(90deg)brightness(1.3)"> Fejky</span></div>
+      <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:16px;height:16px;filter:sepia(1)saturate(4)hue-rotate(90deg);"> Fejky</span></div>
       <div class="panel-body">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
           <label style="white-space:nowrap;font-size:13px;">Počet fejků na cíl:</label>
@@ -819,9 +819,9 @@ const twImg = (url, style='') => `<img src="${url}" style="width:16px;height:16p
 const LARGE_ICO  = 'https://help.divokekmeny.cz/images/7/71/Large.png';
 const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
 const AXE_RED = twImg(LARGE_ICO);
-const AXE_GRN = twImg(MEDIUM_ICO, 'filter:hue-rotate(90deg)saturate(1.4)');
-const AXE_YEL = `<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(20deg)" onerror="this.style.display='none'">`;
-const AXE_BRN = `<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(3)brightness(0.85)" onerror="this.style.display='none'">`;
+const AXE_GRN = twImg(LARGE_ICO, 'filter:sepia(1)saturate(4)hue-rotate(90deg)');
+const AXE_YEL = twImg(LARGE_ICO, 'filter:sepia(1)saturate(4)hue-rotate(20deg)');
+const AXE_BRN = twImg(LARGE_ICO, 'filter:sepia(1)saturate(3)brightness(0.85)');
 const NOBLE_NORM = `<img src="${API_BASE}/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
 const PROXIES  = [
   u => u,
@@ -2498,9 +2498,9 @@ function renderResults(nightWarnings) {
 
     let typeHtml;
     const AXE_RED=twImg(LARGE_ICO);
-    const AXE_GRN=twImg(MEDIUM_ICO,'filter:hue-rotate(90deg)saturate(1.4)');
-    const AXE_YEL=`<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(20deg)" onerror="this.style.display='none'">`;
-    const AXE_BRN=`<img src="${API_BASE}/graphic/unit/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(3)brightness(0.85)" onerror="this.style.display='none'">`;
+    const AXE_GRN=twImg(LARGE_ICO,'filter:sepia(1)saturate(4)hue-rotate(90deg)');
+    const AXE_YEL=twImg(LARGE_ICO,'filter:sepia(1)saturate(4)hue-rotate(20deg)');
+    const AXE_BRN=twImg(LARGE_ICO,'filter:sepia(1)saturate(3)brightness(0.85)');
     if (row.isFake && row.isFakeNoble) {
       typeHtml = `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
     } else if (row.isFake) {
@@ -2516,7 +2516,7 @@ function renderResults(nightWarnings) {
     html += `<tr class="${rowClass}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td style="color:var(--dim);font-size:11px;white-space:nowrap">${row.srcPlayer||'—'}</td>
-      <td><span class="coords">${row.srcX}|${row.srcY}</span> <span style="color:var(--dim)">${row.srcName}</span></td>
+      <td><span class="coords">${row.srcX}|${row.srcY}</span> <span style="color:var(--dim)">${row.srcName}</span>${computeSrcOrderLabel(rowIdx)}</td>
       <td>${typeHtml}${row.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
       <td><span class="coords">${row.tgtX}|${row.tgtY}</span>${row.tgtName && row.tgtName !== `${row.tgtX}|${row.tgtY}` ? ` <span style="color:var(--dim)">${row.tgtName}</span>` : ''}${row.tgtOwner ? ` <span style="color:#8a6aaa;font-size:11px;">(${row.tgtOwner})</span>` : ''}</td>
       <td>
@@ -2627,6 +2627,20 @@ function typeSortKey(r) {
   if (r.srcCategory === 'triq_off') return '5_triq';
   if (r.srcCategory === 'half_off') return '6_half';
   return '7_ostatni';
+}
+
+// Pořadí odeslání pro vesnice, ze kterých jde víc útoků – ať je vidět, jako kolikátý
+// se má útok odeslat, aby ve vesnici zbyly jednotky na ty další.
+function computeSrcOrderLabel(rowIdx) {
+  const r = attackRows[rowIdx];
+  if (!r || !r.srcX || !r.srcY) return '';
+  const group = attackRows
+    .map((row, idx) => ({ row, idx }))
+    .filter(({ row }) => row.srcX === r.srcX && row.srcY === r.srcY)
+    .sort((a, b) => (a.row.sendTime || 0) - (b.row.sendTime || 0));
+  if (group.length < 2) return '';
+  const pos = group.findIndex(g => g.idx === rowIdx) + 1;
+  return `<span class="chip" style="background:#0a1a2a;color:#7ec8ff;border:1px solid #205070;font-size:10px;padding:1px 5px;margin-left:4px;" title="Pořadí odeslání z této vesnice – odešli nejdřív útok č. 1, jinak nebudeš mít jednotky na ty další.">${pos}/${group.length}</span>`;
 }
 
 function applySortToVisible(arr) {
