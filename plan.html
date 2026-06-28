@@ -908,11 +908,11 @@ function renderMyVillagesSummary() {
 
   if (!parts.length) { wrap.style.display = 'none'; return; }
   wrap.innerHTML = `<div style="font-size:11px;color:var(--dim);padding:6px 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">🏰 <strong style="color:var(--gold2)">Moje vesnice:</strong> ${parts.join('')}</div>
-    <div id="gigafull-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:8px;">
-      ${gigaVs.map(v => `<span class="coords" style="cursor:text;" title="Zkopíruj a vlož do pole zdroje u GigaFull řádku">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''}</span>`).join(' &nbsp;·&nbsp; ')}
+    <div id="gigafull-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:6px;">
+      ${gigaVs.map(v => `<span style="display:inline-flex;align-items:center;gap:5px;background:#2a0020;border:1px solid #4a1040;border-radius:5px;padding:4px 8px;white-space:nowrap;cursor:text;" title="Zkopíruj a vlož do pole zdroje u GigaFull řádku"><span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''}</span></span>`).join('')}
     </div>
-    <div id="unused-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:8px;">
-      ${unusedAll.map(v => `<span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''} (${v._catLabel})</span>`).join(' &nbsp;·&nbsp; ')}
+    <div id="unused-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:6px;">
+      ${unusedAll.map(v => `<span style="display:inline-flex;align-items:center;gap:5px;background:#0f2018;border:1px solid #1a3a28;border-radius:5px;padding:4px 8px;white-space:nowrap;"><span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''} (${v._catLabel})</span></span>`).join('')}
     </div>`;
   wrap.style.display = 'block';
 }

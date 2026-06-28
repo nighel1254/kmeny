@@ -1550,8 +1550,12 @@ async function calculate() {
     }
   }
   const _now = Date.now();
+  const pastCount = attackRows.filter(r => r.sendTime <= _now).length;
   attackRows = attackRows.filter(r => r.sendTime > _now);
-  if (!attackRows.length) { toast('⚠ Všechny útoky jsou v minulosti — zkontroluj časy dopadu!', 'err', 6000); return; }
+  // Tahle kontrola se týká jen téhle nově spočítané dávky (cílů, co jsi právě zadal/a) –
+  // ne celého plánu. Starší kola uložená v savedActions se nemažou.
+  if (pastCount) planWarnings.push(`${pastCount} útoků z této nové dávky vyšlo do minulosti (zadaný čas dopadu už proběhl) – byly vynechány.`);
+  if (!attackRows.length) { toast('⚠ Žádný z nově zadaných útoků nevychází v budoucnosti — zkontroluj čas dopadu u cílů, které jsi právě zadal/a.', 'err', 7000); return; }
   renderResults();
   setTimeout(() => scheduleNotifications(attackRows), 500);
   } finally {
@@ -1644,8 +1648,8 @@ function renderResults(){
   if (unusedOff.length) {
     warn += `<div class="warning-box" style="background:#0a1a10;border-color:#206040;color:#80d0a0;cursor:pointer;" onclick="const el=document.getElementById('unused-off-list');el.style.display=el.style.display==='none'?'flex':'none'">
       <img src="https://dscs.innogamescdn.com/asset/8b28a2b1a4/graphic/icons/header.webp" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'"> <strong>${unusedOff.length}</strong> off vesnic se v tomto plánu nepoužilo ▾
-      <div id="unused-off-list" style="display:none;margin-top:6px;font-size:11px;font-weight:normal;color:var(--dim);flex-wrap:wrap;gap:8px;">
-        ${unusedOff.map(v=>`<span class="coords">${v.x}|${v.y}</span> <span>${v.village_name||''}${v._category?` (${CAT_LABEL_SHORT[v._category]||v._category})`:''}</span>`).join(' &nbsp;·&nbsp; ')}
+      <div id="unused-off-list" style="display:none;margin-top:8px;font-size:11px;font-weight:normal;color:var(--dim);flex-wrap:wrap;gap:6px;">
+        ${unusedOff.map(v=>`<span style="display:inline-flex;align-items:center;gap:5px;background:#0f2018;border:1px solid #1a3a28;border-radius:5px;padding:4px 8px;white-space:nowrap;"><span class="coords">${v.x}|${v.y}</span> <span>${v.village_name||''}${v._category?` (${CAT_LABEL_SHORT[v._category]||v._category})`:''}</span></span>`).join('')}
       </div>
     </div>`;
   }
