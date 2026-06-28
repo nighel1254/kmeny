@@ -251,11 +251,12 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const API_BASE  = 'https://cs112.divokekmeny.cz';
 const API_IMG   = `${API_BASE}/graphic/unit`;
 const NOBLE_IMG = `<img src="${API_IMG}/unit_snob.png" style="width:15px;height:15px;vertical-align:middle;" onerror="this.style.display='none'">`;
+const NOBLE_FLIP = `<img src="${API_IMG}/unit_snob.png" style="width:15px;height:15px;vertical-align:middle;transform:rotate(180deg);" onerror="this.style.display='none'">`;
 const LARGE_ICO  = 'https://help.divokekmeny.cz/images/7/71/Large.png';
 const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
 const twImg     = (url, style='') => `<img src="${url}" style="width:15px;height:15px;vertical-align:middle;${style}" onerror="this.style.display='none'">`;
 const AXE_RED   = twImg(LARGE_ICO);
-const AXE_GRN   = twImg(MEDIUM_ICO,'filter:hue-rotate(90deg)saturate(1.4)');
+const AXE_GRN   = twImg(LARGE_ICO,'filter:sepia(1)saturate(4)hue-rotate(90deg)');
 
 const pad = n => String(Math.floor(n)).padStart(2,'0');
 function fmtDT(dt) {
@@ -340,14 +341,14 @@ async function loadPlans(email) {
         <div style="display:flex;gap:8px;flex-shrink:0;">
           ${!a.plan_id ? `<button class="btn-open" style="border-color:var(--gold2);color:var(--gold2);" onclick="editPlan('${a.id}')">✎ Upravit</button>` : ''}
           <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít</button>
-          <button class="btn-del" onclick="deletePlan('${a.id}',this)">🗑</button>
+          <button class="btn-del" onclick="deletePlan('${a.id}',this)" title="Smazat plán"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm-2 3h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"/></svg></button>
         </div>
       </div>
       <div class="plan-stats">
         ${sharp.length  ? `<span class="stat">${AXE_RED} <strong>${sharp.length}</strong> ostrých</span>` : ''}
         ${nobles.length ? `<span class="stat" style="color:#ff80c0;">${NOBLE_IMG} <strong>${nobles.length}</strong> vlaků</span>` : ''}
         ${fakes.length  ? `<span class="stat" style="color:#50cc50;">${AXE_GRN} <strong>${fakes.length}</strong> fejků</span>` : ''}
-        ${fakeN.length  ? `<span class="stat" style="color:#cc80ff;">${NOBLE_IMG} <strong>${fakeN.length}</strong> f.vlaků</span>` : ''}
+        ${fakeN.length  ? `<span class="stat" style="color:#cc80ff;">${NOBLE_FLIP} <strong>${fakeN.length}</strong> f.vlaků</span>` : ''}
         ${!rows.length  ? `<span style="color:#50cc50;">🟢 Žádné útoky pro tebe – máš volnou ruku</span>` : ''}
         <span class="stat" style="color:var(--dim);margin-left:auto;">Celkem: <strong>${rows.length}</strong></span>
       </div>

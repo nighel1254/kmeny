@@ -107,8 +107,11 @@
 <body style="visibility:hidden">
 
 <!-- Audio unlock banner -->
-<div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #2a1e00;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);">
-  <span style="flex:1;">🔔 Zvukové upozornění 2 min před odesláním</span>
+<div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #2a1e00;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);flex-wrap:wrap;">
+  <span style="flex:1;">🔔 Zvukové upozornění</span>
+  <label style="display:flex;align-items:center;gap:4px;">
+    <input type="number" id="sound-lead-input" min="1" max="60" value="2" style="width:42px;padding:2px 4px;font-size:11px;" onchange="setSoundLeadMin(this.value)"> min před odesláním
+  </label>
   <button id="audio-unlock-btn" onclick="unlockAudio()" class="">Zapnout</button>
 </div>
 
@@ -118,23 +121,28 @@
     <p>Tady vidíš podrobný seznam všech útoků z jednoho plánu – z které vesnice, na jaký cíl, kdy se má odeslat a kdy dorazí. Stránka ti navíc odpočítává čas a umí tě i upozornit, aby ti žádný útok neujel.</p>
     <h4>Co znamená tabulka</h4>
     <ul>
-      <li>U každého řádku vidíš: zdrojovou vesnici (odkud útok jde), typ útoku (barevný štítek – třeba „fullka", „fejk" nebo „vlak"), cíl (kam útok jde), jakou jednotkou se útočí, čas odeslání, čas příchodu, jak dlouho útok poletí a odpočet do odeslání.</li>
+      <li>U každého řádku vidíš: zdrojovou vesnici (odkud útok jde), typ útoku (barevný štítek – fullka je červená, 3/4 off hnědá, 1/2 off žlutá, fejk zelený, fejk vlak fialový s otočenou ikonkou šlechtice), cíl (kam útok jde), jakou jednotkou se útočí, čas odeslání, čas příchodu, jak dlouho útok poletí a odpočet do odeslání.</li>
+      <li>Pokud z jedné vesnice jde víc útoků najednou (např. fullka a po ní pár fejků), vidíš u zdroje modrý štítek „1/3", „2/3" atd. – říká ti, v jakém pořadí je musíš odeslat, aby ti ve vesnici zbyly jednotky na ty další.</li>
       <li>Klikni na název sloupce (Zdroj, Typ, Cíl, Čas odeslání, Čas příchodu, Cesta) a seznam se podle toho přeřadí – druhé kliknutí obrátí pořadí.</li>
       <li>Řádky podbarvené fialově jsou útoky, které musíš odeslat v noci (mezi půlnocí a 6. hodinou ranní) – na takové tě navíc upozorní hláška nahoře.</li>
       <li>Zelené tlačítko se šipkou u řádku otevře hru přesně na té vesnici a cíli, kam máš útok poslat – ty jen kliknutím odešleš vojsko. Pokud do odeslání zbývá méně než 5 minut, řádek se po 10 vteřinách automaticky označí jako odeslaný.</li>
-      <li>Tlačítko s kroužkovou šipkou (↺) slouží k přeplánování – použij ho, když zjistíš, že daná vesnice nemůže útok poslat (např. jí vojsko ubylo). Aplikace ti navrhne jinou vhodnou vesnici a ty návrh buď potvrdíš (zelená fajfka), nebo zamítneš (červený křížek).</li>
+      <li>Tlačítko s kroužkovou šipkou (↺) okamžitě vymění zdrojovou vesnici za jinou volnou vesnici stejného typu a přepočítá čas – žádné potvrzování. Vyměněný řádek se přeřadí podle nového času odeslání, ale poznáš ho podle žlutého štítku „✨ NOVÝ" u typu útoku.</li>
+      <li>Tlačítkem „➕ Přidat útok" pod tabulkou si přidáš libovolný útok navíc (fullku, fejk, fejk vlak, vlak…) – nejdřív vybereš typ, pak ti appka nabídne jen vesnice tohoto typu, které ještě nejsou v plánu použité. Po vyplnění klikni na 💾, řádek se uloží a sbalí do náhledu; přes ✎ se k němu kdykoliv vrátíš a upravíš ho.</li>
     </ul>
     <h4>Odpočítávání a stav řádků</h4>
     <ul>
       <li>Zelený čas = v pořádku, ještě je čas. Oranžový = zbývá méně než 10 minut. Červený = zbývá méně než minuta.</li>
       <li>Jakmile čas vyprší, řádek se sám oznáčí buď jako „Odešlo" (pokud jsi předtím kliknul/a na zelené tlačítko s šipkou) nebo jako „Zmeškal" – obojí si můžeš kdykoliv ručně překlikat, pokud se appka spletla.</li>
-      <li>Přepínač „Odeslané" nahoře skryje útoky, které už proběhly. Přepínač „Noční" skryje útoky, co vychází na noc.</li>
+      <li>Přepínač „Odeslané" nahoře skryje útoky, které už proběhly.</li>
       <li>Do vyhledávacího pole můžeš napsat název vesnice, jméno hráče nebo typ útoku a seznam se podle toho přefiltruje.</li>
+      <li>Tlačítko „🔄 Obnovit" stáhne nejnovější verzi plánu ze serveru – použij ho, když jsi něco přidal/a nebo upravil/a na jiném zařízení (např. na mobilu) a chceš to vidět i tady, aniž bys musel/a stránku znovu otevírat přes odkaz.</li>
     </ul>
     <h4>🔔 Jak tě appka upozorní, že se blíží odeslání</h4>
     <ul>
-      <li><strong>Zvukové upozornění</strong> – po zapnutí (tlačítko nahoře) ti appka 2 minuty před každým odesláním zahraje zvukový signál. Funguje, jen pokud máš tuto stránku otevřenou v prohlížeči.</li>
-      <li><strong>Push notifikace</strong> – po povolení (tlačítko nahoře) ti telefon nebo počítač pošle systémové oznámení i ve chvíli, kdy appku zrovna nemáš otevřenou. Vyžaduje to povolení notifikací v prohlížeči.</li>
+      <li><strong>Zvukové upozornění</strong> – po zapnutí (tlačítko nahoře) ti appka zahraje zvukový signál tolik minut před odesláním, kolik si zadáš do pole vedle tlačítka (výchozí 2 min). Funguje, jen pokud máš tuto stránku otevřenou v prohlížeči.</li>
+      <li><strong>Push notifikace</strong> – po povolení (tlačítko nahoře) ti telefon nebo počítač pošle systémové oznámení i ve chvíli, kdy appku zrovna nemáš otevřenou; čas si nastavíš stejně v poli vedle tlačítka. Vyžaduje to povolení notifikací v prohlížeči.</li>
+      <li>Obojí (zvuk i push) je nastavené <strong>per zařízení a per plán</strong> – zapnutí notifikací v jednom plánu nezapne notifikace v jiném plánu, který si otevřeš příště. Notifikace navíc nejdou zapnout, dokud plán nemá uložené ID (musíš ho mít uložený) – ať nehrozí, že se notifikace spletou s jiným rozpracovaným plánem.</li>
+      <li>Když útok v plánu upravíš (změníš zdroj, čas příchodu...), appka automaticky přepočítá a aktualizuje i naplánovaná upozornění pro ten útok – nemusíš notifikace znovu zapínat.</li>
     </ul>
     <p>Tip: odkaz na tuto stránku v sobě nese celý plán, takže si ho můžeš uložit a otevřít znovu, aniž bys se musel/a znovu přihlašovat.</p>
     <button class="btn-ghost" onclick="document.getElementById('help-modal').classList.remove('open')">Zavřít</button>
@@ -244,7 +252,7 @@ function typeSearchText(r) {
 
 let attackRows = [], cdInterval = null;
 let currentSort = 'send', sortAsc = true;
-let playerVillages = [], assignmentId = null;
+let playerVillages = [], assignmentId = null, planLabel = 'Plán útoků';
 
 const CAT_LABEL = { fullka:'fullka', triq_off:'3/4', half_off:'1/2', mini_off:'mini', def:'def', gigafullka:'GigaFull' };
 // Které typy vesnic lze nabídnout jako náhradu za daný typ příkazu (fullku lze nahradit 3/4 vesnicí a naopak, atd.)
@@ -387,21 +395,29 @@ function playSiren(volume = 0.4) {
   } catch(e) { console.warn('Audio error:', e); }
 }
 
-// Sleduj odpočty a přehraj sirénu 2 minuty před odesláním
+// Sleduj odpočty a přehraj sirénu X minut před odesláním (X si hráč zvolí, výchozí 2 min)
+function getSoundLeadMin() { return Math.max(1, parseInt(localStorage.getItem('dk_sound_lead_min')) || 2); }
+function setSoundLeadMin(v) {
+  const min = Math.max(1, Math.min(60, parseInt(v) || 2));
+  localStorage.setItem('dk_sound_lead_min', String(min));
+  siren2minAlerted.clear();
+  return min;
+}
 const siren2minAlerted = new Set();
 function checkSirenAlerts() {
   if (!audioUnlocked) return;
   const now = Date.now();
+  const leadMs = getSoundLeadMin() * 60000;
   attackRows.forEach(r => {
     const key = rowKey(r);
     if (playedRows.has(key) || siren2minAlerted.has(key)) return;
     const diff = r.sendTime - now;
-    if (diff > 0 && diff <= 120000) {
+    if (diff > 0 && diff <= leadMs) {
       siren2minAlerted.add(key);
       playSiren();
       const tEl = document.createElement('div');
       tEl.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.8);';
-      tEl.innerHTML = `⏰ 2 minuty do odeslání!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</span>`;
+      tEl.innerHTML = `⏰ ${getSoundLeadMin()} minuty do odeslání!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</span>`;
       document.body.appendChild(tEl);
       setTimeout(() => tEl.remove(), 8000);
     }
@@ -444,28 +460,87 @@ function toast(msg, type='info', ms=3000) {
   setTimeout(() => t.remove(), ms);
 }
 
+// Notifikace jsou zapínané PER PLÁN – zapnutí v jednom plánu nesmí automaticky
+// zapnout notifikace v jiném plánu, který si hráč otevře příště. Proto se evidence
+// "pro které plány mám zapnuto" drží v localStorage jako seznam ID plánů (dk_notif_plans),
+// a alarmy jednotlivých plánů se v DB MERGUJÍ (ne přepisují) – každý alarm má svoje plan_id,
+// takže update jednoho plánu nesmaže alarmy ostatních aktivních plánů na tomhle zařízení.
+function notifPlanKey() { return assignmentId || ('hash:' + location.hash.slice(1, 40)); }
+function getNotifPlans() {
+  try { return JSON.parse(localStorage.getItem('dk_notif_plans') || '[]'); } catch(e) { return []; }
+}
+function setNotifPlan(id, on) {
+  let arr = getNotifPlans().filter(x => x !== id);
+  if (on) arr.push(id);
+  localStorage.setItem('dk_notif_plans', JSON.stringify(arr));
+}
+function isNotifEnabledForThisPlan() { return getNotifPlans().includes(notifPlanKey()); }
+
+// Jak dlouho před odesláním přijde systémové (push) oznámení – nastavuje si hráč, výchozí 2 min.
+// Pozn.: tohle pole (lead_ms) jen appka uloží k alarmu – aby se podle něj reálně řídil ČAS odeslání
+// push notifikace, musí to číst i server/cron, který notifikace skutečně odesílá.
+function getPushLeadMin() { return Math.max(1, parseInt(localStorage.getItem('dk_push_lead_min')) || 2); }
+function setPushLeadMin(v) {
+  const min = Math.max(1, Math.min(60, parseInt(v) || 2));
+  localStorage.setItem('dk_push_lead_min', String(min));
+  if (isNotifEnabledForThisPlan()) scheduleNotifications(attackRows);
+  return min;
+}
+
+function buildAlarmsForThisPlan() {
+  const planId = notifPlanKey();
+  const leadMs = getPushLeadMin() * 60000;
+  return attackRows
+    .filter(r => !playedRows.has(rowKey(r)))
+    .map(r => ({
+      send_time: Math.round(r.sendTime),
+      notify_at: Math.round(r.sendTime) - leadMs,
+      lead_ms: leadMs,
+      src: `${r.srcX}|${r.srcY}`,
+      tgt: `${r.tgtX}|${r.tgtY}`,
+      row_key: rowKey(r),
+      plan_id: planId,
+      plan_label: planLabel
+    }))
+    .filter(a => a.send_time - Date.now() > 60000); // jen budoucí
+}
+
+// Nahradí v poli alarmů jen ty se shodným plan_id, ostatní (jiné aktivní plány) zůstanou.
+function mergeAlarms(existing, planId, freshForPlan) {
+  return [...(existing || []).filter(a => a.plan_id !== planId), ...freshForPlan];
+}
+
 async function resetNotifications() {
-  localStorage.removeItem('dk_notif_enabled');
+  const deviceId = localStorage.getItem('dk_device_id');
+  localStorage.removeItem('dk_notif_plans');
   localStorage.removeItem('dk_device_id');
   try {
     const { data: { session } } = await sbP.auth.getSession();
-    if (session) await sbP.from('push_subscriptions').delete().eq('user_id', session.user.id);
+    // Reset má smazat jen tohle zařízení (všechny plány na něm), ne notifikace na ostatních zařízeních hráče.
+    if (session && deviceId) await sbP.from('push_subscriptions').delete().eq('user_id', session.user.id).eq('device_id', deviceId);
   } catch(e) {}
   updateNotifButton(false);
-  toast('Notifikace resetovány – klikni znovu pro zapnutí.', 'info', 4000);
+  toast('Notifikace na tomto zařízení resetovány – klikni znovu pro zapnutí.', 'info', 4000);
 }
 
 async function enableNotifications() {
-  // Toggle OFF
-  if (localStorage.getItem('dk_notif_enabled') === '1') {
-    localStorage.removeItem('dk_notif_enabled');
+  if (!assignmentId) { toast('Tento plán nemá uložené ID na serveru, notifikace nelze zapnout.', 'err', 5000); return; }
+  const planId = notifPlanKey();
+
+  // Toggle OFF – zruší notifikace jen pro TENTO plán, ostatní aktivní plány na zařízení zůstanou.
+  if (isNotifEnabledForThisPlan()) {
+    setNotifPlan(planId, false);
     updateNotifButton(false);
     try {
       const { data: { session } } = await sbP.auth.getSession();
       const deviceId = localStorage.getItem('dk_device_id') || 'default';
-      if (session) await sbP.from('push_subscriptions').delete().eq('user_id', session.user.id).eq('device_id', deviceId);
+      if (session) {
+        const { data: row } = await sbP.from('push_subscriptions').select('alarms').eq('user_id', session.user.id).eq('device_id', deviceId).maybeSingle();
+        const remaining = (row?.alarms || []).filter(a => a.plan_id !== planId);
+        await sbP.from('push_subscriptions').update({ alarms: remaining, updated_at: new Date().toISOString() }).eq('user_id', session.user.id).eq('device_id', deviceId);
+      }
     } catch(e) {}
-    toast('Notifikace vypnuty.', 'info');
+    toast('Notifikace pro tento plán vypnuty.', 'info');
     return;
   }
 
@@ -491,15 +566,7 @@ async function enableNotifications() {
     const { data: { session } } = await sbP.auth.getSession();
     if (!session) { toast('Nejsi přihlášen.', 'err'); return; }
 
-    const alarms = attackRows
-      .filter(r => !playedRows.has(rowKey(r)))
-      .map(r => ({
-        send_time: Math.round(r.sendTime),
-        src: `${r.srcX}|${r.srcY}`,
-        tgt: `${r.tgtX}|${r.tgtY}`,
-        row_key: rowKey(r)
-      }))
-      .filter(a => a.send_time - Date.now() > 60000); // jen budoucí
+    const freshAlarms = buildAlarmsForThisPlan();
 
     // Unikátní ID zařízení (uložené v localStorage)
     let deviceId = localStorage.getItem('dk_device_id');
@@ -508,20 +575,23 @@ async function enableNotifications() {
       localStorage.setItem('dk_device_id', deviceId);
     }
 
-    console.log(`Saving ${alarms.length} alarms, attackRows: ${attackRows.length}`);
+    const { data: existingRow } = await sbP.from('push_subscriptions').select('alarms').eq('user_id', session.user.id).eq('device_id', deviceId).maybeSingle();
+    const mergedAlarms = mergeAlarms(existingRow?.alarms, planId, freshAlarms);
+
+    console.log(`Saving ${freshAlarms.length} alarms for this plan (celkem na zařízení: ${mergedAlarms.length})`);
 
     const subJson = JSON.stringify(sub.toJSON());
     await sbP.from('push_subscriptions').upsert({
       user_id: session.user.id,
       device_id: deviceId,
       subscription: subJson,
-      alarms: alarms,
+      alarms: mergedAlarms,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id,device_id' });
 
-    localStorage.setItem('dk_notif_enabled', '1');
+    setNotifPlan(planId, true);
     updateNotifButton(true);
-    toast(`✓ Notifikace zapnuty! Naplánováno ${alarms.length} upozornění.`, 'ok', 5000);
+    toast(`✓ Notifikace pro tento plán zapnuty! Naplánováno ${freshAlarms.length} upozornění.`, 'ok', 5000);
   } catch(e) {
     console.error('Push subscription failed:', e);
     toast('Nepodařilo se aktivovat notifikace: ' + e.message, 'err', 6000);
@@ -543,8 +613,8 @@ function updateNotifButton(enabled) {
 }
 
 async function scheduleNotifications(rows) {
-  // Při každém načtení aktualizuj alarmy v DB
-  if (localStorage.getItem('dk_notif_enabled') !== '1') return;
+  // Při každém načtení aktualizuj alarmy v DB – jen pokud má TENTO plán notifikace zapnuté.
+  if (!isNotifEnabledForThisPlan()) return;
   if (Notification.permission !== 'granted') return;
   try {
     const reg = await initServiceWorker();
@@ -553,14 +623,14 @@ async function scheduleNotifications(rows) {
     if (!sub) return;
     const { data: { session } } = await sbP.auth.getSession();
     if (!session) return;
-    const alarms = rows
-      .filter(r => !playedRows.has(rowKey(r)))
-      .map(r => ({ send_time: Math.round(r.sendTime), src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r) }))
-      .filter(a => a.send_time - Date.now() > 60000);
+    const planId = notifPlanKey();
+    const freshAlarms = buildAlarmsForThisPlan();
     const deviceId = localStorage.getItem('dk_device_id') || 'default';
-    console.log(`Updating ${alarms.length} alarms`);
+    const { data: existingRow } = await sbP.from('push_subscriptions').select('alarms').eq('user_id', session.user.id).eq('device_id', deviceId).maybeSingle();
+    const mergedAlarms = mergeAlarms(existingRow?.alarms, planId, freshAlarms);
+    console.log(`Updating ${freshAlarms.length} alarms for this plan (celkem na zařízení: ${mergedAlarms.length})`);
     await sbP.from('push_subscriptions').update({
-      alarms: alarms,
+      alarms: mergedAlarms,
       updated_at: new Date().toISOString()
     }).eq('user_id', session.user.id).eq('device_id', deviceId);
   } catch(e) { console.warn('Schedule update failed:', e); }
@@ -645,8 +715,12 @@ async function persistRows() {
   if (!assignmentId) return;
   try {
     const plan_input = { villages: playerVillages, updatedAt: new Date().toISOString() };
-    const { error } = await sbP.from('plan_assignments').update({ rows_data: attackRows, plan_input }).eq('id', assignmentId);
+    const rows_data = attackRows.map(r => { const { isNew, ...rest } = r; return rest; });
+    const { error } = await sbP.from('plan_assignments').update({ rows_data, plan_input }).eq('id', assignmentId);
     if (error) toast('⚠ Změna se neuložila na server (zůstává jen v tomto okně): ' + error.message, 'err', 6000);
+    // Pokud má tenhle plán zapnuté notifikace, po každé úpravě (čas odeslání, výměna zdroje...)
+    // hned přepočítej a přepiš jeho alarmy – jinak by notifikace chodily na starý, už neplatný čas.
+    if (isNotifEnabledForThisPlan()) scheduleNotifications(attackRows);
   } catch(e) {
     console.warn('Uložení změny se nepodařilo:', e);
     toast('⚠ Změna se neuložila na server (zůstává jen v tomto okně).', 'err', 6000);
@@ -747,7 +821,7 @@ function applySourceSwap(rowIdx, vx, vy) {
   if (!distOrig) { toast('Nelze přepočítat (nulová vzdálenost).', 'err'); renderTable(); return; }
   const msPerDist = row.travel / distOrig;
   const dist = Math.sqrt((vx-row.tgtX)**2 + (vy-row.tgtY)**2);
-  const travel = dist * msPerDist;
+  const travel = Math.round(dist * msPerDist / 1000) * 1000;
   const sendTime = row.arrivalTime - travel;
 
   if (sendTime < Date.now() + 60000) {
@@ -760,10 +834,11 @@ function applySourceSwap(rowIdx, vx, vy) {
   row.srcName = v.name; row.srcId = v.id;
   if (!row.isNoble) row.srcCategory = v.category;
   row.travel = travel; row.sendTime = sendTime; row.night = isNight(sendTime);
+  row.isNew = true; // řádek po výměně skočí jinam v pořadí – oznámkujeme ho, ať ho hráč v tabulce najde
 
   attackRows.sort((a,b) => a.sendTime - b.sendTime);
   renderTable();
-  toast('✓ Zdrojová vesnice změněna a čas přepočítán.', 'ok');
+  toast('✓ Zdrojová vesnice změněna a čas přepočítán. Řádek je oznámkovaný ✨ NOVÝ, abys ho našel/našla v tabulce.', 'ok', 6000);
   persistRows();
 }
 
@@ -791,9 +866,10 @@ function renderMyVillagesSummary() {
   }
 
   const gigaVs = playerVillages.filter(v => v.category === 'gigafullka');
-  if (gigaVs.length) {
-    parts.push(`<span class="stat" style="cursor:pointer;color:#ff60c0;" onclick="toggleGigaFullList()" title="Klikni pro zobrazení vesnic – GigaFullky se do plánu nepřiřazují automaticky, přidej si z nich útok sám tlačítkem ➕ pod plánem.">💎 GigaFullky: <strong>${gigaVs.length}</strong> ▾</span>`);
-  }
+  const gigaUsed = gigaVs.filter(v => usedKeys.has(`${v.x}|${v.y}`)).length;
+  parts.push(gigaVs.length
+    ? `<span class="stat" style="cursor:pointer;color:#ff60c0;" onclick="toggleGigaFullList()" title="Klikni pro zobrazení vesnic – GigaFullky se do plánu nepřiřazují automaticky, přidej si z nich útok sám tlačítkem ➕ pod plánem.">💎 GigaFullky: <strong>${gigaUsed}</strong>/${gigaVs.length} ▾</span>`
+    : `<span class="stat" style="color:#ff60c0;">💎 GigaFullky: <strong>0</strong>/0</span>`);
 
   if (!parts.length) { wrap.style.display = 'none'; return; }
   wrap.innerHTML = `<div style="font-size:11px;color:var(--dim);padding:6px 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">🏰 <strong style="color:var(--gold2)">Moje vesnice:</strong> ${parts.join('')}</div>
@@ -888,7 +964,9 @@ function recalcManualRow(rowIdx) {
     return;
   }
   const dist = Math.sqrt((row.srcX-row.tgtX)**2 + (row.srcY-row.tgtY)**2);
-  row.travel = dist * msPerDist;
+  // Cesta se zaokrouhlí na celé vteřiny, ať čas odeslání drží stejné tisíciny jako čas příchodu
+  // (jinak by tam díky desetinné vzdálenosti vycházely "náhodné" tisíciny).
+  row.travel = Math.round(dist * msPerDist / 1000) * 1000;
   row.sendTime = row.arrivalTime - row.travel;
   row.night = isNight(row.sendTime);
 }
@@ -954,6 +1032,16 @@ function onManualTgtChange(rowIdx, value) {
   persistRows();
 }
 
+// Hráč u cíle se zadává ručně (u manuálního řádku neznáme vlastníka vesnice automaticky) –
+// potřebné, aby fungovalo filtrování/vyhledávání podle hráče stejně jako u běžných řádků.
+function onManualTgtOwnerChange(rowIdx, value) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+  row.tgtOwner = value.trim();
+  renderTable();
+  persistRows();
+}
+
 // Čas příchodu se uloží až po opuštění pole (blur), ne při každém zásahu do políčka –
 // jinak by re-render za běhu vyhodil hráče z editace (datetime-local umí "change" vystřelit i uprostřed psaní).
 function onManualArrivalChange(rowIdx, value) {
@@ -968,10 +1056,19 @@ function onManualArrivalChange(rowIdx, value) {
 }
 
 function saveManualRow(rowIdx) {
+  const row = attackRows[rowIdx];
   recalcManualRow(rowIdx);
+  if (row) row._confirmed = true;
   renderTable();
   persistRows();
   toast('✓ Řádek uložen.', 'ok', 2500);
+}
+
+function editManualRow(rowIdx) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+  row._confirmed = false;
+  renderTable();
 }
 
 function toLocalInputValue(ms) {
@@ -1006,11 +1103,37 @@ function buildManualRowHtml(r, rowIdx) {
     }
   }
 
-  return `<tr data-rowidx="${rowIdx}" style="background:#1a0010;">
+  const complete = r.srcX && r.tgtX && r.arrivalTime;
+  const delBtn = `<button onclick="removeManualRow(${rowIdx})" title="Smazat tento řádek" style="background:#3a1010;border:1px solid #ff6060;border-radius:4px;cursor:pointer;color:#ff8080;padding:3px 6px;margin-left:3px;vertical-align:middle;"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm-2 3h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"/></svg></button>`;
+
+  if (r._confirmed && complete) {
+    // Uložený manuální řádek – jen náhled, ne otevřená editace. Klikni ✎ pro úpravu.
+    return `<tr data-rowidx="${rowIdx}" style="background:#1e1508;border-left:2px solid var(--gold);">
+      <td style="color:var(--dim);font-size:11px;">★</td>
+      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span>${computeSrcOrderLabel(rowIdx)}</td>
+      <td>${typeChip(r)}</td>
+      <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
+      <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
+      <td class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
+      <td class="arrival-time">${fmtDT(new Date(r.arrivalTime))}</td>
+      <td style="color:var(--dim);font-size:11px;">${r.travel ? fmtDur(r.travel) : '—'}</td>
+      <td>${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
+      <td style="white-space:nowrap;">
+        ${gameLink ? `<a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>` : ''}
+        <button onclick="editManualRow(${rowIdx})" title="Upravit tento řádek" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--gold2);font-size:13px;padding:3px 5px;margin-left:3px;">✎</button>
+        ${delBtn}
+      </td>
+    </tr>`;
+  }
+
+  return `<tr data-rowidx="${rowIdx}" style="background:#1e1508;border-left:2px solid var(--gold);">
     <td style="color:var(--dim);font-size:11px;">★</td>
     <td>${srcCell}${computeSrcOrderLabel(rowIdx)}</td>
     <td><select style="max-width:140px;" onchange="onManualTypeChange(${rowIdx},this.value)">${typeOpts}</select></td>
-    <td><input type="text" id="manual-tgt-${rowIdx}" value="${tgtVal}" placeholder="X|Y" style="width:90px;" oninput="formatCoordInput(this,'manual-arrival-${rowIdx}')" onchange="onManualTgtChange(${rowIdx},this.value)"></td>
+    <td>
+      <input type="text" id="manual-tgt-${rowIdx}" value="${tgtVal}" placeholder="X|Y" style="width:90px;" oninput="formatCoordInput(this,'manual-tgt-owner-${rowIdx}')" onchange="onManualTgtChange(${rowIdx},this.value)">
+      <input type="text" id="manual-tgt-owner-${rowIdx}" value="${r.tgtOwner||''}" placeholder="hráč (cíl)" style="width:90px;margin-top:3px;display:block;font-size:11px;" onchange="onManualTgtOwnerChange(${rowIdx},this.value)">
+    </td>
     <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
     <td class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
     <td><input type="datetime-local" id="manual-arrival-${rowIdx}" step="1" value="${toLocalInputValue(r.arrivalTime)}" style="width:175px;" onblur="onManualArrivalChange(${rowIdx},this.value)"></td>
@@ -1018,8 +1141,8 @@ function buildManualRowHtml(r, rowIdx) {
     <td>${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
     <td style="white-space:nowrap;">
       ${gameLink ? `<a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>` : ''}
-      <button onclick="saveManualRow(${rowIdx})" title="Uložit změny tohoto řádku" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:#7ec87e;font-size:13px;padding:3px 5px;margin-left:3px;">💾</button>
-      <button onclick="removeManualRow(${rowIdx})" title="Smazat tento řádek" style="background:#3a1010;border:1px solid #ff6060;border-radius:4px;cursor:pointer;color:#ff8080;padding:3px 6px;margin-left:3px;vertical-align:middle;"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm-2 3h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"/></svg></button>
+      <button onclick="saveManualRow(${rowIdx})" title="Uložit a potvrdit tento řádek" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:#7ec87e;font-size:13px;padding:3px 5px;margin-left:3px;">💾</button>
+      ${delBtn}
     </td>
   </tr>`;
 }
@@ -1037,7 +1160,7 @@ function renderTable() {
     return true;
   });
   if (search) visible = visible.filter(r =>
-    `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''} ${typeSearchText(r)}`.toLowerCase().includes(search)
+    `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''} ${typeSearchText(r)} ${r.isNew?'new nový novy':''}`.toLowerCase().includes(search)
   );
 
   // Sort
@@ -1113,7 +1236,7 @@ function renderTable() {
     html += `<tr class="${rowClass}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td>${buildSrcSelect(r, rowIdx)}${computeSrcOrderLabel(rowIdx)}</td>
-      <td>${typeChip(r)}</td>
+      <td>${typeChip(r)}${r.isNew?'<span class="chip" style="background:#1a2a00;color:#c0ff40;border:1px solid #4a7a00;margin-left:4px;">✨ NOVÝ</span>':''}</td>
       <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
       <td class="${sendCls}">${fmtDT(new Date(r.sendTime))}</td>
@@ -1167,7 +1290,7 @@ function replanRowPlan(rowIdx) {
     // Nabízíme jen 1:1 stejný typ vesnice (žádná chytrá náhrada slabší/silnější kategorií)
     if (row.srcCategory !== 'noble' && v.category !== row.srcCategory) continue;
     const dist = Math.sqrt((v.x-row.tgtX)**2 + (v.y-row.tgtY)**2);
-    const travel = dist * msPerDist;
+    const travel = Math.round(dist * msPerDist / 1000) * 1000;
     const sendTime = row.arrivalTime - travel;
     if (sendTime < now + 60000) continue;
     candidates.push({
@@ -1235,12 +1358,29 @@ function cancelReplanProposal(rowIdx) {
   if (attackRows[rowIdx]) delete attackRows[rowIdx]._replanProposal;
 }
 
+// Manuálně přidané řádky a stav se ukládají na server, ale stránka je po otevření
+// nestahuje znovu automaticky – pokud něco přidáš/upravíš na jiném zařízení (např. mobilu),
+// na tomhle zařízení to uvidíš až po kliknutí na 🔄 Obnovit (nebo po znovuotevření odkazu).
+async function reloadFromServer() {
+  if (!assignmentId) { toast('Tento plán nemá uložené ID na serveru, nelze obnovit.', 'err'); return; }
+  try {
+    const { data: a, error } = await sbP.from('plan_assignments').select('rows_data, plan_input').eq('id', assignmentId).single();
+    if (error || !a) { toast('⚠ Obnovení ze serveru se nepodařilo.', 'err'); return; }
+    attackRows = (a.rows_data || []).sort((x,y)=>(x.sendTime||0)-(y.sendTime||0));
+    playerVillages = a.plan_input?.villages || playerVillages;
+    renderTable();
+    renderMyVillagesSummary();
+    toast('✓ Plán obnoven ze serveru.', 'ok', 3000);
+  } catch(e) { toast('⚠ Obnovení ze serveru se nepodařilo.', 'err'); }
+}
+
 function render(data) {
   document.body.style.visibility = 'visible';
   const rows = data.rows.sort((a,b)=>a.sendTime-b.sendTime);
   attackRows = rows;
   assignmentId = data.id || null;
   playerVillages = data.villages || [];
+  planLabel = data.label || 'Plán útoků';
 
   document.getElementById('app').innerHTML = `
     <div class="top-bar">
@@ -1251,7 +1391,10 @@ function render(data) {
       <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;">
         <a href="dashboard.html" class="nav-btn primary">← Moje plány</a>
         <button class="nav-btn" onclick="document.getElementById('help-modal').classList.add('open')">❓ Nápověda</button>
-        <button id="notif-btn" onclick="enableNotifications()" class="nav-btn">🔔 Notifikace</button>
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--dim);" title="Jak dlouho před odesláním přijde systémové oznámení">
+          <input type="number" id="push-lead-input" min="1" max="60" value="2" style="width:38px;padding:2px 4px;font-size:11px;" onchange="setPushLeadMin(this.value)"> min
+        </label>
+        <button id="notif-btn" onclick="enableNotifications()" class="nav-btn" ${assignmentId ? '' : 'disabled style="opacity:.4;cursor:not-allowed;"'} title="${assignmentId ? 'Zapnout/vypnout notifikace pro tento plán' : 'Tento plán nemá uložené ID, notifikace nelze zapnout'}">🔔 Notifikace</button>
         <button onclick="planLogout()" class="nav-btn">Odhlásit</button>
       </div>
     </div>
@@ -1270,16 +1413,12 @@ function render(data) {
     <div class="panel">
       <div class="filter-bar">
         <input type="text" id="tbl-search" placeholder="🔍 Filtr – vesnice, hráč, typ…" oninput="renderTable()">
-        <label class="toggle-wrap" title="Skrýt noční útoky" onclick="setTimeout(()=>renderTable(),10)">
-          <input type="checkbox" id="hide-night">
-          <div class="toggle-track"></div>
-          <span class="filter-label">🌙 Noční</span>
-        </label>
         <label class="toggle-wrap" title="Skrýt odeslané" onclick="setTimeout(()=>renderTable(),10)">
           <input type="checkbox" id="hide-played" checked>
           <div class="toggle-track"></div>
           <span class="filter-label">⚔️ Odeslané</span>
         </label>
+        <button onclick="reloadFromServer()" title="Stáhnout nejnovější verzi plánu ze serveru (např. když jsi něco přidal/a na mobilu)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:11px;padding:4px 8px;">🔄 Obnovit</button>
         <span id="sum-count" style="font-size:11px;color:var(--dim);white-space:nowrap;margin-left:auto;"></span>
       </div>
       <div id="tbl-wrap"></div>
@@ -1324,6 +1463,10 @@ function decodeData(json) {
 
 function init() {
   loadFakeTemplate();
+  const soundLeadInput = document.getElementById('sound-lead-input');
+  if (soundLeadInput) soundLeadInput.value = getSoundLeadMin();
+  const pushLeadInput = document.getElementById('push-lead-input');
+  if (pushLeadInput) pushLeadInput.value = getPushLeadMin();
   syncPlayedRows().then(() => {
     // Polling každých 30s
     setInterval(async () => {
@@ -1360,9 +1503,8 @@ function init() {
     const data = decodeData(json);
     if (!data || !data.rows) throw new Error('Chybí data rows');
     render(data);
-    // Naplánuj notifikace pokud jsou povoleny
-    const notifEnabled = localStorage.getItem('dk_notif_enabled') === '1';
-    if (notifEnabled && Notification.permission === 'granted') {
+    // Naplánuj notifikace pokud jsou povoleny – pro TENTO konkrétní plán (ne globálně pro zařízení)
+    if (isNotifEnabledForThisPlan() && Notification.permission === 'granted') {
       updateNotifButton(true);
       setTimeout(() => scheduleNotifications(attackRows), 500);
     }

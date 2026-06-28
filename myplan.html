@@ -125,6 +125,7 @@
   .sc-half{background:#1a1a00;color:#f0c040;border:1px solid #606010;}
   .sc-noble{background:#250020;color:#ff80c0;border:1px solid #802060;}
   .sc-trains{background:#160a28;color:#cc80ff;border:1px solid #602080;}
+  .sc-giga{background:#3a0020;color:#ff60c0;border:1px solid #80104a;}
   /* Mode toggle */
   .mode-toggle{display:flex;background:#0d0a04;border:1px solid var(--border);border-radius:6px;padding:3px;gap:3px;margin-top:10px;margin-bottom:4px;}
   .mode-btn{flex:1;padding:5px 8px;border:none;border-radius:4px;font-size:11px;font-weight:bold;cursor:pointer;transition:all .15s;color:var(--dim);background:transparent;}
@@ -217,8 +218,11 @@
   </div>
 </div>
 
-<div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #2a1e00;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);">
-  <span style="flex:1;">🔔 Zvukové upozornění 2 min před odesláním</span>
+<div id="audio-banner" style="background:#0f0c02;border-bottom:1px solid #2a1e00;padding:5px 16px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);flex-wrap:wrap;">
+  <span style="flex:1;">🔔 Zvukové upozornění</span>
+  <label style="display:flex;align-items:center;gap:4px;">
+    <input type="number" id="sound-lead-input" min="1" max="60" value="2" style="width:42px;padding:2px 4px;font-size:11px;" onchange="setSoundLeadMin(this.value)"> min před odesláním
+  </label>
   <button id="audio-unlock-btn" onclick="unlockAudio()" style="background:#2a1e00;color:var(--gold);border:1px solid #3a2800;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;white-space:nowrap;">Zapnout</button>
 </div>
 
@@ -234,7 +238,10 @@
       <span style="font-size:13px;font-weight:600;color:var(--gold2);" id="nav-user-name">…</span>
     </div>
     <button onclick="document.getElementById('help-modal').classList.add('open')" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">❓ Nápověda</button>
-    <button id="notif-btn" onclick="enableNotifications()" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">🔔 Notifikace</button>
+    <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--dim);" title="Jak dlouho před odesláním přijde systémové oznámení">
+      <input type="number" id="push-lead-input" min="1" max="60" value="2" style="width:38px;padding:2px 4px;font-size:11px;" onchange="setPushLeadMin(this.value)"> min
+    </label>
+    <button id="notif-btn" onclick="enableNotifications()" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;" title="Plán musí být uložený, aby šlo zapnout notifikace">🔔 Notifikace</button>
     <a href="dashboard.html" style="font-size:12px;background:#1e1508;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;text-decoration:none;">← Moje plány</a>
     <button onclick="doLogout()" style="font-size:12px;background:transparent;border:1px solid var(--border);color:var(--dim);padding:5px 11px;border-radius:4px;cursor:pointer;">Odhlásit</button>
   </div>
@@ -279,7 +286,8 @@
             <span class="stat-chip sc-fullka">🏰 <strong id="cnt-fullka">0</strong> fullka</span>
             <span class="stat-chip sc-triq">⚔️ <strong id="cnt-triq">0</strong> ¾</span>
             <span class="stat-chip sc-half">🗡️ <strong id="cnt-half">0</strong> ½</span>
-            <span class="stat-chip sc-noble"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:13px;height:13px;vertical-align:middle;"> <strong id="cnt-noble">0</strong> šl.</span>
+            <span class="stat-chip sc-giga">💎 <strong id="cnt-giga">0</strong> giga</span>
+            <span class="stat-chip sc-noble"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:13px;height:13px;vertical-align:middle;" onerror="this.style.display='none'"> <strong id="cnt-noble">0</strong> šl.</span>
             <span class="stat-chip sc-trains">🚂 <strong id="cnt-trains">0</strong> vlaky</span>
           </div>
           <div class="mode-toggle" id="mode-toggle-wrap">
@@ -487,7 +495,7 @@
       <div class="panel-header">
         <span>🎭 Šablona fejku <span style="font-size:11px;color:var(--dim);font-weight:normal;">– jednotky, které se vyplní do hry u fejků a fejk vlaků</span></span>
       </div>
-      <div id="fake-tpl-body" class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div id="fake-tpl-body" class="panel-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(52px,1fr));gap:10px;">
       </div>
     </div>
 
@@ -636,20 +644,28 @@ function playSiren(volume = 0.4) {
   } catch(e) { console.warn('Audio error:', e); }
 }
 
+function getSoundLeadMin() { return Math.max(1, parseInt(localStorage.getItem('dk_sound_lead_min')) || 2); }
+function setSoundLeadMin(v) {
+  const min = Math.max(1, Math.min(60, parseInt(v) || 2));
+  localStorage.setItem('dk_sound_lead_min', String(min));
+  siren2minAlerted.clear();
+  return min;
+}
 const siren2minAlerted = new Set();
 function checkSirenAlerts() {
   if (!audioUnlocked) return;
   const now = Date.now();
+  const leadMs = getSoundLeadMin() * 60000;
   attackRows.forEach(r => {
     const key = rowKey(r);
     if (playedRows.has(key) || siren2minAlerted.has(key)) return;
     const diff = r.sendTime - now;
-    if (diff > 0 && diff <= 120000) {
+    if (diff > 0 && diff <= leadMs) {
       siren2minAlerted.add(key);
       playSiren();
       const tEl = document.createElement('div');
       tEl.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.8);';
-      tEl.innerHTML = `⏰ 2 minuty do odeslání!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</span>`;
+      tEl.innerHTML = `⏰ ${getSoundLeadMin()} minuty do odeslání!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</span>`;
       document.body.appendChild(tEl);
       setTimeout(() => tEl.remove(), 8000);
     }
@@ -676,16 +692,68 @@ function urlBase64ToUint8Array(base64String) {
   return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
 }
 
+// Notifikace jsou zapínané PER PLÁN – zapnutí v jednom plánu nesmí automaticky zapnout
+// notifikace v jiném, který si hráč otevře příště. Evidence "pro které plány mám zapnuto"
+// se drží v localStorage (dk_notif_plans) a alarmy se v DB MERGUJÍ podle plan_id, ne přepisují.
+function notifPlanKey() { return editingAssignmentId || 'unsaved'; }
+function getNotifPlans() {
+  try { return JSON.parse(localStorage.getItem('dk_notif_plans') || '[]'); } catch(e) { return []; }
+}
+function setNotifPlan(id, on) {
+  let arr = getNotifPlans().filter(x => x !== id);
+  if (on) arr.push(id);
+  localStorage.setItem('dk_notif_plans', JSON.stringify(arr));
+}
+function isNotifEnabledForThisPlan() { return getNotifPlans().includes(notifPlanKey()); }
+
+// Jak dlouho před odesláním přijde systémové (push) oznámení – nastavuje si hráč, výchozí 2 min.
+// Pozn.: tohle pole appka jen uloží k alarmu – aby se podle něj reálně řídil ČAS odeslání push
+// notifikace, musí to číst i server/cron, který notifikace skutečně odesílá.
+function getPushLeadMin() { return Math.max(1, parseInt(localStorage.getItem('dk_push_lead_min')) || 2); }
+function setPushLeadMin(v) {
+  const min = Math.max(1, Math.min(60, parseInt(v) || 2));
+  localStorage.setItem('dk_push_lead_min', String(min));
+  if (isNotifEnabledForThisPlan()) scheduleNotifications(attackRows);
+  return min;
+}
+
+function buildAlarmsForThisPlan(rows) {
+  const planId = notifPlanKey();
+  const leadMs = getPushLeadMin() * 60000;
+  const planLabel = document.getElementById('plan-name-input')?.value?.trim() || 'Můj plán útoků';
+  return (rows || attackRows)
+    .filter(r => !playedRows.has(rowKey(r)))
+    .map(r => ({
+      send_time: Math.round(r.sendTime),
+      notify_at: Math.round(r.sendTime) - leadMs,
+      lead_ms: leadMs,
+      src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r),
+      plan_id: planId, plan_label: planLabel
+    }))
+    .filter(a => a.send_time - Date.now() > 60000);
+}
+
+function mergeAlarms(existing, planId, freshForPlan) {
+  return [...(existing || []).filter(a => a.plan_id !== planId), ...freshForPlan];
+}
+
 async function enableNotifications() {
-  if (localStorage.getItem('dk_notif_enabled') === '1') {
-    localStorage.removeItem('dk_notif_enabled');
+  if (!editingAssignmentId) { toast('Nejdřív si plán ulož tlačítkem 💾 Uložit – pak půjde zapnout notifikace.', 'err', 5000); return; }
+  const planId = notifPlanKey();
+
+  if (isNotifEnabledForThisPlan()) {
+    setNotifPlan(planId, false);
     updateNotifButton(false);
     try {
       const { data: { session } } = await sb.auth.getSession();
       const deviceId = localStorage.getItem('dk_device_id') || 'default';
-      if (session) await sb.from('push_subscriptions').delete().eq('user_id', session.user.id).eq('device_id', deviceId);
+      if (session) {
+        const { data: row } = await sb.from('push_subscriptions').select('alarms').eq('user_id', session.user.id).eq('device_id', deviceId).maybeSingle();
+        const remaining = (row?.alarms || []).filter(a => a.plan_id !== planId);
+        await sb.from('push_subscriptions').update({ alarms: remaining, updated_at: new Date().toISOString() }).eq('user_id', session.user.id).eq('device_id', deviceId);
+      }
     } catch(e) {}
-    toast('Notifikace vypnuty.', 'info');
+    toast('Notifikace pro tento plán vypnuty.', 'info');
     return;
   }
 
@@ -709,23 +777,23 @@ async function enableNotifications() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) { toast('Nejsi přihlášen.', 'err'); return; }
 
-    const alarms = attackRows
-      .filter(r => !playedRows.has(rowKey(r)))
-      .map(r => ({ send_time: Math.round(r.sendTime), src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r) }))
-      .filter(a => a.send_time - Date.now() > 60000);
+    const freshAlarms = buildAlarmsForThisPlan([...savedActions.flatMap(a=>a.rows), ...attackRows]);
 
     let deviceId = localStorage.getItem('dk_device_id');
     if (!deviceId) { deviceId = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('dk_device_id', deviceId); }
 
+    const { data: existingRow } = await sb.from('push_subscriptions').select('alarms').eq('user_id', session.user.id).eq('device_id', deviceId).maybeSingle();
+    const mergedAlarms = mergeAlarms(existingRow?.alarms, planId, freshAlarms);
+
     const subJson = JSON.stringify(sub.toJSON());
     await sb.from('push_subscriptions').upsert({
       user_id: session.user.id, device_id: deviceId, subscription: subJson,
-      alarms: alarms, updated_at: new Date().toISOString()
+      alarms: mergedAlarms, updated_at: new Date().toISOString()
     }, { onConflict: 'user_id,device_id' });
 
-    localStorage.setItem('dk_notif_enabled', '1');
+    setNotifPlan(planId, true);
     updateNotifButton(true);
-    toast(`✓ Notifikace zapnuty! Naplánováno ${alarms.length} upozornění.`, 'ok', 5000);
+    toast(`✓ Notifikace pro tento plán zapnuty! Naplánováno ${freshAlarms.length} upozornění.`, 'ok', 5000);
   } catch(e) {
     console.error('Push subscription failed:', e);
     toast('Nepodařilo se aktivovat notifikace: ' + e.message, 'err', 6000);
@@ -740,7 +808,7 @@ function updateNotifButton(enabled) {
 }
 
 async function scheduleNotifications(rows) {
-  if (localStorage.getItem('dk_notif_enabled') !== '1') return;
+  if (!isNotifEnabledForThisPlan()) return;
   if (Notification.permission !== 'granted') return;
   try {
     const reg = await initServiceWorker();
@@ -749,13 +817,13 @@ async function scheduleNotifications(rows) {
     if (!sub) return;
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return;
-    const alarms = rows
-      .filter(r => !playedRows.has(rowKey(r)))
-      .map(r => ({ send_time: Math.round(r.sendTime), src: `${r.srcX}|${r.srcY}`, tgt: `${r.tgtX}|${r.tgtY}`, row_key: rowKey(r) }))
-      .filter(a => a.send_time - Date.now() > 60000);
+    const planId = notifPlanKey();
+    const freshAlarms = buildAlarmsForThisPlan(rows);
     const deviceId = localStorage.getItem('dk_device_id') || 'default';
+    const { data: existingRow } = await sb.from('push_subscriptions').select('alarms').eq('user_id', session.user.id).eq('device_id', deviceId).maybeSingle();
+    const mergedAlarms = mergeAlarms(existingRow?.alarms, planId, freshAlarms);
     await sb.from('push_subscriptions').update({
-      alarms: alarms, updated_at: new Date().toISOString()
+      alarms: mergedAlarms, updated_at: new Date().toISOString()
     }).eq('user_id', session.user.id).eq('device_id', deviceId);
   } catch(e) { console.warn('Schedule update failed:', e); }
 }
@@ -794,9 +862,9 @@ function fakeTemplateQuery() {
 function renderFakeTemplateBox() {
   const body = document.getElementById('fake-tpl-body');
   if (!body) return;
-  body.innerHTML = FAKE_UNIT_KEYS.map(u => `<label style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--dim);">
-    ${unitImg(u)}
-    <input type="number" min="0" id="fake-tpl-${u}" style="width:55px;padding:3px 4px;text-align:center;" value="${fakeTemplate[u]||0}" onchange="saveFakeTemplate()">
+  body.innerHTML = FAKE_UNIT_KEYS.map(u => `<label style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;font-size:10px;color:var(--dim);min-width:0;">
+    <span style="display:flex;align-items:center;justify-content:center;height:18px;">${unitImg(u)}</span>
+    <input type="number" min="0" id="fake-tpl-${u}" style="width:100%;max-width:55px;padding:3px 4px;text-align:center;box-sizing:border-box;" value="${fakeTemplate[u]||0}" onchange="saveFakeTemplate()">
   </label>`).join('');
 }
 
@@ -892,6 +960,7 @@ function updateSrcCounts() {
   document.getElementById('cnt-fullka').textContent = jsonVillages.filter(v=>v._category==='fullka').length;
   document.getElementById('cnt-triq').textContent   = jsonVillages.filter(v=>v._category==='triq_off').length;
   document.getElementById('cnt-half').textContent   = jsonVillages.filter(v=>v._category==='half_off').length;
+  document.getElementById('cnt-giga').textContent   = jsonVillages.filter(v=>v._category==='gigafullka').length;
   const totalNob = nobleVillages.reduce((s,v)=>s+v._noble,0);
   const trains   = nobleVillages.filter(v=>v._noble>=4).length;
   document.getElementById('cnt-noble').textContent  = totalNob;
@@ -1199,7 +1268,9 @@ function travelMs(x1,y1,x2,y2,unit){
   // (zahrnuje rychlost světa i rychlost jednotek) – dělit world/unit speedem znovu by ji
   // zrychlilo podruhé. Dělení použij jen u výchozích (nestažených) hodnot.
   const divisor = apiSpeedsLoaded ? 1 : (worldSpeed*unitSpeedMult);
-  return dist*speedS/divisor*1000;
+  // Zaokrouhleno na celé vteřiny, ať čas odeslání drží stejné tisíciny jako čas příchodu
+  // (jinak by tam díky desetinné vzdálenosti vycházely "náhodné" tisíciny).
+  return Math.round(dist*speedS/divisor*1000/1000)*1000;
 }
 function distSq(a,b){ return (a.x-b.x)**2+(a.y-b.y)**2; }
 function byDistTo(tgt){ return (a,b)=>distSq(a,tgt)-distSq(b,tgt); }
@@ -1737,6 +1808,8 @@ async function saveToMyPlans(){
     const{data,error}=await sb.from('plan_assignments').update(upd).eq('id',editingAssignmentId).select();
     if(error){toast('Chyba: '+error.message,'err',6000);return;}
     if(!data||!data.length){toast('⚠ Plán se NEULOŽIL – nemáš oprávnění upravit tento záznam (zkontroluj RLS pravidla).','err',8000);return;}
+    // Pokud má tenhle plán zapnuté notifikace, po úpravě hned přepočítej alarmy podle nových časů.
+    if (isNotifEnabledForThisPlan()) scheduleNotifications(allRows);
     toast('✓ Plán upraven','ok',5000);
     return;
   }
@@ -1836,6 +1909,10 @@ async function init(){
   loadWorldConfig();
   loadFakeTemplate();
   renderFakeTemplateBox();
+  const soundLeadInput = document.getElementById('sound-lead-input');
+  if (soundLeadInput) soundLeadInput.value = getSoundLeadMin();
+  const pushLeadInput = document.getElementById('push-lead-input');
+  if (pushLeadInput) pushLeadInput.value = getPushLeadMin();
 
   if (audioUnlocked) {
     const banner=document.getElementById('audio-banner');
@@ -1843,10 +1920,12 @@ async function init(){
     if (banner) { banner.style.background='#0a1a0a'; banner.style.borderColor='#1a4a1a'; }
     if (abtn) { abtn.textContent='✓ Zapnuto'; abtn.style.background='#205020'; abtn.style.color='#80d080'; }
   }
-  if (localStorage.getItem('dk_notif_enabled')==='1') updateNotifButton(true);
-
   const editId=new URLSearchParams(location.search).get('edit');
-  if(editId) loadForEdit(editId);
+  if(editId) {
+    loadForEdit(editId).then(() => { if (isNotifEnabledForThisPlan()) updateNotifButton(true); });
+  } else if (isNotifEnabledForThisPlan()) {
+    updateNotifButton(true);
+  }
 }
 window.addEventListener('DOMContentLoaded',init);
 </script>
