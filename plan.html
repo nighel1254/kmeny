@@ -239,12 +239,12 @@ const AXE_RED = twImg(LARGE_ICO);
 const AXE_YEL = twImg(LARGE_ICO,'filter:sepia(1)saturate(4)hue-rotate(20deg)');
 const AXE_BRN = twImg(LARGE_ICO,'filter:sepia(1)saturate(3)brightness(0.85)');
 const AXE_GRN = twImg(LARGE_ICO,'filter:sepia(1)saturate(4)hue-rotate(90deg)');
-const AXE_GIGA = twImg(LARGE_ICO,'filter:sepia(1)saturate(6)hue-rotate(300deg)brightness(0.85);width:16px;height:16px;margin-right:0px;');
+const AXE_GIGA = twImg(LARGE_ICO,'width:16px;height:16px;margin-right:0px;') + twImg(LARGE_ICO,'width:16px;height:16px;');
 
 function typeChip(r) {
   if (r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
   if (r.isFake)                  return `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${AXE_GRN} fejk</span>`;
-  if (r.srcCategory==='gigafullka') return `<span class="chip" style="background:#3a0020;color:#ff2090;border:1px solid #80104a">${AXE_GIGA}${AXE_GIGA} gigafull</span>`;
+  if (r.srcCategory==='gigafullka') return `<span class="chip" style="background:#001a3a;color:#4090ff;border:1px solid #104a80">${AXE_GIGA} gigafull</span>`;
   if (r.srcCategory==='fullka')  return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`;
   if (r.srcCategory==='triq_off')return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 3/4 off</span>`;
   if (r.srcCategory==='half_off')return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 1/2 off</span>`;
@@ -451,6 +451,8 @@ function checkSirenAlerts() {
     if (diff > 0 && diff <= leadMs) {
       siren2minAlerted.add(key);
       playSiren();
+      setTimeout(() => playSiren(), 1500);
+      setTimeout(() => playSiren(), 3000);
       const tEl = document.createElement('div');
       tEl.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.8);';
       tEl.innerHTML = `⏰ ${getSoundLeadMin()} minuty do odeslání!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</span>`;
@@ -886,16 +888,25 @@ function renderMyVillagesSummary() {
   if (!playerVillages.length) { wrap.style.display = 'none'; return; }
 
   const usedKeys = new Set(attackRows.filter(r => !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
-  const cats = [['fullka','Fullka'],['triq_off','3/4 off'],['half_off','1/2 off']];
+  const parts = [];
   const unusedAll = [];
-  const parts = cats.map(([cat,label]) => {
+
+  // GigaFull první – nikdy se nepřiřazuje automaticky, hráč si ji musí dát do plánu sám.
+  const gigaVs = playerVillages.filter(v => v.category === 'gigafullka');
+  const gigaUsed = gigaVs.filter(v => usedKeys.has(`${v.x}|${v.y}`)).length;
+  parts.push(gigaVs.length
+    ? `<span class="stat" style="cursor:pointer;color:#4090ff;" onclick="toggleGigaFullList()" title="Klikni pro zobrazení vesnic – GigaFullky se do plánu nepřiřazují automaticky, přidej si z nich útok sám tlačítkem ➕ pod plánem.">${AXE_GIGA} GigaFull: <strong>${gigaUsed}</strong>/${gigaVs.length} ▾</span>`
+    : `<span class="stat" style="color:#4090ff;">${AXE_GIGA} GigaFull: <strong>0</strong>/0</span>`);
+
+  const cats = [['fullka','Fullka',AXE_RED,'#ff4040'],['triq_off','3/4 off',AXE_BRN,'#c07840'],['half_off','1/2 off',AXE_YEL,'#f0c040']];
+  cats.forEach(([cat,label,icon,color]) => {
     const vs = playerVillages.filter(v => v.category === cat);
-    if (!vs.length) return '';
+    if (!vs.length) return;
     const unused = vs.filter(v => !usedKeys.has(`${v.x}|${v.y}`));
     unusedAll.push(...unused.map(v => ({...v, _catLabel: label})));
     const used = vs.length - unused.length;
-    return `<span class="stat">${label}: <strong>${used}</strong>/${vs.length} využito &nbsp;(<span style="color:var(--green)">${unused.length} volných</span>)</span>`;
-  }).filter(Boolean);
+    parts.push(`<span class="stat" style="color:${color}">${icon} ${label}: <strong>${used}</strong>/${vs.length} využito &nbsp;(<span style="color:var(--green)">${unused.length} volných</span>)</span>`);
+  });
 
   if (unusedAll.length) {
     parts.push(`<span class="stat" style="cursor:pointer;color:var(--green);" onclick="toggleUnusedList()" title="Klikni pro zobrazení nevyužitých off vesnic v tomto plánu."><img src="https://dscs.innogamescdn.com/asset/8b28a2b1a4/graphic/icons/header.webp" style="width:14px;height:14px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'"> Nevyužité: <strong>${unusedAll.length}</strong> ▾</span>`);
@@ -905,14 +916,8 @@ function renderMyVillagesSummary() {
   if (nobleVs.length) {
     const nobleTotal = nobleVs.reduce((s,v) => s + (v.noble||0), 0);
     const nobleUsed = attackRows.filter(r => r.isNoble).length;
-    parts.push(`<span class="stat">👑 Šlechtici: <strong>${nobleUsed}</strong>/${nobleTotal} využito</span>`);
+    parts.push(`<span class="stat" style="color:#ff80c0;">${NOBLE_NORM} Šlechtici: <strong>${nobleUsed}</strong>/${nobleTotal} využito</span>`);
   }
-
-  const gigaVs = playerVillages.filter(v => v.category === 'gigafullka');
-  const gigaUsed = gigaVs.filter(v => usedKeys.has(`${v.x}|${v.y}`)).length;
-  parts.push(gigaVs.length
-    ? `<span class="stat" style="cursor:pointer;color:#ff60c0;" onclick="toggleGigaFullList()" title="Klikni pro zobrazení vesnic – GigaFullky se do plánu nepřiřazují automaticky, přidej si z nich útok sám tlačítkem ➕ pod plánem.">💎 GigaFullky: <strong>${gigaUsed}</strong>/${gigaVs.length} ▾</span>`
-    : `<span class="stat" style="color:#ff60c0;">💎 GigaFullky: <strong>0</strong>/0</span>`);
 
   if (!parts.length) { wrap.style.display = 'none'; return; }
   wrap.innerHTML = `<div style="font-size:11px;color:var(--dim);padding:6px 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">🏰 <strong style="color:var(--gold2)">Moje vesnice:</strong> ${parts.join('')}</div>
@@ -1188,7 +1193,7 @@ function buildManualRowHtml(r, rowIdx) {
     </td>
     <td data-label="Jednotka"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
     <td data-label="Odeslání" class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
-    <td data-label="Příchod"><input type="datetime-local" id="manual-arrival-${rowIdx}" step="1" value="${toLocalInputValue(r.arrivalTime)}" style="width:175px;" onblur="onManualArrivalChange(${rowIdx},this.value)"></td>
+    <td data-label="Příchod"><input type="datetime-local" id="manual-arrival-${rowIdx}" step="1" value="${toLocalInputValue(r.arrivalTime)}" style="width:210px;min-width:210px;" onblur="onManualArrivalChange(${rowIdx},this.value)"></td>
     <td data-label="Cesta" style="color:var(--dim);font-size:11px;">${r.travel ? fmtDur(r.travel) : '—'}</td>
     <td data-label="Odpočet">${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
     <td style="white-space:nowrap;">
@@ -1234,6 +1239,7 @@ function renderTable() {
   const sharp  = attackRows.filter(r=>!r.isFake&&!r.isNoble);
   const nobles = attackRows.filter(r=>r.isNoble);
   const fakes  = attackRows.filter(r=>r.isFake);
+  document.getElementById('sum-giga').textContent = sharp.filter(r=>r.srcCategory==='gigafullka').length;
   document.getElementById('sum-full').textContent  = sharp.filter(r=>r.srcCategory==='fullka').length;
   document.getElementById('sum-triq').textContent  = sharp.filter(r=>r.srcCategory==='triq_off').length;
   document.getElementById('sum-half').textContent  = sharp.filter(r=>r.srcCategory==='half_off').length;
@@ -1452,12 +1458,13 @@ function render(data) {
     </div>
     ${fakeTemplateBoxHtml()}
     <div class="summary-bar">
-      <span style="color:#ff4040">${AXE_RED} <strong id="sum-full">0</strong></span>
-      <span style="color:#c07840">${AXE_BRN} <strong id="sum-triq">0</strong></span>
-      <span style="color:#f0c040">${AXE_YEL} <strong id="sum-half">0</strong></span>
-      <span style="color:#ff80c0">${NOBLE_NORM} <strong id="sum-noble">0</strong></span>
-      <span style="color:#ffffff">${NOBLE_FLIP} <strong id="sum-fake-noble">0</strong></span>
-      <span style="color:#40cc40">${AXE_GRN} <strong id="sum-fake">0</strong></span>
+      <span style="color:#4090ff" title="GigaFull">${AXE_GIGA} Giga: <strong id="sum-giga">0</strong></span>
+      <span style="color:#ff4040" title="Fullka">${AXE_RED} Fullka: <strong id="sum-full">0</strong></span>
+      <span style="color:#c07840" title="3/4 off">${AXE_BRN} 3/4: <strong id="sum-triq">0</strong></span>
+      <span style="color:#f0c040" title="1/2 off">${AXE_YEL} 1/2: <strong id="sum-half">0</strong></span>
+      <span style="color:#ff80c0" title="Vlak šlechtice">${NOBLE_NORM} Vlak: <strong id="sum-noble">0</strong></span>
+      <span style="color:#ffffff" title="Fejk vlak">${NOBLE_FLIP} F.vlak: <strong id="sum-fake-noble">0</strong></span>
+      <span style="color:#40cc40" title="Fejk">${AXE_GRN} Fejk: <strong id="sum-fake">0</strong></span>
       <span style="color:var(--dim);margin-left:4px;">Celkem: <strong id="sum-total">0</strong></span>
     </div>
     <div id="warnings-wrap" style="display:none;"></div>

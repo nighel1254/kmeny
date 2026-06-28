@@ -696,6 +696,8 @@ function checkSirenAlerts() {
     if (diff > 0 && diff <= leadMs) {
       siren2minAlerted.add(key);
       playSiren();
+      setTimeout(() => playSiren(), 1500);
+      setTimeout(() => playSiren(), 3000);
       const tEl = document.createElement('div');
       tEl.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.8);';
       tEl.innerHTML = `⏰ ${getSoundLeadMin()} minuty do odeslání!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</span>`;
@@ -1958,6 +1960,16 @@ async function loadForEdit(id){
   }
 
   updateSaveButtonLabel();
+
+  // Ukaž hned, co v plánu reálně je (autoritativní rows_data – odráží i pozdější úpravy
+  // udělané přímo v plan.html, např. výměnu zdroje), ať hráč po otevření k editaci vidí
+  // svůj plán, ne prázdnou tabulku "Načti JSON, zadej cíle...". Jakmile klikne "Vypočítat
+  // plán", calculate() si tohle přepíše novou dávkou – uložené kolo (savedActions) zůstává v bezpečí.
+  if (a.rows_data && a.rows_data.length) {
+    attackRows = [...a.rows_data].sort((x,y)=>(x.sendTime||0)-(y.sendTime||0));
+    renderResults();
+  }
+
   toast('✏️ Plán načten k editaci – uprav a klikni "Vypočítat plán"','info',6000);
 }
 
