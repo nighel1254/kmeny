@@ -1524,8 +1524,6 @@ function init() {
   loadFakeTemplate();
   const soundLeadInput = document.getElementById('sound-lead-input');
   if (soundLeadInput) soundLeadInput.value = getSoundLeadMin();
-  const pushLeadInput = document.getElementById('push-lead-input');
-  if (pushLeadInput) pushLeadInput.value = getPushLeadMin();
   syncPlayedRows().then(async () => {
     // Polling každých 30s
     setInterval(async () => {
@@ -1562,6 +1560,11 @@ function init() {
     const data = decodeData(json);
     if (!data || !data.rows) throw new Error('Chybí data rows');
     render(data);
+    // push-lead-input existuje až po render() (je součástí top-bar HTML, kterou render()
+    // teprve vykresluje) – dřív se sem hodnota z localStorage nedostala, takže input po
+    // refreshi vždycky ukazoval natvrdo zapečený "2" bez ohledu na to, co si hráč nastavil.
+    const pushLeadInput = document.getElementById('push-lead-input');
+    if (pushLeadInput) pushLeadInput.value = getPushLeadMin();
     // Odkaz v adresním řádku je zamrzlý snímek z okamžiku otevření z dashboardu – jakákoliv
     // úprava (manuální řádek, výměna zdroje...) se ukládá jen do databáze, ne zpátky do hashe.
     // Po refreshi stránky by se proto bez tohoto dotahu ukázal starý stav z hashe, ne to, co
