@@ -473,17 +473,10 @@
       </div>
     </div>
 
-    <!-- ── NASTAVENÍ ── -->
-    <div class="panel">
-      <div class="panel-header">⚙️ Výpočet</div>
-      <div class="panel-body">
-        <div style="font-size:12px;color:var(--dim);padding:8px;background:#140e04;border:1px solid var(--border);border-radius:4px;">
-          <span id="speed-info">Načítám rychlost světa…</span>
-        </div>
-        <div class="btn-row" style="margin-top:12px;">
-          <button class="btn btn-primary" onclick="calculate()" style="flex:1;font-size:14px;padding:10px;">⚔️ Vypočítat plán</button>
-        </div>
-      </div>
+    <!-- Rychlost světa se načítá tiše na pozadí (bez viditelného panelu) -->
+    <span id="speed-info" style="display:none;"></span>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="calc-btn" onclick="calculate()" style="flex:1;font-size:14px;padding:10px;">⚔️ Vypočítat plán</button>
     </div>
 
   </div><!-- /left-col -->
@@ -491,18 +484,18 @@
   <!-- ── PRAVÝ SLOUPEC ── -->
   <div class="right-col">
     <div class="panel">
-      <div class="panel-header" style="cursor:pointer;" onclick="toggleFakeTemplateBox()">
+      <div class="panel-header">
         <span>🎭 Šablona fejku <span style="font-size:11px;color:var(--dim);font-weight:normal;">– jednotky, které se vyplní do hry u fejků a fejk vlaků</span></span>
-        <span id="fake-tpl-toggle" style="color:var(--dim);font-size:11px;">▾</span>
       </div>
-      <div id="fake-tpl-body" class="panel-body" style="display:none;gap:10px;flex-wrap:wrap;">
+      <div id="fake-tpl-body" class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;">
       </div>
     </div>
 
     <div class="panel">
       <div class="panel-header">
         <span>📋 Výsledný plán</span>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="plan-name-input" placeholder="Název plánu (nepovinné)" style="width:180px;padding:5px 10px;font-size:12px;">
           <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;" onclick="saveAction()" title="Uloží toto kolo do plánu a uvolní použité vesnice pro další kolo">➕ Přidat do plánu</button>
           <button class="btn btn-sm btn-green" id="save-plan-btn" onclick="saveToMyPlans()">💾 Uložit</button>
           <button class="btn btn-sm" style="background:#1e1508;border:1px solid var(--border);color:var(--dim);" onclick="clearAll()">✕ Smazat</button>
@@ -771,7 +764,7 @@ async function scheduleNotifications(rows) {
 const UNIT_EMOJI = {ram:'🪨',lk:'🐎',scout:'🔍',axe:'🪓',tk:'🛡️',spear:'⚔️',sword:'🗡️',catapult:'💣',paladin:'✨',noble:'👑'};
 function unitImg(key,s=18){
   const file=key==='lk'?'light':key==='tk'?'heavy':key==='scout'?'spy':key==='paladin'?'knight':key==='noble'?'snob':key;
-  return `<img src="${API_IMG}/unit_${file}.png" style="width:${s}px;height:${s}px;vertical-align:middle;margin-right:2px;" onerror="this.outerHTML='${UNIT_EMOJI[key]||'⚔️'} '">`;
+  return `<img src="${API_IMG}/unit_${file}.png" style="width:${s}px;height:${s}px;vertical-align:middle;margin-right:2px;" onerror="this.outerHTML='<span style=&quot;display:inline-block;width:${s}px;height:${s}px;line-height:${s}px;text-align:center;font-size:${Math.round(s*0.8)}px;vertical-align:middle;margin-right:2px;&quot;>${UNIT_EMOJI[key]||'⚔️'}</span>'">`;
 }
 
 // ── ŠABLONA FEJKU (jednotky, co se předvyplní do hry u fejků/fejk vlaků) ────
@@ -789,15 +782,6 @@ function saveFakeTemplate() {
   fakeTemplate = obj;
   try { localStorage.setItem('dk_fake_template', JSON.stringify(obj)); } catch(e) {}
   toast('✓ Šablona fejku uložena.', 'ok', 2500);
-}
-
-function toggleFakeTemplateBox() {
-  const body = document.getElementById('fake-tpl-body');
-  const arrow = document.getElementById('fake-tpl-toggle');
-  if (!body) return;
-  const open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : 'flex';
-  if (arrow) arrow.textContent = open ? '▾' : '▴';
 }
 
 function fakeTemplateQuery() {
@@ -1222,6 +1206,9 @@ function byDistTo(tgt){ return (a,b)=>distSq(a,tgt)-distSq(b,tgt); }
 
 // ── CALCULATE ──────────────────────────────────────────────
 async function calculate() {
+  const _calcBtn = document.getElementById('calc-btn');
+  if (_calcBtn) { _calcBtn.classList.add('btn-loading'); _calcBtn.dataset.origHtml = _calcBtn.innerHTML; _calcBtn.innerHTML = '<span class="spin-icon">⟳</span> Počítám…'; }
+  try {
   if (!jsonVillages.length){ toast('Nejprve načti JSON s jednotkami!','err'); return; }
 
   const sharpTgts  = targetState.sharp;
@@ -1442,6 +1429,9 @@ async function calculate() {
   if (!attackRows.length) { toast('⚠ Všechny útoky jsou v minulosti — zkontroluj časy dopadu!', 'err', 6000); return; }
   renderResults();
   setTimeout(() => scheduleNotifications(attackRows), 500);
+  } finally {
+    if (_calcBtn) { _calcBtn.classList.remove('btn-loading'); _calcBtn.innerHTML = _calcBtn.dataset.origHtml || '⚔️ Vypočítat plán'; }
+  }
 }
 
 // ── RENDER ─────────────────────────────────────────────────
@@ -1724,16 +1714,20 @@ async function saveToMyPlans(){
   const nick=profile?.player_name||'?';
   const email=profile?.email||session.user.email;
   const planInput=buildPlanInput();
+  planInput.updatedAt = new Date().toISOString();
+  const customLabel = document.getElementById('plan-name-input')?.value?.trim();
 
   if (editingAssignmentId) {
-    const{data,error}=await sb.from('plan_assignments').update({rows_data:allRows, plan_input:planInput}).eq('id',editingAssignmentId).select();
+    const upd = {rows_data:allRows, plan_input:planInput};
+    if (customLabel) upd.plan_label = customLabel;
+    const{data,error}=await sb.from('plan_assignments').update(upd).eq('id',editingAssignmentId).select();
     if(error){toast('Chyba: '+error.message,'err',6000);return;}
     if(!data||!data.length){toast('⚠ Plán se NEULOŽIL – nemáš oprávnění upravit tento záznam (zkontroluj RLS pravidla).','err',8000);return;}
     toast('✓ Plán upraven','ok',5000);
     return;
   }
 
-  const label=`Osobní – ${nick} – ${new Date().toLocaleDateString('cs')} ${new Date().toLocaleTimeString('cs',{hour:'2-digit',minute:'2-digit'})}`;
+  const label = customLabel || `Osobní – ${nick} – ${new Date().toLocaleDateString('cs')} ${new Date().toLocaleTimeString('cs',{hour:'2-digit',minute:'2-digit'})}`;
   const{data,error}=await sb.from('plan_assignments').insert({player_email:email,player_name:nick,rows_data:allRows,plan_label:label,plan_input:planInput}).select('id').single();
   if(error){toast('Chyba: '+error.message,'err');return;}
   editingAssignmentId = data?.id || null;
@@ -1746,6 +1740,8 @@ async function loadForEdit(id){
   if(error||!a){toast('Plán k editaci nenalezen','err');return;}
   if(!a.plan_input){toast('Tento plán nelze editovat (uložen ve starším formátu)','err',6000);return;}
   editingAssignmentId=id;
+  const nameInput=document.getElementById('plan-name-input');
+  if(nameInput) nameInput.value=a.plan_label||'';
   const input=a.plan_input;
 
   savedActions = input.savedActions||[];

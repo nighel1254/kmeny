@@ -291,7 +291,7 @@ async function init() {
 async function loadPlans(email) {
   const { data: assignments, error } = await sb
     .from('plan_assignments')
-    .select('*, plans(label, world, created_at)')
+    .select('*, plans(label, world, created_at, data)')
     .ilike('player_email', email)
     .order('created_at', { ascending: false });
 
@@ -315,12 +315,16 @@ async function loadPlans(email) {
 
     const fixTime = t => t > 1e12 ? new Date(t) : new Date(t*1000);
     const sendTimes = rows.map(r => r.sendTime).filter(Boolean);
-    const arrTimes  = rows.map(r => r.arrivalTime).filter(Boolean);
+    let arrTimes  = rows.map(r => r.arrivalTime).filter(Boolean);
     const firstSend = sendTimes.length ? fixTime(Math.min(...sendTimes)) : null;
+    // Pokud hráč v plánu nemá nic (volná ruka), zkus dotáhnout čas příchodu z celého
+    // (kmenového) plánu – commander obvykle plánuje pro všechny stejný čas dopadu.
+    if (!arrTimes.length) arrTimes = (a.plans?.data?.rows || []).map(r => r.arrivalTime).filter(Boolean);
     const firstArr  = arrTimes.length  ? fixTime(Math.min(...arrTimes))  : null;
 
     const assignedAt = new Date(a.created_at);
-    const label = a.plans?.label || `Plán ${fmtDT(assignedAt)}`;
+    const label = a.plans?.label || a.plan_label || `Plán ${fmtDT(assignedAt)}`;
+    const updatedAt = a.plan_input?.updatedAt ? new Date(a.plan_input.updatedAt) : null;
 
     return `<div class="card">
       <div class="card-header">
@@ -330,6 +334,7 @@ async function loadPlans(email) {
             Přiřazeno: <strong>${fmtDT(assignedAt)}</strong>
             ${firstSend ? ` · První odeslání: <strong style="color:var(--gold2)">${fmtDT(firstSend)}</strong>` : ''}
             ${firstArr  ? ` · Příchod: <strong>${fmtDT(firstArr)}</strong>` : ''}
+            ${updatedAt ? ` · Upraveno: <strong>${fmtDT(updatedAt)}</strong>` : ''}
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;">

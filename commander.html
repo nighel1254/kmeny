@@ -4106,7 +4106,7 @@ async function publishSelected() {
     const assignment = { player_email: profile.email, player_name: profile.player_name, rows_data: rows };
     if (_publishPlan.planId) assignment.plan_id = _publishPlan.planId;
     const villages = _publishPlan.villagesByPlayer.get((profile.player_name || '').toLowerCase()) || [];
-    if (villages.length) assignment.plan_input = { villages };
+    assignment.plan_input = { villages, updatedAt: new Date().toISOString() };
     assignments.push(assignment);
     sent.push(profile.player_name);
   }

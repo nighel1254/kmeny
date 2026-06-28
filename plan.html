@@ -153,7 +153,7 @@ const NIGHT_START = 0, NIGHT_END = 6;
 const UNIT_EMOJI = { ram:'🪨', noble:'👑', lk:'🐎', scout:'🔍', axe:'🪓', tk:'🛡️', spear:'⚔️', sword:'🗡️', catapult:'💣', paladin:'✨' };
 function unitImg(key) {
   const file = key==='lk'?'light':key==='tk'?'heavy':key==='scout'?'spy':key==='paladin'?'knight':key==='noble'?'snob':key;
-  return `<img src="${API_IMG}/unit_${file}.png" style="width:20px;height:20px;vertical-align:middle;margin-right:3px;" onerror="this.outerHTML='<span style=margin-right:4px>${UNIT_EMOJI[key]||'⚔️'}</span>'">`;
+  return `<img src="${API_IMG}/unit_${file}.png" style="width:20px;height:20px;vertical-align:middle;margin-right:3px;" onerror="this.outerHTML='<span style=&quot;display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;font-size:16px;vertical-align:middle;margin-right:3px;&quot;>${UNIT_EMOJI[key]||'⚔️'}</span>'">`;
 }
 const UNIT_LABELS = {
   ram:     `${unitImg('ram')} Beranidlo`,
@@ -185,15 +185,6 @@ function saveFakeTemplate() {
   toast('✓ Šablona fejku uložena.', 'ok', 2500);
 }
 
-function toggleFakeTemplateBox() {
-  const body = document.getElementById('fake-tpl-body');
-  const arrow = document.getElementById('fake-tpl-toggle');
-  if (!body) return;
-  const open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : 'flex';
-  if (arrow) arrow.textContent = open ? '▾' : '▴';
-}
-
 function fakeTemplateQuery() {
   return FAKE_UNIT_KEYS
     .filter(u => fakeTemplate[u] > 0)
@@ -203,12 +194,11 @@ function fakeTemplateQuery() {
 
 function fakeTemplateBoxHtml() {
   return `<div class="panel" style="margin:12px;padding:10px 14px;">
-    <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="toggleFakeTemplateBox()">
+    <div style="display:flex;align-items:center;gap:8px;">
       <strong style="color:var(--gold2);font-size:13px;">🎭 Šablona fejku</strong>
       <span style="font-size:11px;color:var(--dim);">– jednotky, které se vyplní do hry u fejků a fejk vlaků</span>
-      <span id="fake-tpl-toggle" style="margin-left:auto;color:var(--dim);font-size:11px;">▾</span>
     </div>
-    <div id="fake-tpl-body" style="display:none;margin-top:10px;gap:10px;flex-wrap:wrap;">
+    <div id="fake-tpl-body" style="display:flex;margin-top:10px;gap:10px;flex-wrap:wrap;">
       ${FAKE_UNIT_KEYS.map(u => `<label style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--dim);">
         ${unitImg(u)}
         <input type="number" min="0" id="fake-tpl-${u}" style="width:55px;padding:3px 4px;text-align:center;" value="${fakeTemplate[u]||0}" onchange="saveFakeTemplate()">
@@ -640,7 +630,8 @@ function updateCountdowns() {
 async function persistRows() {
   if (!assignmentId) return;
   try {
-    const { error } = await sbP.from('plan_assignments').update({ rows_data: attackRows }).eq('id', assignmentId);
+    const plan_input = { villages: playerVillages, updatedAt: new Date().toISOString() };
+    const { error } = await sbP.from('plan_assignments').update({ rows_data: attackRows, plan_input }).eq('id', assignmentId);
     if (error) toast('⚠ Změna se neuložila na server (zůstává jen v tomto okně): ' + error.message, 'err', 6000);
   } catch(e) {
     console.warn('Uložení změny se nepodařilo:', e);
