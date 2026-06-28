@@ -837,6 +837,9 @@ const API_IMG = `${API_BASE}/graphic/unit`;
 // Fallback emoji pokud obrázky z herního serveru nejsou dostupné
 const UNIT_EMOJI = { ram:'🪨', noble:'👑', lk:'🐎', scout:'🔍', axe:'🪓', tk:'🛡️', spear:'⚔️', sword:'🗡️', catapult:'💣', paladin:'✨' };
 function unitImg(key) {
+  // Sekera má vždy vypadat stejně jako u kategorií útoku (fullka/3-4/1-2/fejk chip) –
+  // tj. ten jednoduchý "Large.png" obrázek, ne dvojitá herní ikonka unit_axe.png.
+  if (key === 'axe') return `<img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:20px;height:20px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
   const file = key==='lk'?'light':key==='tk'?'heavy':key==='scout'?'spy':key==='paladin'?'knight':key==='noble'?'snob':key;
   return `<img src="${API_IMG}/unit_${file}.png" style="width:20px;height:20px;vertical-align:middle;margin-right:3px;" onerror="this.outerHTML='<span style=margin-right:4px>${UNIT_EMOJI[key]||'⚔️'}</span>'">`;
 }

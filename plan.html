@@ -160,6 +160,9 @@ const NIGHT_START = 0, NIGHT_END = 6;
 
 const UNIT_EMOJI = { ram:'🪨', noble:'👑', lk:'🐎', scout:'🔍', axe:'🪓', tk:'🛡️', spear:'⚔️', sword:'🗡️', catapult:'💣', paladin:'✨' };
 function unitImg(key) {
+  // Sekera má vždy vypadat stejně jako u kategorií útoku (fullka/3-4/1-2/fejk chip) –
+  // tj. ten jednoduchý "Large.png" obrázek, ne dvojitá herní ikonka unit_axe.png.
+  if (key === 'axe') return `<img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:20px;height:20px;vertical-align:middle;margin-right:3px;" onerror="this.style.display='none'">`;
   const file = key==='lk'?'light':key==='tk'?'heavy':key==='scout'?'spy':key==='paladin'?'knight':key==='noble'?'snob':key;
   return `<img src="${API_IMG}/unit_${file}.png" style="width:20px;height:20px;vertical-align:middle;margin-right:3px;" onerror="this.outerHTML='<span style=&quot;display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;font-size:16px;vertical-align:middle;margin-right:3px;&quot;>${UNIT_EMOJI[key]||'⚔️'}</span>'">`;
 }
@@ -206,10 +209,10 @@ function fakeTemplateBoxHtml() {
       <strong style="color:var(--gold2);font-size:13px;">🎭 Šablona fejku</strong>
       <span style="font-size:11px;color:var(--dim);">– jednotky, které se vyplní do hry u fejků a fejk vlaků</span>
     </div>
-    <div id="fake-tpl-body" style="display:flex;margin-top:10px;gap:10px;flex-wrap:wrap;">
-      ${FAKE_UNIT_KEYS.map(u => `<label style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--dim);">
-        ${unitImg(u)}
-        <input type="number" min="0" id="fake-tpl-${u}" style="width:55px;padding:3px 4px;text-align:center;" value="${fakeTemplate[u]||0}" onchange="saveFakeTemplate()">
+    <div id="fake-tpl-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(52px,1fr));margin-top:10px;gap:10px;">
+      ${FAKE_UNIT_KEYS.map(u => `<label style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;font-size:10px;color:var(--dim);min-width:0;">
+        <span style="display:flex;align-items:center;justify-content:center;height:20px;">${unitImg(u)}</span>
+        <input type="number" min="0" id="fake-tpl-${u}" style="width:100%;max-width:55px;padding:3px 4px;text-align:center;box-sizing:border-box;" value="${fakeTemplate[u]||0}" onchange="saveFakeTemplate()">
       </label>`).join('')}
     </div>
   </div>`;
@@ -280,7 +283,20 @@ function setSort(col) {
 }
 
 // ── ZVUK SIRÉNY ────────────────────────────────────────────
-let audioUnlocked = localStorage.getItem('dk_audio_unlocked') === '1';
+// Stejně jako push notifikace, zvukové upozornění je zapínané PER PLÁN (ne globálně
+// pro celé zařízení) – evidence se drží v localStorage (dk_sound_plans), aby zapnutí
+// u jednoho plánu nezobrazilo "zapnuto" i u jiného, který si hráč otevře příště.
+function getSoundPlans() {
+  try { return JSON.parse(localStorage.getItem('dk_sound_plans') || '[]'); } catch(e) { return []; }
+}
+function setSoundPlan(id, on) {
+  let arr = getSoundPlans().filter(x => x !== id);
+  if (on) arr.push(id);
+  localStorage.setItem('dk_sound_plans', JSON.stringify(arr));
+}
+function isSoundEnabledForThisPlan() { return getSoundPlans().includes(notifPlanKey()); }
+
+let audioUnlocked = false;
 let _audioResumeInterval = null;
 
 function getAudioCtx() {
@@ -289,10 +305,11 @@ function getAudioCtx() {
 }
 
 function unlockAudio() {
+  const planId = notifPlanKey();
   if (audioUnlocked) {
     // Toggle OFF
     audioUnlocked = false;
-    localStorage.removeItem('dk_audio_unlocked');
+    setSoundPlan(planId, false);
     if (_audioResumeInterval) { clearInterval(_audioResumeInterval); _audioResumeInterval = null; }
     const btn = document.getElementById('audio-unlock-btn');
     const banner = document.getElementById('audio-banner');
@@ -311,7 +328,7 @@ function unlockAudio() {
     ctx.close();
 
     audioUnlocked = true;
-    localStorage.setItem('dk_audio_unlocked', '1');
+    setSoundPlan(planId, true);
 
     const banner = document.getElementById('audio-banner');
     const btn = document.getElementById('audio-unlock-btn');
@@ -1507,6 +1524,14 @@ function init() {
     if (isNotifEnabledForThisPlan() && Notification.permission === 'granted') {
       updateNotifButton(true);
       setTimeout(() => scheduleNotifications(attackRows), 500);
+    }
+    // Obnov zvukové upozornění – taky jen pro TENTO konkrétní plán
+    if (isSoundEnabledForThisPlan()) {
+      audioUnlocked = true;
+      const banner = document.getElementById('audio-banner');
+      const btn = document.getElementById('audio-unlock-btn');
+      if (banner) { banner.style.background='#0a1a0a'; banner.style.borderColor='#1a4a1a'; }
+      if (btn) { btn.textContent='✓ Zapnuto'; btn.style.background='#205020'; btn.style.color='#80d080'; }
     }
   } catch(e) {
     document.getElementById('app').innerHTML = `<div class="error">⚠️ Nepodařilo se načíst plán útoků. Odkaz je poškozený nebo neplatný.<br><small style="opacity:.6">${e.message}</small></div>`;

@@ -563,13 +563,26 @@ const playedRows = new Set(JSON.parse(localStorage.getItem('dk_myplan_played')||
 function rowKey(r){ return `${r.srcX}|${r.srcY}|${r.sendTime}`; }
 
 // ── ZVUK SIRÉNY ────────────────────────────────────────────
-let audioUnlocked = localStorage.getItem('dk_audio_unlocked') === '1';
+// Stejně jako push notifikace, zvukové upozornění je zapínané PER PLÁN (ne globálně
+// pro celé zařízení) – evidence se drží v localStorage (dk_sound_plans).
+function getSoundPlans() {
+  try { return JSON.parse(localStorage.getItem('dk_sound_plans') || '[]'); } catch(e) { return []; }
+}
+function setSoundPlan(id, on) {
+  let arr = getSoundPlans().filter(x => x !== id);
+  if (on) arr.push(id);
+  localStorage.setItem('dk_sound_plans', JSON.stringify(arr));
+}
+function isSoundEnabledForThisPlan() { return getSoundPlans().includes(notifPlanKey()); }
+
+let audioUnlocked = false;
 let _audioResumeInterval = null;
 
 function unlockAudio() {
+  const planId = notifPlanKey();
   if (audioUnlocked) {
     audioUnlocked = false;
-    localStorage.removeItem('dk_audio_unlocked');
+    setSoundPlan(planId, false);
     if (_audioResumeInterval) { clearInterval(_audioResumeInterval); _audioResumeInterval = null; }
     const btn = document.getElementById('audio-unlock-btn');
     const banner = document.getElementById('audio-banner');
@@ -585,7 +598,7 @@ function unlockAudio() {
     ctx.close();
 
     audioUnlocked = true;
-    localStorage.setItem('dk_audio_unlocked', '1');
+    setSoundPlan(planId, true);
 
     const banner = document.getElementById('audio-banner');
     const btn = document.getElementById('audio-unlock-btn');
@@ -831,6 +844,9 @@ async function scheduleNotifications(rows) {
 // ── UNIT IMGS ──────────────────────────────────────────────
 const UNIT_EMOJI = {ram:'🪨',lk:'🐎',scout:'🔍',axe:'🪓',tk:'🛡️',spear:'⚔️',sword:'🗡️',catapult:'💣',paladin:'✨',noble:'👑'};
 function unitImg(key,s=18){
+  // Sekera má vždy vypadat stejně jako u kategorií útoku (fullka/3-4/1-2/fejk chip) –
+  // tj. ten jednoduchý "Large.png" obrázek, ne dvojitá herní ikonka unit_axe.png.
+  if (key === 'axe') return `<img src="https://help.divokekmeny.cz/images/7/71/Large.png" style="width:${s}px;height:${s}px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'">`;
   const file=key==='lk'?'light':key==='tk'?'heavy':key==='scout'?'spy':key==='paladin'?'knight':key==='noble'?'snob':key;
   return `<img src="${API_IMG}/unit_${file}.png" style="width:${s}px;height:${s}px;vertical-align:middle;margin-right:2px;" onerror="this.outerHTML='<span style=&quot;display:inline-block;width:${s}px;height:${s}px;line-height:${s}px;text-align:center;font-size:${Math.round(s*0.8)}px;vertical-align:middle;margin-right:2px;&quot;>${UNIT_EMOJI[key]||'⚔️'}</span>'">`;
 }
@@ -1914,7 +1930,9 @@ async function init(){
   const pushLeadInput = document.getElementById('push-lead-input');
   if (pushLeadInput) pushLeadInput.value = getPushLeadMin();
 
-  if (audioUnlocked) {
+  function restoreSoundButton() {
+    if (!isSoundEnabledForThisPlan()) return;
+    audioUnlocked = true;
     const banner=document.getElementById('audio-banner');
     const abtn=document.getElementById('audio-unlock-btn');
     if (banner) { banner.style.background='#0a1a0a'; banner.style.borderColor='#1a4a1a'; }
@@ -1922,9 +1940,13 @@ async function init(){
   }
   const editId=new URLSearchParams(location.search).get('edit');
   if(editId) {
-    loadForEdit(editId).then(() => { if (isNotifEnabledForThisPlan()) updateNotifButton(true); });
-  } else if (isNotifEnabledForThisPlan()) {
-    updateNotifButton(true);
+    loadForEdit(editId).then(() => {
+      if (isNotifEnabledForThisPlan()) updateNotifButton(true);
+      restoreSoundButton();
+    });
+  } else {
+    if (isNotifEnabledForThisPlan()) updateNotifButton(true);
+    restoreSoundButton();
   }
 }
 window.addEventListener('DOMContentLoaded',init);
