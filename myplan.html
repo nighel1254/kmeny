@@ -31,6 +31,12 @@
   input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,168,75,.12);}
   input[type="datetime-local"]{color-scheme:dark;}
   input[type="datetime-local"]::-webkit-calendar-picker-indicator{filter:invert(0.8);cursor:pointer;opacity:.8;}
+  /* Šipky nahoru/dolů u number inputů vypadaly v každém prohlížeči jinak (v Chrome se
+     zobrazí jen po najetí myší, ve Firefoxu/Edge furt) – schovat je všude napevno, ať
+     je to napříč prohlížeči stejné. */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="number"] { -moz-appearance: textfield; }
   .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:5px;border:none;font-size:13px;font-weight:bold;cursor:pointer;transition:all .15s;white-space:nowrap}
   .btn-primary{background:linear-gradient(180deg,#d4a030 0%,#c4922a 45%,#7a5008 100%);color:#fff3d0;border:1px solid #d4a84b;text-shadow:0 1px 3px rgba(0,0,0,.5);box-shadow:0 2px 8px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12);}
   .btn-primary:hover{background:linear-gradient(180deg,#e0b040,#d0a030,#9b6e20);box-shadow:0 3px 10px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.15);transform:translateY(-1px);}
@@ -66,7 +72,11 @@
   .tgt-row{display:grid;grid-template-columns:80px 1fr 185px 32px;padding:4px 8px;border-bottom:1px solid #1e1508;align-items:center;gap:6px;font-size:12px;}
   .tgt-row:last-child{border-bottom:none}
   .tgt-row:hover{background:#1e1a0e}
-  .tgt-row input[type="datetime-local"]{padding:3px 6px;font-size:11px;background:#0d0a04;}
+  /* min-width:0 je nutné, jinak grid sloupec nejde zmenšit pod obsah a Firefoxí
+     datetime-local widget (širší než v Chrome/Edge díky jinému formátu) rozbije
+     řádek – název vesnice se pak zalomí pod ostatní sloupce. */
+  .tgt-row > * { min-width: 0; overflow: hidden; }
+  .tgt-row input[type="datetime-local"]{padding:3px 6px;font-size:11px;background:#0d0a04;width:100%;box-sizing:border-box;}
   .ci-remove{background:none;border:none;color:#8a4040;cursor:pointer;font-size:15px;padding:0;width:28px;text-align:center;}
   .ci-remove:hover{color:var(--red)}
   /* Attack table */
