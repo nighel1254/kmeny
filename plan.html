@@ -224,8 +224,8 @@ function typeChip(r) {
   if (r.isFake)                  return `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${AXE_GRN} fejk</span>`;
   if (r.srcCategory==='gigafullka') return `<span class="chip" style="background:#3a0020;color:#ff2090;border:1px solid #80104a">${AXE_GIGA}${AXE_GIGA} gigafull</span>`;
   if (r.srcCategory==='fullka')  return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`;
-  if (r.srcCategory==='triq_off')return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 3/4 off</span>`;
-  if (r.srcCategory==='half_off')return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 1/2 off</span>`;
+  if (r.srcCategory==='triq_off')return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 3/4 off</span>`;
+  if (r.srcCategory==='half_off')return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 1/2 off</span>`;
   if (r.srcCategory==='noble')   return `<span class="chip chip-noble">${NOBLE_NORM} vlak</span>`;
   return `<span class="chip" style="background:#1a0800;color:#c06020;border:1px solid #604010">${AXE_BRN} mini off</span>`;
 }
@@ -256,7 +256,7 @@ function compatibleCategories(rowCat) {
 }
 
 const pad = n => String(Math.floor(n)).padStart(2,'0');
-function fmtDT(dt)  { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`; }
+function fmtDT(dt)  { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}.${String(dt.getMilliseconds()).padStart(3,'0')}`; }
 function fmtDur(ms) { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; }
 function fmtHMS(ms) { const s=Math.floor(ms/1000); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`; }
 function isNight(ts){ const h=new Date(ts).getHours(); return h>=NIGHT_START&&h<NIGHT_END; }
@@ -906,6 +906,24 @@ function onManualSrcSelectChange(rowIdx, value) {
   persistRows();
 }
 
+// Při psaní souřadnic cíle: po 3. číslici automaticky doplní "|", po dalších
+// 3 číslicách (Y) rovnou přeskočí na čas příchodu – nejde tak zadat víc než 3+3 číslic.
+function formatCoordInput(el, nextId) {
+  let v = el.value.replace(/[^\d|]/g, '');
+  const hasPipe = v.includes('|');
+  let [xPart, yPart] = v.split('|');
+  xPart = (xPart||'').slice(0,3);
+  yPart = (yPart||'').slice(0,3);
+  if (hasPipe) v = xPart + '|' + yPart;
+  else if (xPart.length === 3) v = xPart + '|';
+  else v = xPart;
+  el.value = v;
+  if (xPart.length === 3 && yPart.length === 3 && nextId) {
+    const next = document.getElementById(nextId);
+    if (next) next.focus();
+  }
+}
+
 function onManualTgtChange(rowIdx, value) {
   const row = attackRows[rowIdx];
   if (!row) return;
@@ -922,6 +940,8 @@ function onManualTgtChange(rowIdx, value) {
   persistRows();
 }
 
+// Čas příchodu se uloží až po opuštění pole (blur), ne při každém zásahu do políčka –
+// jinak by re-render za běhu vyhodil hráče z editace (datetime-local umí "change" vystřelit i uprostřed psaní).
 function onManualArrivalChange(rowIdx, value) {
   const row = attackRows[rowIdx];
   if (!row) return;
@@ -931,6 +951,13 @@ function onManualArrivalChange(rowIdx, value) {
   recalcManualRow(rowIdx);
   renderTable();
   persistRows();
+}
+
+function saveManualRow(rowIdx) {
+  recalcManualRow(rowIdx);
+  renderTable();
+  persistRows();
+  toast('✓ Řádek uložen.', 'ok', 2500);
 }
 
 function toLocalInputValue(ms) {
@@ -969,15 +996,16 @@ function buildManualRowHtml(r, rowIdx) {
     <td style="color:var(--dim);font-size:11px;">★</td>
     <td>${srcCell}</td>
     <td><select style="max-width:140px;" onchange="onManualTypeChange(${rowIdx},this.value)">${typeOpts}</select></td>
-    <td><input type="text" value="${tgtVal}" placeholder="X|Y" style="width:90px;" onchange="onManualTgtChange(${rowIdx},this.value)"></td>
+    <td><input type="text" id="manual-tgt-${rowIdx}" value="${tgtVal}" placeholder="X|Y" style="width:90px;" oninput="formatCoordInput(this,'manual-arrival-${rowIdx}')" onchange="onManualTgtChange(${rowIdx},this.value)"></td>
     <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
     <td class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
-    <td><input type="datetime-local" step="1" value="${toLocalInputValue(r.arrivalTime)}" style="width:175px;" onchange="onManualArrivalChange(${rowIdx},this.value)"></td>
+    <td><input type="datetime-local" id="manual-arrival-${rowIdx}" step="1" value="${toLocalInputValue(r.arrivalTime)}" style="width:175px;" onblur="onManualArrivalChange(${rowIdx},this.value)"></td>
     <td style="color:var(--dim);font-size:11px;">${r.travel ? fmtDur(r.travel) : '—'}</td>
     <td>${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
     <td style="white-space:nowrap;">
       ${gameLink ? `<a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>` : ''}
-      <button onclick="removeManualRow(${rowIdx})" title="Smazat tento řádek" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:#ff6060;font-size:13px;padding:3px 5px;margin-left:3px;">🗑</button>
+      <button onclick="saveManualRow(${rowIdx})" title="Uložit změny tohoto řádku" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:#7ec87e;font-size:13px;padding:3px 5px;margin-left:3px;">💾</button>
+      <button onclick="removeManualRow(${rowIdx})" title="Smazat tento řádek" style="background:#3a1010;border:1px solid #ff6060;border-radius:4px;cursor:pointer;color:#ff8080;padding:3px 6px;margin-left:3px;vertical-align:middle;"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm-2 3h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"/></svg></button>
     </td>
   </tr>`;
 }
@@ -1216,8 +1244,8 @@ function render(data) {
     ${fakeTemplateBoxHtml()}
     <div class="summary-bar">
       <span style="color:#ff4040">${AXE_RED} <strong id="sum-full">0</strong></span>
-      <span style="color:#f0c040">${AXE_YEL} <strong id="sum-triq">0</strong></span>
-      <span style="color:#c07840">${AXE_BRN} <strong id="sum-half">0</strong></span>
+      <span style="color:#c07840">${AXE_BRN} <strong id="sum-triq">0</strong></span>
+      <span style="color:#f0c040">${AXE_YEL} <strong id="sum-half">0</strong></span>
       <span style="color:#ff80c0">${NOBLE_NORM} <strong id="sum-noble">0</strong></span>
       <span style="color:#ffffff">${NOBLE_FLIP} <strong id="sum-fake-noble">0</strong></span>
       <span style="color:#40cc40">${AXE_GRN} <strong id="sum-fake">0</strong></span>

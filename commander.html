@@ -53,8 +53,9 @@
   .village-item:hover{background:#201808;}
   .village-item:last-child{border-bottom:none}
   .village-item .vi-cat{font-size:10px;padding:1px 5px;border-radius:8px;font-weight:bold;margin-left:4px}
-  .vi-cat-half{background:#1a1a00;color:#c0b040;border:1px solid #605010}
-  .vi-cat-full{background:#001a00;color:#50c050;border:1px solid #205020}
+  .vi-cat-half{background:#1a1a00;color:#f0c040;border:1px solid #606010}
+  .vi-cat-full{background:#2a0000;color:#ff4040;border:1px solid #802020}
+  .vi-cat-triq{background:#1a0e00;color:#c07840;border:1px solid #604020}
   .village-coords{color:var(--dim);font-family:monospace;font-size:11px}
   .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:12px}
   .tab{padding:6px 14px;cursor:pointer;font-size:12px;color:var(--dim);border-bottom:2px solid transparent;margin-bottom:-1px;user-select:none}
@@ -116,8 +117,8 @@
   .chip-ram  {background:#1a001a;color:#c060c0;border:1px solid #602060}
   .chip-noble{background:#2a0020;color:#ff80c0;border:1px solid #802060}
   .chip-night{background:#2a0a3a;color:#c090e0;border:1px solid #602080;font-size:10px;padding:1px 6px}
-  .chip-half{background:#1a1a00;color:#c0b040;border:1px solid #605010}
-  .chip-full{background:#002a00;color:#60e060;border:1px solid #206020}
+  .chip-half{background:#1a1a00;color:#f0c040;border:1px solid #606010}
+  .chip-full{background:#2a0000;color:#ff4040;border:1px solid #802020}
   .sort-btn{cursor:pointer;user-select:none}
   .sort-btn:hover{color:var(--gold2)}
   .empty-state{text-align:center;padding:40px;color:var(--dim)}
@@ -473,7 +474,7 @@
             <div style="font-size:12px;color:var(--gold);margin-bottom:4px;">Filtr vesnic:</div>
             <div class="src-filter">
               <label><input type="checkbox" id="filter-full" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.querySelector('.src-player-cb:checked')) loadPlayersFromJson()"> <span class="chip chip-full" title="≥18 000 off populace">fullka ≥18k pop</span></label>
-              <label><input type="checkbox" id="filter-triq" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.querySelector('.src-player-cb:checked')) loadPlayersFromJson()"> <span class="chip" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4 off ≥15k</span></label>
+              <label><input type="checkbox" id="filter-triq" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.querySelector('.src-player-cb:checked')) loadPlayersFromJson()"> <span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020" title="15 000–17 999 off populace">3/4 off ≥15k</span></label>
               <label><input type="checkbox" id="filter-half" checked onchange="applyJsonFilter(); if(currentSrcTab==='player' && document.querySelector('.src-player-cb:checked')) loadPlayersFromJson()"> <span class="chip chip-half" title="10 000–14 999 off populace">1/2 off ≥10k</span></label>
             </div>
             <div class="village-list" id="json-village-list" style="margin-top:8px;"></div>
@@ -764,9 +765,9 @@
       <!-- Souhrn -->
       <div id="attack-summary" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:#1a1208;display:flex;gap:20px;flex-wrap:wrap;font-size:12px;">
         <span>⚔️ Ostrých: <strong id="sum-sharp">0</strong></span>
-        <span style="color:#f5c842">🟡 Fullek: <strong id="sum-full">0</strong></span>
-        <span style="color:#50d0d0">🔵 3/4 off: <strong id="sum-triq">0</strong></span>
-        <span style="color:#a0c8ff">🔷 1/2 off: <strong id="sum-half">0</strong></span>
+        <span style="color:#ff4040">🪓 Fullek: <strong id="sum-full">0</strong></span>
+        <span style="color:#c07840">🪓 3/4 off: <strong id="sum-triq">0</strong></span>
+        <span style="color:#f0c040">🪓 1/2 off: <strong id="sum-half">0</strong></span>
         <span style="color:#80d080">👑 Vlaků: <strong id="sum-noble">0</strong></span>
         <span style="color:#ffffff">↑👑 Fejk vlaků: <strong id="sum-fake-noble">0</strong></span>
         <span style="color:#40cc40">💨 Fejků: <strong id="sum-fake">0</strong></span>
@@ -1038,10 +1039,10 @@ function renderCapacitySummary() {
   el.innerHTML =
     `<span style="color:var(--dim);">⚡ Zbývá / celkem (z vybraných hráčů):</span>` +
     cell(AXE_RED, fullka) +
-    cell(AXE_YEL, triq) +
-    cell(AXE_BRN, half) +
+    cell(AXE_BRN, triq) +
+    cell(AXE_YEL, half) +
     `<span style="color:var(--gold);">${NOBLE_NORM}<b>${nobleRem}</b><span style="color:var(--dim);font-size:11px;"> / ${nobleTotal}${nobleTotal-nobleRem ? ` (využito ${nobleTotal-nobleRem})` : ''}</span></span>` +
-    (giga ? `<span title="GigaFullky (off pop. 23000+) – nikdy se nezařazují automaticky do plánu, hráč si je přiřazuje sám" style="color:#ff60c0;">💎<b>${giga}</b><span style="color:var(--dim);font-size:11px;"> GigaFullek (nepřiřazuje se)</span></span>` : '');
+    (giga ? `<span title="GigaFullky (off pop. 22000+) – nikdy se nezařazují automaticky do plánu, hráč si je přiřazuje sám" style="color:#ff60c0;">💎<b>${giga}</b><span style="color:var(--dim);font-size:11px;"> GigaFullek (nepřiřazuje se)</span></span>` : '');
 }
 
 function importJson() {
@@ -1151,7 +1152,7 @@ function loadPlayersFromJson() {
 
   const catChipHtml = (v) => {
     if (v.category === 'fullka')   return '<span class="vi-cat vi-cat-full">fullka</span>';
-    if (v.category === 'triq_off') return '<span class="vi-cat" style="background:#001a1a;color:#50d0d0;border:1px solid #205050">3/4</span>';
+    if (v.category === 'triq_off') return '<span class="vi-cat vi-cat-triq">3/4</span>';
     if (v.category === 'half_off') return '<span class="vi-cat vi-cat-half">1/2</span>';
     return '';
   };
@@ -1329,7 +1330,7 @@ function applyJsonFilter() {
 
   const catChipHtml = (v) => {
     if (v.category === 'fullka')   return '<span class="vi-cat vi-cat-full" title="≥18 000 off populace">fullka</span>';
-    if (v.category === 'triq_off') return '<span class="vi-cat" style="background:#001a1a;color:#50d0d0;border:1px solid #205050" title="15 000–17 999 off populace">3/4</span>';
+    if (v.category === 'triq_off') return '<span class="vi-cat vi-cat-triq" title="15 000–17 999 off populace">3/4</span>';
     if (v.category === 'half_off') return '<span class="vi-cat vi-cat-half" title="10 000–14 999 off populace">1/2</span>';
     return '';
   };
@@ -1925,7 +1926,7 @@ function replaceRemovedPlayersRows() {
 
 // Necháváme každému hráči rezervu vesnic, které se do plánu nepřiřadí –
 // ať má hráč v přiřazeném plánu z čeho vybírat, když si bude přehazovat zdrojovou vesnici.
-const SRC_RESERVE_PER_PLAYER = { fullka: 2, triq_off: 1, half_off: 1 };
+const SRC_RESERVE_PER_PLAYER = { fullka: 1, triq_off: 1, half_off: 0 };
 
 function reserveSrcVillages() {
   const byPlayer = new Map();
@@ -2506,8 +2507,8 @@ function renderResults(nightWarnings) {
       typeHtml = `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${AXE_GRN} fejk</span>`;
     } else {
       typeHtml = row.srcCategory === 'fullka'   ? `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`
-               : row.srcCategory === 'triq_off' ? `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 3/4 off</span>`
-               : row.srcCategory === 'half_off' ? `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 1/2 off</span>`
+               : row.srcCategory === 'triq_off' ? `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 3/4 off</span>`
+               : row.srcCategory === 'half_off' ? `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 1/2 off</span>`
                : row.srcCategory === 'noble'    ? `<span class="chip chip-noble">${NOBLE_NORM} vlak</span>`
                : '';
     }
@@ -2636,7 +2637,7 @@ function applySortToVisible(arr) {
       case 'player': return dir * (a.srcPlayer||'').localeCompare(b.srcPlayer||'');
       case 'src':    return dir * (`${a.srcX}|${a.srcY}`).localeCompare(`${b.srcX}|${b.srcY}`);
       case 'type':   return dir * typeSortKey(a).localeCompare(typeSortKey(b));
-      case 'tgt':    return dir * (`${a.tgtX}|${a.tgtY}`).localeCompare(`${b.tgtX}|${b.tgtY}`);
+      case 'tgt':    return dir * ((a.tgtOwner||'').localeCompare(b.tgtOwner||'') || `${a.tgtX}|${a.tgtY}`.localeCompare(`${b.tgtX}|${b.tgtY}`));
       case 'send':   return dir * (a.sendTime - b.sendTime);
       case 'arrive': return dir * (a.arrivalTime - b.arrivalTime);
       case 'travel': return dir * (a.travel - b.travel);
@@ -4154,7 +4155,7 @@ function getAllRowsIncludingCurrent() {
 
 // ── UTILS (konec souboru) ──────────────────────────────────
 const pad = n => String(Math.floor(n)).padStart(2,'0');
-function fmtDT(dt)    { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`; }
+function fmtDT(dt)    { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}.${String(dt.getMilliseconds()).padStart(3,'0')}`; }
 function fmtDur(ms)   { const s=ms/1000,h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=Math.floor(s%60); return h?`${h}h ${m}m ${sc}s`:m?`${m}m ${sc}s`:`${sc}s`; }
 function fmtHMS(ms)   { const s=Math.floor(ms/1000); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`; }
 function fmtHMScs(ms) { const s=Math.floor(ms/1000),cs=Math.floor((ms%1000)/10); return `${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}.${pad(cs)}`; }

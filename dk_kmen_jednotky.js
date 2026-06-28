@@ -16,7 +16,7 @@ if (window.location.href.indexOf('screen=ally&mode=members_troops') > -1 ||
 //   half_off   = 10 000–14 999 pop (a ≥1000 seker)
 //   triq_off   = 15 000–17 999 pop (a ≥1000 seker)
 //   fullka     = 18 000–22 999 pop (a ≥1000 seker)
-//   gigafullka = 23 000+ pop       (a ≥1000 seker) – samostatná kategorie,
+//   gigafullka = 22 000+ pop       (a ≥1000 seker) – samostatná kategorie,
 //                commander ji NIKDY nezařazuje do plánu automaticky.
 //
 // Populace jednotek (farming units):
@@ -31,7 +31,7 @@ var THRESH = {
     half: 10000,     // 1/2 off
     triq: 15000,     // 3/4 off
     full: 18000,     // fullka
-    giga: 23000      // gigafullka
+    giga: 22000      // gigafullka
 };
 
 var UNIT_MAP = {
