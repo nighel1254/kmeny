@@ -364,7 +364,24 @@ async function openPlan(assignmentId) {
   const { data: a } = await sb.from('plan_assignments').select('*, plans(label,world)').eq('id', assignmentId).single();
   if (!a) { alert('Plán nenalezen.'); return; }
   const nick = document.getElementById('user-name').textContent;
-  const data = { p: nick, w: a.plans?.world||'cs112', l: a.plans?.label||'', e: Math.floor(Date.now()/1000), rows: a.rows_data||[], id: a.id, v: a.plan_input?.villages||[] };
+  // Osobní plány (vytvořené v myplan.html, plan_id chybí) nemají plan_input.villages jako
+  // přiřazené plány od velitele – mají importedJsonVillages v jiném tvaru (z bookmarkletu).
+  // Pro stejné funkce v plan.html (Moje vesnice, editovatelný zdroj, ➕ přidat útok) je třeba
+  // je převést do stejného tvaru {x,y,name,id,category,ram,catapult,noble}.
+  let villages = a.plan_input?.villages || [];
+  if (!villages.length) {
+    const pool = a.plan_input?.importedJsonVillages?.length ? a.plan_input.importedJsonVillages : (a.plan_input?.jsonVillages || []);
+    villages = pool.map(v => ({
+      x: v.x, y: v.y,
+      name: v.village_name || v.name || `${v.x}|${v.y}`,
+      id: v.village_id || v.id || null,
+      category: v._category || v.category || 'def',
+      ram: (v.available && v.available.ram) || (v.units && v.units.ram) || v.ram || 0,
+      catapult: (v.available && v.available.catapult) || (v.units && v.units.catapult) || v.catapult || 0,
+      noble: v.noble || (v.units && v.units.noble) || (v.available && v.available.noble) || 0
+    }));
+  }
+  const data = { p: nick, w: a.plans?.world||'cs112', l: a.plans?.label||a.plan_label||'', e: Math.floor(Date.now()/1000), rows: a.rows_data||[], id: a.id, v: villages };
   const compressed = LZString.compressToBase64(JSON.stringify(data)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   window.location.href = `plan.html#${compressed}`;
 }

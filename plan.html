@@ -1499,7 +1499,7 @@ function decodeData(json) {
   }
   // Formát z dashboard (objekty, krátké klíče p/w/e + rows pole objektů)
   if (d.p || d.w) {
-    return { player: d.p, world: d.w, exported: (d.e||0) * 1000, rows: d.rows || [], id: d.id || null, villages: d.v || [] };
+    return { player: d.p, world: d.w, exported: (d.e||0) * 1000, label: d.l || '', rows: d.rows || [], id: d.id || null, villages: d.v || [] };
   }
   // Starý formát (dlouhé klíče)
   return { player: d.player, world: d.world, exported: d.exported, rows: d.rows, id: d.id || null, villages: d.villages || [] };
@@ -1511,7 +1511,7 @@ function init() {
   if (soundLeadInput) soundLeadInput.value = getSoundLeadMin();
   const pushLeadInput = document.getElementById('push-lead-input');
   if (pushLeadInput) pushLeadInput.value = getPushLeadMin();
-  syncPlayedRows().then(() => {
+  syncPlayedRows().then(async () => {
     // Polling každých 30s
     setInterval(async () => {
       const prev = playedRows.size;
@@ -1547,6 +1547,20 @@ function init() {
     const data = decodeData(json);
     if (!data || !data.rows) throw new Error('Chybí data rows');
     render(data);
+    // Odkaz v adresním řádku je zamrzlý snímek z okamžiku otevření z dashboardu – jakákoliv
+    // úprava (manuální řádek, výměna zdroje...) se ukládá jen do databáze, ne zpátky do hashe.
+    // Po refreshi stránky by se proto bez tohoto dotahu ukázal starý stav z hashe, ne to, co
+    // bylo mezitím reálně uloženo (proto se uložený manuální řádek po F5 jevil jako needitovaný).
+    if (assignmentId) {
+      try {
+        const { data: fresh, error: freshErr } = await sbP.from('plan_assignments').select('rows_data, plan_input').eq('id', assignmentId).single();
+        if (!freshErr && fresh) {
+          attackRows = (fresh.rows_data || []).sort((x,y)=>(x.sendTime||0)-(y.sendTime||0));
+          playerVillages = fresh.plan_input?.villages || playerVillages;
+          renderTable();
+        }
+      } catch(e) { console.warn('Dotažení aktuálního stavu ze serveru se nepodařilo:', e); }
+    }
     // Naplánuj notifikace pokud jsou povoleny – pro TENTO konkrétní plán (ne globálně pro zařízení)
     if (isNotifEnabledForThisPlan() && Notification.permission === 'granted') {
       updateNotifButton(true);
