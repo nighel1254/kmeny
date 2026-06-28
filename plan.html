@@ -217,10 +217,12 @@ const AXE_RED = twImg(LARGE_ICO);
 const AXE_YEL = `<img src="${API_IMG}/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(4)hue-rotate(20deg)" onerror="this.style.display='none'">`;
 const AXE_BRN = `<img src="${API_IMG}/unit_axe.png" style="width:18px;height:18px;vertical-align:middle;margin-right:3px;filter:sepia(1)saturate(3)brightness(0.85)" onerror="this.style.display='none'">`;
 const AXE_GRN = twImg(MEDIUM_ICO,'filter:hue-rotate(90deg)saturate(1.4)');
+const AXE_GIGA = `<img src="${API_IMG}/unit_axe.png" style="width:16px;height:16px;vertical-align:middle;margin-right:0px;filter:sepia(1)saturate(6)hue-rotate(300deg)brightness(0.85)" onerror="this.style.display='none'">`;
 
 function typeChip(r) {
   if (r.isFakeNoble) return `<span class="chip" style="background:#1a0a1a;color:#ffffff;border:1px solid #4a1a5a">${NOBLE_FLIP} fejk vlak</span>`;
   if (r.isFake)                  return `<span class="chip" style="background:#1a0a00;color:#40cc40;border:1px solid #206020">${AXE_GRN} fejk</span>`;
+  if (r.srcCategory==='gigafullka') return `<span class="chip" style="background:#3a0020;color:#ff2090;border:1px solid #80104a">${AXE_GIGA}${AXE_GIGA} gigafull</span>`;
   if (r.srcCategory==='fullka')  return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`;
   if (r.srcCategory==='triq_off')return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 3/4 off</span>`;
   if (r.srcCategory==='half_off')return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 1/2 off</span>`;
@@ -228,11 +230,23 @@ function typeChip(r) {
   return `<span class="chip" style="background:#1a0800;color:#c06020;border:1px solid #604010">${AXE_BRN} mini off</span>`;
 }
 
+// Textová podoba typu řádku pro vyhledávání (fejk, fejk vlak, fullka, gigafull, 3/4 off, 1/2 off, vlak…)
+function typeSearchText(r) {
+  if (r.isFakeNoble) return 'fejk vlak';
+  if (r.isFake) return 'fejk';
+  if (r.srcCategory==='gigafullka') return 'gigafull gigafullka';
+  if (r.srcCategory==='fullka') return 'fullka';
+  if (r.srcCategory==='triq_off') return '3/4 off 3/4off';
+  if (r.srcCategory==='half_off') return '1/2 off 1/2off';
+  if (r.srcCategory==='noble') return 'vlak šlechtic';
+  return 'mini off';
+}
+
 let attackRows = [], cdInterval = null;
 let currentSort = 'send', sortAsc = true;
 let playerVillages = [], assignmentId = null;
 
-const CAT_LABEL = { fullka:'fullka', triq_off:'3/4', half_off:'1/2', mini_off:'mini', def:'def' };
+const CAT_LABEL = { fullka:'fullka', triq_off:'3/4', half_off:'1/2', mini_off:'mini', def:'def', gigafullka:'GigaFull' };
 // Které typy vesnic lze nabídnout jako náhradu za daný typ příkazu (fullku lze nahradit 3/4 vesnicí a naopak, atd.)
 function compatibleCategories(rowCat) {
   if (rowCat === 'fullka')   return ['fullka','triq_off'];
@@ -639,11 +653,10 @@ async function persistRows() {
   }
 }
 
-function buildSrcSelect(r, rowIdx) {
-  const plain = `<span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span>`;
-  if (!playerVillages.length) return plain;
-
-  // Kolikrát je která vesnice použita jinde v plánu (fejky se nepočítají – nejsou exkluzivní)
+// Vesnice, které jsou pro daný řádek přípustné jako náhradní zdroj (stejná/sousední kategorie,
+// ještě nepoužité – kromě fejků, ty exkluzivní nejsou). Společné pro dropdown i rychlou výměnu (↺).
+function getRowCandidates(r, rowIdx) {
+  if (!playerVillages.length) return [];
   const usedKeys = {};
   attackRows.forEach((rr, i) => {
     if (i === rowIdx || rr.isFake) return;
@@ -668,7 +681,14 @@ function buildSrcSelect(r, rowIdx) {
       (okCats.includes(v.category) && !(usedKeys[`${v.x}|${v.y}`] > 0))
     );
   }
+  return pool;
+}
 
+function buildSrcSelect(r, rowIdx) {
+  const plain = `<span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span>`;
+  if (!playerVillages.length) return plain;
+
+  let pool = getRowCandidates(r, rowIdx);
   if (!pool.some(v => v.x===r.srcX && v.y===r.srcY)) {
     pool = [{ x:r.srcX, y:r.srcY, name:r.srcName, id:r.srcId, category:r.srcCategory }, ...pool];
   }
@@ -689,6 +709,17 @@ function buildSrcSelect(r, rowIdx) {
 function onSrcSelectChange(sel, rowIdx) {
   const [vx, vy] = sel.value.split('|').map(Number);
   applySourceSwap(rowIdx, vx, vy);
+}
+
+// ↺ Rychlá výměna – jedním klikem vybere náhodnou jinou volnou vesnici stejného typu (vedle ▶).
+function quickSwapRow(rowIdx) {
+  const r = attackRows[rowIdx];
+  if (!r || r._manual) return;
+  if (!playerVillages.length) { replanRowPlan(rowIdx); return; }
+  const pool = getRowCandidates(r, rowIdx).filter(v => !(v.x===r.srcX && v.y===r.srcY));
+  if (!pool.length) { toast('⚠ Nemáš žádnou jinou volnou vesnici tohoto typu.', 'err', 5000); return; }
+  const pick = pool[Math.floor(Math.random()*pool.length)];
+  applySourceSwap(rowIdx, pick.x, pick.y);
 }
 
 function applySourceSwap(rowIdx, vx, vy) {
@@ -725,6 +756,8 @@ function applySourceSwap(rowIdx, vx, vy) {
 function renderMyVillagesSummary() {
   const wrap = document.getElementById('my-villages-wrap');
   if (!wrap) return;
+  const addManualWrap = document.getElementById('add-manual-wrap');
+  if (addManualWrap) addManualWrap.style.display = playerVillages.length ? 'block' : 'none';
   if (!playerVillages.length) { wrap.style.display = 'none'; return; }
 
   const usedKeys = new Set(attackRows.filter(r => !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
@@ -743,9 +776,210 @@ function renderMyVillagesSummary() {
     parts.push(`<span class="stat">👑 Šlechtici: <strong>${nobleUsed}</strong>/${nobleTotal} využito</span>`);
   }
 
+  const gigaVs = playerVillages.filter(v => v.category === 'gigafullka');
+  if (gigaVs.length) {
+    parts.push(`<span class="stat" style="cursor:pointer;color:#ff60c0;" onclick="toggleGigaFullList()" title="Klikni pro zobrazení vesnic – GigaFullky se do plánu nepřiřazují automaticky, přidej si z nich útok sám tlačítkem ➕ pod plánem.">💎 GigaFullky: <strong>${gigaVs.length}</strong> ▾</span>`);
+  }
+
   if (!parts.length) { wrap.style.display = 'none'; return; }
-  wrap.innerHTML = `<div style="font-size:11px;color:var(--dim);padding:6px 16px;display:flex;gap:14px;flex-wrap:wrap;">🏰 <strong style="color:var(--gold2)">Moje vesnice:</strong> ${parts.join('')}</div>`;
+  wrap.innerHTML = `<div style="font-size:11px;color:var(--dim);padding:6px 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">🏰 <strong style="color:var(--gold2)">Moje vesnice:</strong> ${parts.join('')}</div>
+    <div id="gigafull-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:8px;">
+      ${gigaVs.map(v => `<span class="coords" style="cursor:text;" title="Zkopíruj a vlož do pole zdroje u GigaFull řádku">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''}</span>`).join(' &nbsp;·&nbsp; ')}
+    </div>`;
   wrap.style.display = 'block';
+}
+
+function toggleGigaFullList() {
+  const el = document.getElementById('gigafull-list');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+
+// ── PŘIDAT VLASTNÍ ÚTOK (libovolný typ – hráč si vybere typ, pak zdroj, cíl, čas) ───
+const MANUAL_TYPE_DEFS = {
+  fullka:     { label:'Fullka',          unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
+  triq_off:   { label:'3/4 off',         unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
+  half_off:   { label:'1/2 off',         unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
+  gigafullka: { label:'GigaFull',        unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
+  noble:      { label:'Vlak (šlechtic)', unit:'noble', isFake:false, isNoble:true,  isFakeNoble:false },
+  fake:       { label:'Fejk',            unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:false },
+  fakeNoble:  { label:'Fejk vlak',       unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:true  },
+};
+const UNIT_BASE_SPEED_S = { ram:1800, noble:2100 };
+
+function findVillageByCoords(x, y) {
+  return playerVillages.find(v => v.x === x && v.y === y);
+}
+
+// Žádnou konfiguraci rychlosti světa tu k dispozici nemáme – odvodíme ji z poměru
+// "ms na pole" k základní rychlosti jednotky libovolného existujícího řádku v plánu,
+// a tím poměrem přepočítáme rychlost pro jednotku, kterou potřebujeme (ram/noble).
+function msPerDistForUnit(unit) {
+  const ref = attackRows.find(r => !r._manual && r.travel && r.srcX && r.tgtX);
+  if (!ref) return null;
+  const d = Math.sqrt((ref.srcX-ref.tgtX)**2 + (ref.srcY-ref.tgtY)**2);
+  if (!d) return null;
+  const msPerDistRef = ref.travel / d;
+  const baseRef = UNIT_BASE_SPEED_S[ref.unit] || UNIT_BASE_SPEED_S.ram;
+  const k = msPerDistRef / baseRef;
+  return k * (UNIT_BASE_SPEED_S[unit] || UNIT_BASE_SPEED_S.ram);
+}
+
+// Vesnice, které hráči ještě "zbývají" pro daný typ útoku (nepoužité, případně s volnou kapacitou šlechticů).
+function getManualCandidates(typeKey, rowIdx) {
+  const def = MANUAL_TYPE_DEFS[typeKey];
+  if (!def || !playerVillages.length) return [];
+  if (def.isFake) {
+    return playerVillages.filter(v => (v.ram||0) > 0 || (v.catapult||0) > 0);
+  }
+  if (def.isNoble) {
+    return playerVillages.filter(v => {
+      if (!(v.noble > 0)) return false;
+      const usedNobles = attackRows.filter((r,i) => i!==rowIdx && r.isNoble && r.srcX===v.x && r.srcY===v.y).length;
+      return usedNobles < v.noble;
+    });
+  }
+  // Ostrý útok – přesně daná kategorie (žádné sousední tiery), vesnice ještě nepoužitá v plánu.
+  const usedKeys = new Set(attackRows.filter((r,i) => i!==rowIdx && !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
+  return playerVillages.filter(v => v.category === typeKey && !usedKeys.has(`${v.x}|${v.y}`));
+}
+
+function addManualRow() {
+  attackRows.push({
+    srcX:null, srcY:null, srcName:'', srcId:null, srcPlayer:'',
+    srcCategory:null, manualType:null,
+    tgtX:null, tgtY:null, tgtName:'', tgtId:null, tgtOwner:'',
+    unit:'ram', sendTime:null, arrivalTime:null, travel:0,
+    night:false, isFake:false, isNoble:false, isFakeNoble:false,
+    _manual:true
+  });
+  renderTable();
+  toast('➕ Nový řádek – nejdřív vyber typ útoku, pak zdrojovou vesnici, cíl (X|Y) a čas příchodu.', 'info', 6000);
+}
+
+function removeManualRow(rowIdx) {
+  attackRows.splice(rowIdx, 1);
+  renderTable();
+  persistRows();
+}
+
+function recalcManualRow(rowIdx) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+  if (!row.srcX || !row.tgtX || !row.arrivalTime) { row.sendTime = null; row.travel = 0; return; }
+  const msPerDist = msPerDistForUnit(row.unit);
+  if (!msPerDist) {
+    toast('⚠ Nelze spočítat čas odeslání – v plánu chybí jiný útok, ze kterého by se odhadla rychlost světa.', 'err', 7000);
+    row.sendTime = null; row.travel = 0;
+    return;
+  }
+  const dist = Math.sqrt((row.srcX-row.tgtX)**2 + (row.srcY-row.tgtY)**2);
+  row.travel = dist * msPerDist;
+  row.sendTime = row.arrivalTime - row.travel;
+  row.night = isNight(row.sendTime);
+}
+
+function onManualTypeChange(rowIdx, typeKey) {
+  const row = attackRows[rowIdx];
+  const def = MANUAL_TYPE_DEFS[typeKey];
+  if (!row || !def) return;
+  row.manualType = typeKey;
+  row.unit = def.unit;
+  row.isFake = def.isFake; row.isNoble = def.isNoble; row.isFakeNoble = def.isFakeNoble;
+  row.srcCategory = def.isNoble ? 'noble' : typeKey;
+  // Změna typu = jiný pool zdrojů, předchozí výběr zdroje už nemusí sedět
+  row.srcX = null; row.srcY = null; row.srcName = ''; row.srcId = null;
+  recalcManualRow(rowIdx);
+  renderTable();
+  persistRows();
+}
+
+function onManualSrcSelectChange(rowIdx, value) {
+  const row = attackRows[rowIdx];
+  if (!row || !value) return;
+  const [x,y] = value.split('|').map(Number);
+  const v = findVillageByCoords(x, y);
+  if (!v) return;
+  row.srcX = x; row.srcY = y; row.srcName = v.name; row.srcId = v.id;
+  recalcManualRow(rowIdx);
+  renderTable();
+  persistRows();
+}
+
+function onManualTgtChange(rowIdx, value) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+  const m = value.trim().match(/^(\d{1,3})\s*\|\s*(\d{1,3})$/);
+  if (!m) {
+    if (value.trim() !== '') toast('Zadej souřadnice cíle ve formátu X|Y, např. 506|565.', 'err', 4000);
+    return;
+  }
+  row.tgtX = +m[1]; row.tgtY = +m[2];
+  row.tgtName = `${row.tgtX}|${row.tgtY}`;
+  row.tgtId = null; row.tgtOwner = '';
+  recalcManualRow(rowIdx);
+  renderTable();
+  persistRows();
+}
+
+function onManualArrivalChange(rowIdx, value) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+  const t = new Date(value).getTime();
+  if (isNaN(t)) return;
+  row.arrivalTime = t;
+  recalcManualRow(rowIdx);
+  renderTable();
+  persistRows();
+}
+
+function toLocalInputValue(ms) {
+  if (!ms) return '';
+  const d = new Date(ms - new Date().getTimezoneOffset()*60000);
+  return d.toISOString().slice(0,19);
+}
+
+function buildManualRowHtml(r, rowIdx) {
+  const tgtVal = r.tgtX ? `${r.tgtX}|${r.tgtY}` : '';
+  const gameLink = (r.srcId && r.tgtX)
+    ? (r.tgtId ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}` : `${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`)
+    : null;
+
+  const typeOpts = `<option value="">– vyber typ –</option>` + Object.entries(MANUAL_TYPE_DEFS)
+    .map(([k,def]) => `<option value="${k}" ${r.manualType===k?'selected':''}>${def.label}</option>`).join('');
+
+  let srcCell;
+  if (!r.manualType) {
+    srcCell = `<span style="color:var(--dim);font-size:11px;">nejdřív vyber typ</span>`;
+  } else {
+    const candidates = getManualCandidates(r.manualType, rowIdx);
+    if (!candidates.length) {
+      srcCell = `<span style="color:#ff8080;font-size:11px;">žádná volná vesnice tohoto typu</span>`;
+    } else {
+      const srcOpts = `<option value="">– vyber vesnici –</option>` + candidates.map(v => {
+        const sel = (v.x===r.srcX && v.y===r.srcY) ? 'selected' : '';
+        const catTxt = CAT_LABEL[v.category] || v.category || '';
+        return `<option value="${v.x}|${v.y}" ${sel}>${v.x}|${v.y} ${v.name||''}${catTxt?` (${catTxt})`:''}</option>`;
+      }).join('');
+      srcCell = `<select style="max-width:200px;" onchange="onManualSrcSelectChange(${rowIdx},this.value)">${srcOpts}</select>`;
+    }
+  }
+
+  return `<tr data-rowidx="${rowIdx}" style="background:#1a0010;">
+    <td style="color:var(--dim);font-size:11px;">★</td>
+    <td>${srcCell}</td>
+    <td><select style="max-width:140px;" onchange="onManualTypeChange(${rowIdx},this.value)">${typeOpts}</select></td>
+    <td><input type="text" value="${tgtVal}" placeholder="X|Y" style="width:90px;" onchange="onManualTgtChange(${rowIdx},this.value)"></td>
+    <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
+    <td class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
+    <td><input type="datetime-local" step="1" value="${toLocalInputValue(r.arrivalTime)}" style="width:175px;" onchange="onManualArrivalChange(${rowIdx},this.value)"></td>
+    <td style="color:var(--dim);font-size:11px;">${r.travel ? fmtDur(r.travel) : '—'}</td>
+    <td>${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
+    <td style="white-space:nowrap;">
+      ${gameLink ? `<a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>` : ''}
+      <button onclick="removeManualRow(${rowIdx})" title="Smazat tento řádek" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:#ff6060;font-size:13px;padding:3px 5px;margin-left:3px;">🗑</button>
+    </td>
+  </tr>`;
 }
 
 function renderTable() {
@@ -761,20 +995,21 @@ function renderTable() {
     return true;
   });
   if (search) visible = visible.filter(r =>
-    `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''}`.toLowerCase().includes(search)
+    `${r.srcX}|${r.srcY} ${r.srcName||''} ${r.srcPlayer||''} ${r.tgtX}|${r.tgtY} ${r.tgtName||''} ${r.tgtOwner||''} ${r.srcCategory||''} ${typeSearchText(r)}`.toLowerCase().includes(search)
   );
 
   // Sort
   const dir = sortAsc ? 1 : -1;
+  const sendOf = r => r.sendTime ?? Infinity;
   visible = [...visible].sort((a,b) => {
     switch(currentSort) {
       case 'player': return dir*(a.srcPlayer||'').localeCompare(b.srcPlayer||'');
       case 'src':    return dir*(`${a.srcX}|${a.srcY}`).localeCompare(`${b.srcX}|${b.srcY}`);
       case 'type':   return dir*(a.srcCategory||'').localeCompare(b.srcCategory||'');
-      case 'tgt':    return dir*(`${a.tgtX}|${a.tgtY}`).localeCompare(`${b.tgtX}|${b.tgtY}`);
-      case 'arrive': return dir*(a.arrivalTime-b.arrivalTime);
-      case 'travel': return dir*(a.travel-b.travel);
-      default:       return dir*(a.sendTime-b.sendTime);
+      case 'tgt':    return dir*((a.tgtOwner||'').localeCompare(b.tgtOwner||'') || `${a.tgtX}|${a.tgtY}`.localeCompare(`${b.tgtX}|${b.tgtY}`));
+      case 'arrive': return dir*((a.arrivalTime??Infinity)-(b.arrivalTime??Infinity));
+      case 'travel': return dir*((a.travel||0)-(b.travel||0));
+      default:       return dir*(sendOf(a)-sendOf(b));
     }
   });
 
@@ -820,6 +1055,8 @@ function renderTable() {
   </tr></thead><tbody>`;
 
   visible.forEach((r, i) => {
+    const rowIdx = attackRows.indexOf(r);
+    if (r._manual) { html += buildManualRowHtml(r, rowIdx); return; }
     const past     = r.sendTime < now;
     const played   = playedRows.has(rowKey(r));
     const rowClass = played ? 'played-row' : past ? 'past-row' : r.night ? 'night-row' : '';
@@ -830,7 +1067,6 @@ function renderTable() {
           : `${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`)
       : `${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
     if (r.isFake) gameLink += fakeTemplateQuery();
-    const rowIdx = attackRows.indexOf(r);
 
     html += `<tr class="${rowClass}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
@@ -844,7 +1080,7 @@ function renderTable() {
       <td><span class="countdown" data-send="${r.sendTime}"></span></td>
       <td style="white-space:nowrap;">
         <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
-        ${!playerVillages.length ? `<button onclick="replanRowPlan(${rowIdx})" title="Přeplánovat – vezme jinou vesnici" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>` : ''}
+        <button onclick="${playerVillages.length ? `quickSwapRow(${rowIdx})` : `replanRowPlan(${rowIdx})`}" title="Vyměnit za jinou volnou vesnici stejného typu" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>
       </td>
     </tr>`;
   });
@@ -1005,6 +1241,9 @@ function render(data) {
         <span id="sum-count" style="font-size:11px;color:var(--dim);white-space:nowrap;margin-left:auto;"></span>
       </div>
       <div id="tbl-wrap"></div>
+      <div id="add-manual-wrap" style="display:none;padding:8px 14px;border-top:1px solid var(--border);">
+        <button onclick="addManualRow()" style="background:#1e1508;border:1px solid var(--gold);color:var(--gold2);border-radius:4px;padding:6px 14px;font-size:12px;cursor:pointer;">➕ Přidat útok</button>
+      </div>
     </div>`;
 
   renderTable();

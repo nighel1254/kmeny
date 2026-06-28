@@ -1027,6 +1027,7 @@ function renderCapacitySummary() {
     return { total, rem, used: total - rem };
   };
   const fullka = mk('fullka'), triq = mk('triq_off'), half = mk('half_off');
+  const giga = byCat(totalPool, 'gigafullka');
 
   const sumNobles = pool => pool.reduce((s,v) => s + (v.noble || (v.units && v.units.noble) || 0), 0);
   const nobleTotal = sumNobles(totalPool), nobleRem = sumNobles(remPool);
@@ -1039,7 +1040,8 @@ function renderCapacitySummary() {
     cell(AXE_RED, fullka) +
     cell(AXE_YEL, triq) +
     cell(AXE_BRN, half) +
-    `<span style="color:var(--gold);">${NOBLE_NORM}<b>${nobleRem}</b><span style="color:var(--dim);font-size:11px;"> / ${nobleTotal}${nobleTotal-nobleRem ? ` (využito ${nobleTotal-nobleRem})` : ''}</span></span>`;
+    `<span style="color:var(--gold);">${NOBLE_NORM}<b>${nobleRem}</b><span style="color:var(--dim);font-size:11px;"> / ${nobleTotal}${nobleTotal-nobleRem ? ` (využito ${nobleTotal-nobleRem})` : ''}</span></span>` +
+    (giga ? `<span title="GigaFullky (off pop. 23000+) – nikdy se nezařazují automaticky do plánu, hráč si je přiřazuje sám" style="color:#ff60c0;">💎<b>${giga}</b><span style="color:var(--dim);font-size:11px;"> GigaFullek (nepřiřazuje se)</span></span>` : '');
 }
 
 function importJson() {
@@ -3982,9 +3984,11 @@ async function publishToPlayers() {
       name: v.village_name || v.name || `${v.x}|${v.y}`,
       id: v.village_id || v.id || null,
       category: v.category || 'def',
-      ram: (v.available && v.available.ram) || 0,
-      catapult: (v.available && v.available.catapult) || 0,
-      noble: v.noble || (v.units && v.units.noble) || 0
+      // Vesnice z různých importů mají jednotky buď v `available` (per-hráč export), nebo v `units` (kmenový export) –
+      // čti z obou, ať se hráčům ve fejk/vlak dropdownu nabízí všechny vesnice, ne jen tu jednu s "available".
+      ram: (v.available && v.available.ram) || (v.units && v.units.ram) || v.ram || 0,
+      catapult: (v.available && v.available.catapult) || (v.units && v.units.catapult) || v.catapult || 0,
+      noble: v.noble || (v.units && v.units.noble) || (v.available && v.available.noble) || 0
     });
   });
 

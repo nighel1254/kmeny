@@ -12,10 +12,12 @@ if (window.location.href.indexOf('screen=ally&mode=members_troops') > -1 ||
 
 // ── THRESHOLDS ─────────────────────────────────────────────
 // Klasifikace podle populace offových jednotek:
-//   minioff  = méně než 10k pop NEBO méně než 1000 seker
-//   half_off = 10 000–14 999 pop (a ≥1000 seker)
-//   triq_off = 15 000–17 999 pop (a ≥1000 seker)
-//   fullka   = 18 000+ pop      (a ≥1000 seker)
+//   minioff    = méně než 10k pop NEBO méně než 1000 seker
+//   half_off   = 10 000–14 999 pop (a ≥1000 seker)
+//   triq_off   = 15 000–17 999 pop (a ≥1000 seker)
+//   fullka     = 18 000–22 999 pop (a ≥1000 seker)
+//   gigafullka = 23 000+ pop       (a ≥1000 seker) – samostatná kategorie,
+//                commander ji NIKDY nezařazuje do plánu automaticky.
 //
 // Populace jednotek (farming units):
 var UNIT_POP = {
@@ -28,7 +30,8 @@ var THRESH = {
     axe_min: 1000,   // min seker pro jakoukoli off
     half: 10000,     // 1/2 off
     triq: 15000,     // 3/4 off
-    full: 18000      // fullka
+    full: 18000,     // fullka
+    giga: 23000      // gigafullka
 };
 
 var UNIT_MAP = {
@@ -63,6 +66,7 @@ function classifyVillage(units) {
     var axe = units.axe || 0;
     if (axe < THRESH.axe_min) return null; // pod limitem – vůbec nezahrnovat
     var pop = calcOffPop(units);
+    if (pop >= THRESH.giga) return 'gigafullka';
     if (pop >= THRESH.full) return 'fullka';
     if (pop >= THRESH.triq) return 'triq_off';
     if (pop >= THRESH.half) return 'half_off';
@@ -236,6 +240,7 @@ $.getAll(
             half_off:    allVillages.filter(function(v){ return v.category==='half_off'; }).length,
             triq_off:    allVillages.filter(function(v){ return v.category==='triq_off'; }).length,
             fullka:      allVillages.filter(function(v){ return v.category==='fullka'; }).length,
+            gigafullka:  allVillages.filter(function(v){ return v.category==='gigafullka'; }).length,
             thresholds:  THRESH,
             villages:    allVillages
         };
@@ -256,7 +261,8 @@ $.getAll(
                     'Celkem vesnic: <b>' + summary.total + '</b><br>' +
                     '• 1/2 off: <b>' + summary.half_off + '</b><br>' +
                     '• 3/4 off: <b>' + summary.triq_off + '</b><br>' +
-                    '• Fullka: <b>' + summary.fullka + '</b><br><br>' +
+                    '• Fullka: <b>' + summary.fullka + '</b><br>' +
+                    '• GigaFullka: <b>' + summary.gigafullka + '</b><br><br>' +
                     '<span style="color:#7ec87e">✓ JSON zkopírován do schránky</span><br>' +
                     copyCloseBtns
                 );
