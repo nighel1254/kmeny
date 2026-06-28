@@ -1921,11 +1921,42 @@ function replaceRemovedPlayersRows() {
   }
 }
 
+// Necháváme každému hráči rezervu vesnic, které se do plánu nepřiřadí –
+// ať má hráč v přiřazeném plánu z čeho vybírat, když si bude přehazovat zdrojovou vesnici.
+const SRC_RESERVE_PER_PLAYER = { fullka: 2, triq_off: 1, half_off: 1 };
+
+function reserveSrcVillages() {
+  const byPlayer = new Map();
+  srcVillages.forEach(v => {
+    const k = v.player_name || '';
+    if (!byPlayer.has(k)) byPlayer.set(k, []);
+    byPlayer.get(k).push(v);
+  });
+  const toReserve = new Set();
+  for (const [player, vs] of byPlayer) {
+    if (!player) continue;
+    for (const cat of Object.keys(SRC_RESERVE_PER_PLAYER)) {
+      vs.filter(v => v.category === cat).slice(0, SRC_RESERVE_PER_PLAYER[cat]).forEach(v => toReserve.add(v));
+    }
+  }
+  const reserved = srcVillages.filter(v => toReserve.has(v));
+  for (let i = srcVillages.length - 1; i >= 0; i--) {
+    if (toReserve.has(srcVillages[i])) srcVillages.splice(i, 1);
+  }
+  return reserved;
+}
+
+function restoreSrcVillages(reserved) {
+  reserved.forEach(v => srcVillages.push(v));
+}
+
 async function calculate() {
   const _calcBtn = document.getElementById('calc-btn');
   if (_calcBtn) { _calcBtn.classList.add('btn-loading'); _calcBtn.dataset.origHtml = _calcBtn.innerHTML; _calcBtn.innerHTML = '<span class="spin-icon">⟳</span> Počítám…'; }
+  let _reservedVillages = [];
   try {
   if (!srcVillages.length) { toast('Nejprve načti zdrojového hráče nebo importuj JSON!', 'err'); return; }
+  _reservedVillages = reserveSrcVillages();
 
   // Načti allVillages pokud ještě nemáme (potřeba pro body cílů)
   if (!allVillages.length) {
@@ -2373,6 +2404,7 @@ async function calculate() {
 
   renderResults(nightWarnings);
   } finally {
+    restoreSrcVillages(_reservedVillages);
     if (_calcBtn) { _calcBtn.classList.remove('btn-loading'); _calcBtn.innerHTML = _calcBtn.dataset.origHtml || '⚔️ Vypočítat plán'; }
   }
 }
@@ -3937,7 +3969,26 @@ async function publishToPlayers() {
     alreadySent = new Set((existing || []).map(a => (a.player_email || '').toLowerCase()));
   }
 
-  _publishPlan = { byPlayer, allProfiles, allRows, planId, alreadySent, planLabel: _currentPlanLabel || 'Plán útoku' };
+  // Vesnice (s aktuálním vojskem) seskupené podle hráče – aby si hráč mohl v přiřazeném
+  // plánu sám vybrat náhradní zdrojovou vesnici stejného typu.
+  const villagePool = (importedJsonVillages && importedJsonVillages.length) ? importedJsonVillages : jsonVillages;
+  const villagesByPlayer = new Map();
+  (villagePool || []).forEach(v => {
+    const key = (v.player_name || '').toLowerCase();
+    if (!key) return;
+    if (!villagesByPlayer.has(key)) villagesByPlayer.set(key, []);
+    villagesByPlayer.get(key).push({
+      x: v.x, y: v.y,
+      name: v.village_name || v.name || `${v.x}|${v.y}`,
+      id: v.village_id || v.id || null,
+      category: v.category || 'def',
+      ram: (v.available && v.available.ram) || 0,
+      catapult: (v.available && v.available.catapult) || 0,
+      noble: v.noble || (v.units && v.units.noble) || 0
+    });
+  });
+
+  _publishPlan = { byPlayer, allProfiles, allRows, planId, alreadySent, villagesByPlayer, planLabel: _currentPlanLabel || 'Plán útoku' };
 
   const listEl = document.getElementById('publish-player-list');
   listEl.innerHTML = '';
@@ -4054,6 +4105,8 @@ async function publishSelected() {
     if (!rows.length) empty.push(profile.player_name);
     const assignment = { player_email: profile.email, player_name: profile.player_name, rows_data: rows };
     if (_publishPlan.planId) assignment.plan_id = _publishPlan.planId;
+    const villages = _publishPlan.villagesByPlayer.get((profile.player_name || '').toLowerCase()) || [];
+    if (villages.length) assignment.plan_input = { villages };
     assignments.push(assignment);
     sent.push(profile.player_name);
   }

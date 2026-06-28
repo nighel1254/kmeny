@@ -168,6 +168,55 @@ const UNIT_LABELS = {
   paladin: `${unitImg('paladin')} Paladin`,
 };
 
+// ── ŠABLONA FEJKU (jednotky, co se předvyplní do hry u fejků/fejk vlaků) ────
+const FAKE_UNIT_KEYS = ['spear','sword','axe','scout','lk','tk','ram','catapult','noble','paladin'];
+const APP_TO_GAME_UNIT = { spear:'spear', sword:'sword', axe:'axe', scout:'spy', lk:'light', tk:'heavy', ram:'ram', catapult:'catapult', noble:'snob', paladin:'knight' };
+let fakeTemplate = {};
+
+function loadFakeTemplate() {
+  try { fakeTemplate = JSON.parse(localStorage.getItem('dk_fake_template') || '{}'); } catch(e) { fakeTemplate = {}; }
+}
+
+function saveFakeTemplate() {
+  const obj = {};
+  FAKE_UNIT_KEYS.forEach(u => { const el = document.getElementById(`fake-tpl-${u}`); obj[u] = parseInt(el?.value) || 0; });
+  fakeTemplate = obj;
+  try { localStorage.setItem('dk_fake_template', JSON.stringify(obj)); } catch(e) {}
+  toast('✓ Šablona fejku uložena.', 'ok', 2500);
+}
+
+function toggleFakeTemplateBox() {
+  const body = document.getElementById('fake-tpl-body');
+  const arrow = document.getElementById('fake-tpl-toggle');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'flex';
+  if (arrow) arrow.textContent = open ? '▾' : '▴';
+}
+
+function fakeTemplateQuery() {
+  return FAKE_UNIT_KEYS
+    .filter(u => fakeTemplate[u] > 0)
+    .map(u => `&${APP_TO_GAME_UNIT[u]}=${fakeTemplate[u]}`)
+    .join('');
+}
+
+function fakeTemplateBoxHtml() {
+  return `<div class="panel" style="margin:12px;padding:10px 14px;">
+    <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="toggleFakeTemplateBox()">
+      <strong style="color:var(--gold2);font-size:13px;">🎭 Šablona fejku</strong>
+      <span style="font-size:11px;color:var(--dim);">– jednotky, které se vyplní do hry u fejků a fejk vlaků</span>
+      <span id="fake-tpl-toggle" style="margin-left:auto;color:var(--dim);font-size:11px;">▾</span>
+    </div>
+    <div id="fake-tpl-body" style="display:none;margin-top:10px;gap:10px;flex-wrap:wrap;">
+      ${FAKE_UNIT_KEYS.map(u => `<label style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--dim);">
+        ${unitImg(u)}
+        <input type="number" min="0" id="fake-tpl-${u}" style="width:55px;padding:3px 4px;text-align:center;" value="${fakeTemplate[u]||0}" onchange="saveFakeTemplate()">
+      </label>`).join('')}
+    </div>
+  </div>`;
+}
+
 const SMALL_ICO  = 'https://help.divokekmeny.cz/images/b/b6/Small.png';
 const LARGE_ICO  = 'https://help.divokekmeny.cz/images/7/71/Large.png';
 const MEDIUM_ICO = 'https://help.divokekmeny.cz/images/9/96/Medium.png';
@@ -191,6 +240,16 @@ function typeChip(r) {
 
 let attackRows = [], cdInterval = null;
 let currentSort = 'send', sortAsc = true;
+let playerVillages = [], assignmentId = null;
+
+const CAT_LABEL = { fullka:'fullka', triq_off:'3/4', half_off:'1/2', mini_off:'mini', def:'def' };
+// Které typy vesnic lze nabídnout jako náhradu za daný typ příkazu (fullku lze nahradit 3/4 vesnicí a naopak, atd.)
+function compatibleCategories(rowCat) {
+  if (rowCat === 'fullka')   return ['fullka','triq_off'];
+  if (rowCat === 'triq_off') return ['triq_off','fullka','half_off'];
+  if (rowCat === 'half_off') return ['half_off','triq_off'];
+  return [rowCat];
+}
 
 const pad = n => String(Math.floor(n)).padStart(2,'0');
 function fmtDT(dt)  { return `${dt.getDate()}.${dt.getMonth()+1}. ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`; }
@@ -577,6 +636,127 @@ function updateCountdowns() {
   });
 }
 
+// ── VÝBĚR ZDROJOVÉ VESNICE (hráč si sám upravuje přiřazený plán) ────
+async function persistRows() {
+  if (!assignmentId) return;
+  try {
+    const { error } = await sbP.from('plan_assignments').update({ rows_data: attackRows }).eq('id', assignmentId);
+    if (error) toast('⚠ Změna se neuložila na server (zůstává jen v tomto okně): ' + error.message, 'err', 6000);
+  } catch(e) {
+    console.warn('Uložení změny se nepodařilo:', e);
+    toast('⚠ Změna se neuložila na server (zůstává jen v tomto okně).', 'err', 6000);
+  }
+}
+
+function buildSrcSelect(r, rowIdx) {
+  const plain = `<span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span>`;
+  if (!playerVillages.length) return plain;
+
+  // Kolikrát je která vesnice použita jinde v plánu (fejky se nepočítají – nejsou exkluzivní)
+  const usedKeys = {};
+  attackRows.forEach((rr, i) => {
+    if (i === rowIdx || rr.isFake) return;
+    const k = `${rr.srcX}|${rr.srcY}`;
+    usedKeys[k] = (usedKeys[k]||0) + 1;
+  });
+
+  let pool;
+  if (r.isFake) {
+    pool = playerVillages.filter(v => (v.ram||0) > 0 || (v.catapult||0) > 0);
+  } else if (r.isNoble) {
+    pool = playerVillages.filter(v => {
+      if (!(v.noble > 0)) return false;
+      if (v.x === r.srcX && v.y === r.srcY) return true;
+      const usedNobles = attackRows.filter((rr,i) => i!==rowIdx && rr.isNoble && rr.srcX===v.x && rr.srcY===v.y).length;
+      return usedNobles < v.noble;
+    });
+  } else {
+    const okCats = compatibleCategories(r.srcCategory);
+    pool = playerVillages.filter(v =>
+      (v.x === r.srcX && v.y === r.srcY) ||
+      (okCats.includes(v.category) && !(usedKeys[`${v.x}|${v.y}`] > 0))
+    );
+  }
+
+  if (!pool.some(v => v.x===r.srcX && v.y===r.srcY)) {
+    pool = [{ x:r.srcX, y:r.srcY, name:r.srcName, id:r.srcId, category:r.srcCategory }, ...pool];
+  }
+  pool = [...pool].sort((a,b) => {
+    if (a.x===r.srcX && a.y===r.srcY) return -1;
+    if (b.x===r.srcX && b.y===r.srcY) return 1;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+
+  const opts = pool.map(v => {
+    const sel = (v.x===r.srcX && v.y===r.srcY) ? 'selected' : '';
+    const catTxt = CAT_LABEL[v.category] || v.category || '';
+    return `<option value="${v.x}|${v.y}" ${sel}>${v.x}|${v.y} ${v.name||''}${catTxt?` (${catTxt})`:''}</option>`;
+  }).join('');
+  return `<select class="src-select" onchange="onSrcSelectChange(this,${rowIdx})" style="max-width:230px;">${opts}</select>`;
+}
+
+function onSrcSelectChange(sel, rowIdx) {
+  const [vx, vy] = sel.value.split('|').map(Number);
+  applySourceSwap(rowIdx, vx, vy);
+}
+
+function applySourceSwap(rowIdx, vx, vy) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+  if (row.srcX === vx && row.srcY === vy) return;
+  const v = playerVillages.find(p => p.x===vx && p.y===vy);
+  if (!v) return;
+
+  const distOrig = Math.sqrt((row.srcX-row.tgtX)**2 + (row.srcY-row.tgtY)**2);
+  if (!distOrig) { toast('Nelze přepočítat (nulová vzdálenost).', 'err'); renderTable(); return; }
+  const msPerDist = row.travel / distOrig;
+  const dist = Math.sqrt((vx-row.tgtX)**2 + (vy-row.tgtY)**2);
+  const travel = dist * msPerDist;
+  const sendTime = row.arrivalTime - travel;
+
+  if (sendTime < Date.now() + 60000) {
+    toast('⚠ Z téhle vesnice by útok musel odejít už v minulosti – nelze použít.', 'err', 6000);
+    renderTable();
+    return;
+  }
+
+  row.srcX = vx; row.srcY = vy;
+  row.srcName = v.name; row.srcId = v.id;
+  if (!row.isNoble) row.srcCategory = v.category;
+  row.travel = travel; row.sendTime = sendTime; row.night = isNight(sendTime);
+
+  attackRows.sort((a,b) => a.sendTime - b.sendTime);
+  renderTable();
+  toast('✓ Zdrojová vesnice změněna a čas přepočítán.', 'ok');
+  persistRows();
+}
+
+function renderMyVillagesSummary() {
+  const wrap = document.getElementById('my-villages-wrap');
+  if (!wrap) return;
+  if (!playerVillages.length) { wrap.style.display = 'none'; return; }
+
+  const usedKeys = new Set(attackRows.filter(r => !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
+  const cats = [['fullka','Fullka'],['triq_off','3/4 off'],['half_off','1/2 off']];
+  const parts = cats.map(([cat,label]) => {
+    const vs = playerVillages.filter(v => v.category === cat);
+    if (!vs.length) return '';
+    const used = vs.filter(v => usedKeys.has(`${v.x}|${v.y}`)).length;
+    return `<span class="stat">${label}: <strong>${used}</strong>/${vs.length} využito &nbsp;(<span style="color:var(--green)">${vs.length-used} volných</span>)</span>`;
+  }).filter(Boolean);
+
+  const nobleVs = playerVillages.filter(v => (v.noble||0) > 0);
+  if (nobleVs.length) {
+    const nobleTotal = nobleVs.reduce((s,v) => s + (v.noble||0), 0);
+    const nobleUsed = attackRows.filter(r => r.isNoble).length;
+    parts.push(`<span class="stat">👑 Šlechtici: <strong>${nobleUsed}</strong>/${nobleTotal} využito</span>`);
+  }
+
+  if (!parts.length) { wrap.style.display = 'none'; return; }
+  wrap.innerHTML = `<div style="font-size:11px;color:var(--dim);padding:6px 16px;display:flex;gap:14px;flex-wrap:wrap;">🏰 <strong style="color:var(--gold2)">Moje vesnice:</strong> ${parts.join('')}</div>`;
+  wrap.style.display = 'block';
+}
+
 function renderTable() {
   const search     = (document.getElementById('tbl-search')?.value||'').toLowerCase();
   const hideNight  = document.getElementById('hide-night')?.checked;
@@ -653,16 +833,17 @@ function renderTable() {
     const played   = playedRows.has(rowKey(r));
     const rowClass = played ? 'played-row' : past ? 'past-row' : r.night ? 'night-row' : '';
     const sendCls  = r.night ? 'send-time night' : 'send-time';
-    const gameLink = r.srcId
+    let gameLink = r.srcId
       ? (r.tgtId
           ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`
           : `${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`)
       : `${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
+    if (r.isFake) gameLink += fakeTemplateQuery();
     const rowIdx = attackRows.indexOf(r);
 
     html += `<tr class="${rowClass}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
-      <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span></td>
+      <td>${buildSrcSelect(r, rowIdx)}</td>
       <td>${typeChip(r)}</td>
       <td><span class="coords">${r.tgtX}|${r.tgtY}</span>${r.tgtName&&r.tgtName!==`${r.tgtX}|${r.tgtY}`?` <span style="color:var(--dim)">${r.tgtName}</span>`:''} ${r.tgtOwner?`<span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span>${r.night?'<span class="chip chip-night">🌙</span>':''}</td>
@@ -672,7 +853,7 @@ function renderTable() {
       <td><span class="countdown" data-send="${r.sendTime}"></span></td>
       <td style="white-space:nowrap;">
         <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
-        <button onclick="replanRowPlan(${rowIdx})" title="Přeplánovat – vezme jinou vesnici" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>
+        ${!playerVillages.length ? `<button onclick="replanRowPlan(${rowIdx})" title="Přeplánovat – vezme jinou vesnici" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>` : ''}
       </td>
     </tr>`;
   });
@@ -680,6 +861,7 @@ function renderTable() {
   html += '</tbody></table>';
   document.getElementById('tbl-wrap').innerHTML = html;
   updateCountdowns();
+  renderMyVillagesSummary();
 }
 
 // ── PŘEPLÁNOVÁNÍ JEDNOHO PŘÍKAZU ZA BĚHU ────────────────────
@@ -713,10 +895,8 @@ function replanRowPlan(rowIdx) {
   const candidates = [];
   for (const v of getVillagePool()) {
     if (v.x === row.srcX && v.y === row.srcY) continue;
-    if (row.srcCategory !== 'noble') {
-      const vCatVal = REPLAN_CAT_PRIORITY[v.category] ?? -1;
-      if (origCatVal >= 0 && vCatVal < origCatVal) continue;
-    }
+    // Nabízíme jen 1:1 stejný typ vesnice (žádná chytrá náhrada slabší/silnější kategorií)
+    if (row.srcCategory !== 'noble' && v.category !== row.srcCategory) continue;
     const dist = Math.sqrt((v.x-row.tgtX)**2 + (v.y-row.tgtY)**2);
     const travel = dist * msPerDist;
     const sendTime = row.arrivalTime - travel;
@@ -731,17 +911,12 @@ function replanRowPlan(rowIdx) {
     });
   }
 
-  if (!candidates.length) { toast('⚠ Nenalezena vhodná náhradní vesnice.', 'err', 6000); return; }
+  if (!candidates.length) { toast('⚠ Nenalezena vhodná náhradní vesnice stejného typu.', 'err', 6000); return; }
 
-  candidates.sort((a,b) => {
-    if (a.night !== b.night) return a.night ? 1 : -1;
-    if (a.usage !== b.usage) return a.usage - b.usage;
-    const da = Math.abs(a.srcX-row.srcX) + Math.abs(a.srcY-row.srcY);
-    const db = Math.abs(b.srcX-row.srcX) + Math.abs(b.srcY-row.srcY);
-    return da - db;
-  });
-
-  const best = candidates[0];
+  // Náhodný výběr ze stejného typu vesnic – pokud možno přednostně ne v noci
+  const dayCandidates = candidates.filter(c => !c.night);
+  const pool = dayCandidates.length ? dayCandidates : candidates;
+  const best = pool[Math.floor(Math.random() * pool.length)];
   attackRows[rowIdx]._replanProposal = best;
   showReplanProposal(rowIdx, best);
 }
@@ -795,6 +970,8 @@ function render(data) {
   document.body.style.visibility = 'visible';
   const rows = data.rows.sort((a,b)=>a.sendTime-b.sendTime);
   attackRows = rows;
+  assignmentId = data.id || null;
+  playerVillages = data.villages || [];
 
   document.getElementById('app').innerHTML = `
     <div class="top-bar">
@@ -809,6 +986,7 @@ function render(data) {
         <button onclick="planLogout()" class="nav-btn">Odhlásit</button>
       </div>
     </div>
+    ${fakeTemplateBoxHtml()}
     <div class="summary-bar">
       <span style="color:#ff4040">${AXE_RED} <strong id="sum-full">0</strong></span>
       <span style="color:#f0c040">${AXE_YEL} <strong id="sum-triq">0</strong></span>
@@ -819,6 +997,7 @@ function render(data) {
       <span style="color:var(--dim);margin-left:4px;">Celkem: <strong id="sum-total">0</strong></span>
     </div>
     <div id="warnings-wrap" style="display:none;"></div>
+    <div id="my-villages-wrap" style="display:none;"></div>
     <div class="panel">
       <div class="filter-bar">
         <input type="text" id="tbl-search" placeholder="🔍 Filtr – vesnice, hráč, typ…" oninput="renderTable()">
@@ -865,13 +1044,14 @@ function decodeData(json) {
   }
   // Formát z dashboard (objekty, krátké klíče p/w/e + rows pole objektů)
   if (d.p || d.w) {
-    return { player: d.p, world: d.w, exported: (d.e||0) * 1000, rows: d.rows || [] };
+    return { player: d.p, world: d.w, exported: (d.e||0) * 1000, rows: d.rows || [], id: d.id || null, villages: d.v || [] };
   }
   // Starý formát (dlouhé klíče)
-  return { player: d.player, world: d.world, exported: d.exported, rows: d.rows };
+  return { player: d.player, world: d.world, exported: d.exported, rows: d.rows, id: d.id || null, villages: d.villages || [] };
 }
 
 function init() {
+  loadFakeTemplate();
   syncPlayedRows().then(() => {
     // Polling každých 30s
     setInterval(async () => {

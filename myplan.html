@@ -491,6 +491,15 @@
   <!-- ── PRAVÝ SLOUPEC ── -->
   <div class="right-col">
     <div class="panel">
+      <div class="panel-header" style="cursor:pointer;" onclick="toggleFakeTemplateBox()">
+        <span>🎭 Šablona fejku <span style="font-size:11px;color:var(--dim);font-weight:normal;">– jednotky, které se vyplní do hry u fejků a fejk vlaků</span></span>
+        <span id="fake-tpl-toggle" style="color:var(--dim);font-size:11px;">▾</span>
+      </div>
+      <div id="fake-tpl-body" class="panel-body" style="display:none;gap:10px;flex-wrap:wrap;">
+      </div>
+    </div>
+
+    <div class="panel">
       <div class="panel-header">
         <span>📋 Výsledný plán</span>
         <div style="display:flex;gap:8px;">
@@ -763,6 +772,48 @@ const UNIT_EMOJI = {ram:'🪨',lk:'🐎',scout:'🔍',axe:'🪓',tk:'🛡️',sp
 function unitImg(key,s=18){
   const file=key==='lk'?'light':key==='tk'?'heavy':key==='scout'?'spy':key==='paladin'?'knight':key==='noble'?'snob':key;
   return `<img src="${API_IMG}/unit_${file}.png" style="width:${s}px;height:${s}px;vertical-align:middle;margin-right:2px;" onerror="this.outerHTML='${UNIT_EMOJI[key]||'⚔️'} '">`;
+}
+
+// ── ŠABLONA FEJKU (jednotky, co se předvyplní do hry u fejků/fejk vlaků) ────
+const FAKE_UNIT_KEYS = ['spear','sword','axe','scout','lk','tk','ram','catapult','noble','paladin'];
+const APP_TO_GAME_UNIT = { spear:'spear', sword:'sword', axe:'axe', scout:'spy', lk:'light', tk:'heavy', ram:'ram', catapult:'catapult', noble:'snob', paladin:'knight' };
+let fakeTemplate = {};
+
+function loadFakeTemplate() {
+  try { fakeTemplate = JSON.parse(localStorage.getItem('dk_fake_template') || '{}'); } catch(e) { fakeTemplate = {}; }
+}
+
+function saveFakeTemplate() {
+  const obj = {};
+  FAKE_UNIT_KEYS.forEach(u => { const el = document.getElementById(`fake-tpl-${u}`); obj[u] = parseInt(el?.value) || 0; });
+  fakeTemplate = obj;
+  try { localStorage.setItem('dk_fake_template', JSON.stringify(obj)); } catch(e) {}
+  toast('✓ Šablona fejku uložena.', 'ok', 2500);
+}
+
+function toggleFakeTemplateBox() {
+  const body = document.getElementById('fake-tpl-body');
+  const arrow = document.getElementById('fake-tpl-toggle');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'flex';
+  if (arrow) arrow.textContent = open ? '▾' : '▴';
+}
+
+function fakeTemplateQuery() {
+  return FAKE_UNIT_KEYS
+    .filter(u => fakeTemplate[u] > 0)
+    .map(u => `&${APP_TO_GAME_UNIT[u]}=${fakeTemplate[u]}`)
+    .join('');
+}
+
+function renderFakeTemplateBox() {
+  const body = document.getElementById('fake-tpl-body');
+  if (!body) return;
+  body.innerHTML = FAKE_UNIT_KEYS.map(u => `<label style="display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:var(--dim);">
+    ${unitImg(u)}
+    <input type="number" min="0" id="fake-tpl-${u}" style="width:55px;padding:3px 4px;text-align:center;" value="${fakeTemplate[u]||0}" onchange="saveFakeTemplate()">
+  </label>`).join('');
 }
 
 // ── BOOKMARKLET ────────────────────────────────────────────
@@ -1211,30 +1262,41 @@ async function calculate() {
   const PRED_FN    = r => r.isFakeNoble;
   const PRED_NOBLE = r => r.isNoble;
 
-  // ── Ostré útoky — každá vesnice se použije jen jednou, nejblíže cíli má prioritu ──
-  // Vesnice, ze které by odeslání vyšlo do minulosti (nestihne to), se přeskočí –
-  // vezme se další nejbližší, která to ještě reálně zvládne.
+  // ── Ostré útoky — každá vesnice se použije jen jednou ──
+  // Priorita: 1) silnější kategorie napřed (fullka → 3/4 → 1/2 → mini), 2) odeslání ve dne
+  // před nocí, 3) nejblíž cíli. Vesnice, ze které by odeslání vyšlo do minulosti, se přeskočí.
   const _calcNow = Date.now();
+  const SHARP_CAT_RANK = { fullka:3, triq_off:2, half_off:1, mini_off:0 };
   // Vesnice, které už podle historie reálně odeslaly ostrý útok, se znovu nenabízí.
   const usedSharpSrcs = new Set(_historyRows.filter(PRED_SHARP).map(r => `${r.srcX}|${r.srcY}`));
   for (const tgt of sharpTgts) {
     const already = sentCountAtTarget(tgt.x, tgt.y, PRED_SHARP);
     const need = Math.max(0, sharpCount - already);
     if (need === 0) continue; // cíl už má splněný požadovaný počet ostrých útoků
-    const candidates = offVillages.filter(v => !usedSharpSrcs.has(`${v.x}|${v.y}`)).sort(byDistTo(tgt));
+    const candidates = offVillages
+      .filter(v => !usedSharpSrcs.has(`${v.x}|${v.y}`))
+      .map(v => {
+        const travel = travelMs(v.x,v.y,tgt.x,tgt.y,'ram');
+        const sendTime = tgt.arrivalTime - travel;
+        return { v, travel, sendTime, isNight: isNight(sendTime), catRank: SHARP_CAT_RANK[v._category] ?? -1 };
+      })
+      .sort((a,b) => {
+        if (a.catRank !== b.catRank) return b.catRank - a.catRank;          // silnější kategorie napřed
+        if (a.isNight !== b.isNight) return a.isNight ? 1 : -1;             // den před nocí
+        return distSq(a.v, tgt) - distSq(b.v, tgt);                        // blíž je líp
+      });
     for (let s=0; s<need; s++) {
-      const idx = candidates.findIndex(v => tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'ram') > _calcNow + 60000);
+      const idx = candidates.findIndex(c => c.sendTime > _calcNow + 60000);
       if (idx === -1) { toast(`⚠ Cíl ${tgt.x}|${tgt.y}: žádná volná vesnice to už nestihne odeslat včas!`, 'info', 5000); break; }
-      const src = candidates.splice(idx,1)[0];
+      const cand = candidates.splice(idx,1)[0];
+      const src = cand.v;
       usedSharpSrcs.add(`${src.x}|${src.y}`);
-      const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
-      const sendTime = tgt.arrivalTime - travel;
       attackRows.push({
         srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-        srcCategory:src.category, srcOwner:src.player_name||'',
+        srcCategory:src._category||src.category, srcOwner:src.player_name||'',
         tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
-        unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
-        night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:false
+        unit:'ram', sendTime:cand.sendTime, arrivalTime:tgt.arrivalTime, travel:cand.travel,
+        night:cand.isNight, isFake:false, isNoble:false, isFakeNoble:false
       });
     }
   }
@@ -1307,7 +1369,7 @@ async function calculate() {
       const sendTime = tgt.arrivalTime - travel;
       attackRows.push({
         srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-        srcCategory:src.category||'def', srcOwner:src.player_name||'',
+        srcCategory:src._category||src.category||'def', srcOwner:src.player_name||'',
         tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
         unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
         night:isNight(sendTime), isFake:true, isNoble:false, isFakeNoble:false
@@ -1322,7 +1384,7 @@ async function calculate() {
       const sendTime = tgt.arrivalTime - travel;
       attackRows.push({
         srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
-        srcCategory:src.category||'def', srcOwner:src.player_name||'',
+        srcCategory:src._category||src.category||'def', srcOwner:src.player_name||'',
         tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id||null, tgtOwner:tgt.owner||'',
         unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
         night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:true
@@ -1454,7 +1516,8 @@ function renderResults(){
     const past=r.sendTime<now, played=playedRows.has(rowKey(r));
     const rowCls=played?'played-row':past?'past-row':r.night?'night-row':'';
     const sendCls=r.night?'send-time night':'send-time';
-    const gameLink=r.srcId?(r.tgtId?`${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`:`${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`):`${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
+    let gameLink=r.srcId?(r.tgtId?`${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`:`${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`):`${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
+    if (r.isFake) gameLink += fakeTemplateQuery();
     html+=`<tr class="${rowCls}" data-rowidx="${rowIdx}">
       <td style="color:var(--dim);font-size:11px;">${i+1}</td>
       <td><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName}</span>${r.srcOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.srcOwner})</span>`:''}</td>
@@ -1761,6 +1824,8 @@ async function init(){
   document.body.style.visibility='visible';
 
   loadWorldConfig();
+  loadFakeTemplate();
+  renderFakeTemplateBox();
 
   if (audioUnlocked) {
     const banner=document.getElementById('audio-banner');

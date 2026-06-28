@@ -358,7 +358,7 @@ async function openPlan(assignmentId) {
   const { data: a } = await sb.from('plan_assignments').select('*, plans(label,world)').eq('id', assignmentId).single();
   if (!a) { alert('Plán nenalezen.'); return; }
   const nick = document.getElementById('user-name').textContent;
-  const data = { p: nick, w: a.plans?.world||'cs112', l: a.plans?.label||'', e: Math.floor(Date.now()/1000), rows: a.rows_data||[] };
+  const data = { p: nick, w: a.plans?.world||'cs112', l: a.plans?.label||'', e: Math.floor(Date.now()/1000), rows: a.rows_data||[], id: a.id, v: a.plan_input?.villages||[] };
   const compressed = LZString.compressToBase64(JSON.stringify(data)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
   window.location.href = `plan.html#${compressed}`;
 }
