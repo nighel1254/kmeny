@@ -456,7 +456,8 @@ async function openShareModal(assignmentId) {
   select.innerHTML = '<option value="">– načítám hráče –</option>';
   const { data: players, error } = await sb.from('profiles').select('email, player_name').eq('role', 'player');
   if (error || !players) { select.innerHTML = '<option value="">Chyba při načítání hráčů</option>'; return; }
-  const others = players.filter(p => p.email && p.email.toLowerCase() !== currentUserEmail);
+  const others = players.filter(p => p.email && p.email.toLowerCase() !== currentUserEmail)
+    .sort((a,b) => (a.player_name||a.email).localeCompare(b.player_name||b.email, 'cs'));
   select.innerHTML = others.length
     ? `<option value="">– vyber hráče –</option>` + others.map(p => `<option value="${p.email}">${p.player_name || p.email}</option>`).join('')
     : '<option value="">Žádní další registrovaní hráči</option>';
