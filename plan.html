@@ -637,6 +637,19 @@ async function enableNotifications() {
     const { data: { session } } = await sbP.auth.getSession();
     if (!session) { toast('Nejsi přihlášen.', 'err'); return; }
 
+    // Pokud má tahle stránka otevřenou kartu od dřívějška a mezitím se plán přeplánoval
+    // na jiném zařízení, attackRows v paměti by mohlo být zastaralé – dotáhni čerstvý stav
+    // ze serveru, ať se při zapnutí nenaplánují alarmy na starý, už neplatný čas.
+    if (assignmentId) {
+      try {
+        const { data: fresh } = await sbP.from('plan_assignments').select('rows_data').eq('id', assignmentId).single();
+        if (fresh?.rows_data) {
+          attackRows = fresh.rows_data.sort((x,y)=>(x.sendTime||0)-(y.sendTime||0));
+          renderTable();
+        }
+      } catch(e) {}
+    }
+
     const freshAlarms = buildAlarmsForThisPlan();
 
     // Unikátní ID zařízení (uložené v localStorage)
