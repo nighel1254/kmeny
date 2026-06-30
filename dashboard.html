@@ -175,6 +175,21 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="share-modal" onclick="if(event.target===this)closeShareModal()">
+  <div class="modal">
+    <h3>🌴 Sdílet plán – zástup v dovolené</h3>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:4px;" id="share-plan-label"></p>
+    <label>Hráč</label>
+    <select id="share-player-select"><option value="">– načítám hráče –</option></select>
+    <div class="modal-msg" id="share-msg"></div>
+    <div id="share-existing-list" style="margin-top:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="submitShare()">Sdílet</button>
+      <button class="btn-ghost" onclick="closeShareModal()">Zavřít</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <div class="header">
@@ -246,6 +261,10 @@
   <div class="section-label" style="margin-top:18px;">🗒 Osobní plány</div>
   <div id="personal-plans-container"></div>
 
+  <!-- Plans shared with me (vacation substitute) -->
+  <div class="section-label" style="margin-top:18px;" id="substitute-section-label">🌴 Plány – zástup v dovolené</div>
+  <div id="substitute-plans-container"></div>
+
 </div>
 
 <script>
@@ -279,6 +298,7 @@ function toast(msg, ms=2500) {
 }
 
 let currentUser = null;
+let currentUserEmail = null;
 
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -289,8 +309,10 @@ async function init() {
   document.body.style.visibility = 'visible';
   const nick = profile?.player_name || currentUser.email?.split('@')[0] || '?';
   document.getElementById('user-name').textContent = nick;
-  const email = profile?.email || currentUser.email;
-  loadPlans(email.toLowerCase());
+  const email = (profile?.email || currentUser.email).toLowerCase();
+  currentUserEmail = email;
+  loadPlans(email);
+  loadSubstitutePlans(email);
 }
 
 async function loadPlans(email) {
@@ -326,6 +348,8 @@ async function loadPlans(email) {
   personalContainer.innerHTML = personalPlans.length ? personalPlans.map(a => buildPlanCard(a, true)).join('') : `<div class="empty"><p style="font-size:12px;color:var(--dim);">Žádné osobní plány – vytvoříš si je tlačítkem „Otevřít plánovač" výše.</p></div>`;
 }
 
+const _planLabelsById = {}; // id -> label, pro share-modal (vyhne se escapování v onclick atributu)
+
 function buildPlanCard(a, isPersonal) {
     const rows   = a.rows_data || [];
     const sharp  = rows.filter(r => !r.isFake && !r.isNoble);
@@ -345,6 +369,7 @@ function buildPlanCard(a, isPersonal) {
     const assignedAt = new Date(a.created_at);
     const label = a.plans?.label || a.plan_label || `Plán ${fmtDT(assignedAt)}`;
     const updatedAt = a.plan_input?.updatedAt ? new Date(a.plan_input.updatedAt) : null;
+    _planLabelsById[a.id] = label;
 
     return `<div class="card">
       <div class="card-header">
@@ -360,6 +385,7 @@ function buildPlanCard(a, isPersonal) {
         <div style="display:flex;gap:8px;flex-shrink:0;">
           ${!a.plan_id ? `<button class="btn-open" style="border-color:var(--gold2);color:var(--gold2);" onclick="editPlan('${a.id}')">✎ Upravit</button>` : ''}
           <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít</button>
+          <button class="btn-open" style="border-color:#7ec8a0;color:#7ec8a0;" onclick="openShareModal('${a.id}')" title="Sdílet plán – zástup v dovolené"><img src="https://e7.pngegg.com/pngimages/228/376/png-clipart-share-icon-social-media-computer-icons-social-networking-service-sharing-icon-social-media-share-icon-thumbnail.png" style="width:14px;height:14px;vertical-align:middle;filter:invert(.7) sepia(1) saturate(2) hue-rotate(80deg);" onerror="this.style.display='none'"> Sdílet</button>
           <button class="btn-del" onclick="deletePlan('${a.id}',this)" title="Smazat plán"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm-2 3h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"/></svg></button>
         </div>
       </div>
@@ -376,6 +402,109 @@ function buildPlanCard(a, isPersonal) {
 
 function editPlan(assignmentId) {
   window.location.href = `myplan.html?edit=${assignmentId}`;
+}
+
+// ── ZÁSTUP V DOVOLENÉ (sdílení plánů) ───────────────────────────────────────
+async function loadSubstitutePlans(email) {
+  const container = document.getElementById('substitute-plans-container');
+  const { data: shares, error } = await sb.from('plan_shares').select('plan_assignment_id, owner_email').ilike('shared_with_email', email);
+  if (error || !shares?.length) {
+    container.innerHTML = `<div class="empty"><p style="font-size:12px;color:var(--dim);">Nikdo ti zatím žádný plán nenasdílel.</p></div>`;
+    return;
+  }
+  const ids = shares.map(s => s.plan_assignment_id);
+  const { data: assignments, error: aerr } = await sb.from('plan_assignments').select('*, plans(label, world, created_at, data)').in('id', ids);
+  if (aerr || !assignments?.length) {
+    container.innerHTML = `<div class="empty"><p style="font-size:12px;color:var(--dim);">Nepodařilo se načíst sdílené plány.</p></div>`;
+    return;
+  }
+  const ownerByPlanId = Object.fromEntries(shares.map(s => [s.plan_assignment_id, s.owner_email]));
+  container.innerHTML = assignments.map(a => buildSubstituteCard(a, ownerByPlanId[a.id])).join('');
+}
+
+function buildSubstituteCard(a, ownerEmail) {
+  const rows = a.rows_data || [];
+  const assignedAt = new Date(a.created_at);
+  const label = a.plans?.label || a.plan_label || `Plán ${fmtDT(assignedAt)}`;
+  return `<div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">🌴 ${label}</div>
+        <div class="card-meta">Zástup za: <strong>${ownerEmail}</strong></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        ${!a.plan_id ? `<button class="btn-open" style="border-color:var(--gold2);color:var(--gold2);" onclick="editPlan('${a.id}')">✎ Upravit</button>` : ''}
+        <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít</button>
+      </div>
+    </div>
+    <div class="plan-stats">
+      <span class="stat" style="color:var(--dim);">Celkem útoků: <strong>${rows.length}</strong></span>
+    </div>
+  </div>`;
+}
+
+let _shareAssignmentId = null;
+
+async function openShareModal(assignmentId) {
+  _shareAssignmentId = assignmentId;
+  document.getElementById('share-plan-label').textContent = _planLabelsById[assignmentId] || '';
+  document.getElementById('share-msg').className = 'modal-msg';
+  document.getElementById('share-msg').textContent = '';
+  document.getElementById('share-modal').classList.add('open');
+
+  const select = document.getElementById('share-player-select');
+  select.innerHTML = '<option value="">– načítám hráče –</option>';
+  const { data: players, error } = await sb.from('profiles').select('email, player_name').eq('role', 'player');
+  if (error || !players) { select.innerHTML = '<option value="">Chyba při načítání hráčů</option>'; return; }
+  const others = players.filter(p => p.email && p.email.toLowerCase() !== currentUserEmail);
+  select.innerHTML = others.length
+    ? `<option value="">– vyber hráče –</option>` + others.map(p => `<option value="${p.email}">${p.player_name || p.email}</option>`).join('')
+    : '<option value="">Žádní další registrovaní hráči</option>';
+
+  loadExistingShares(assignmentId);
+}
+
+function closeShareModal() {
+  document.getElementById('share-modal').classList.remove('open');
+  _shareAssignmentId = null;
+}
+
+async function loadExistingShares(assignmentId) {
+  const list = document.getElementById('share-existing-list');
+  const { data: shares } = await sb.from('plan_shares').select('id, shared_with_email').eq('plan_assignment_id', assignmentId);
+  if (!shares?.length) { list.innerHTML = ''; return; }
+  list.innerHTML = `<label>Už nasdíleno</label>` + shares.map(s => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;font-size:12px;">
+      <span>${s.shared_with_email}</span>
+      <button class="btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="removeShare('${s.id}')">Odebrat</button>
+    </div>`).join('');
+}
+
+async function submitShare() {
+  const select = document.getElementById('share-player-select');
+  const email = select.value;
+  const msg = document.getElementById('share-msg');
+  msg.className = 'modal-msg';
+  if (!email) { msg.className = 'modal-msg err'; msg.textContent = 'Vyber hráče.'; return; }
+  const { error } = await sb.from('plan_shares').insert({
+    plan_assignment_id: _shareAssignmentId,
+    owner_email: currentUserEmail,
+    shared_with_email: email.toLowerCase(),
+  });
+  if (error) {
+    msg.className = 'modal-msg err';
+    msg.textContent = error.code === '23505' ? 'Tomuto hráči je už plán nasdílen.' : 'Chyba: ' + error.message;
+    return;
+  }
+  msg.className = 'modal-msg ok';
+  msg.textContent = '✓ Plán nasdílen.';
+  select.value = '';
+  loadExistingShares(_shareAssignmentId);
+}
+
+async function removeShare(shareId) {
+  await sb.from('plan_shares').delete().eq('id', shareId);
+  loadExistingShares(_shareAssignmentId);
 }
 
 async function openPlan(assignmentId) {

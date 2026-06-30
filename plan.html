@@ -696,14 +696,19 @@ async function scheduleNotifications(rows) {
     if (!session) return;
     const planId = notifPlanKey();
     const freshAlarms = buildAlarmsForThisPlan();
-    const deviceId = localStorage.getItem('dk_device_id') || 'default';
-    const { data: existingRow } = await sbP.from('push_subscriptions').select('alarms').eq('user_id', session.user.id).eq('device_id', deviceId).maybeSingle();
-    const mergedAlarms = mergeAlarms(existingRow?.alarms, planId, freshAlarms);
-    console.log(`Updating ${freshAlarms.length} alarms for this plan (celkem na zařízení: ${mergedAlarms.length})`);
-    await sbP.from('push_subscriptions').update({
-      alarms: mergedAlarms,
-      updated_at: new Date().toISOString()
-    }).eq('user_id', session.user.id).eq('device_id', deviceId);
+    // Aktualizuj alarmy pro TENTO plán na VŠECH zařízeních hráče (telefon i notebook),
+    // ne jen na tom, ze kterého se zrovna edituje/přepočítává – jinak ostatním zařízením
+    // zůstanou zastaralé alarmy z dřívějška a notifikace na nich nepřijde vůbec nebo ve
+    // špatný čas.
+    const { data: allRows } = await sbP.from('push_subscriptions').select('device_id, alarms').eq('user_id', session.user.id);
+    for (const row of allRows || []) {
+      const mergedAlarms = mergeAlarms(row.alarms, planId, freshAlarms);
+      await sbP.from('push_subscriptions').update({
+        alarms: mergedAlarms,
+        updated_at: new Date().toISOString()
+      }).eq('user_id', session.user.id).eq('device_id', row.device_id);
+    }
+    console.log(`Updated ${freshAlarms.length} alarms for this plan na ${(allRows||[]).length} zařízeních`);
   } catch(e) { console.warn('Schedule update failed:', e); }
 }
 
@@ -712,28 +717,35 @@ const SUPABASE_URL_P = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
 const SUPABASE_KEY_P = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
 const sbP = supabase.createClient(SUPABASE_URL_P, SUPABASE_KEY_P);
 
-const playedRows = new Set(JSON.parse(localStorage.getItem('dk_played_rows') || '[]'));
+// "Odesláno" je teď vlastnost PLÁNU (sloupec plan_assignments.played_rows), ne přihlášeného
+// uživatele – díky tomu vidí stejný stav vlastník plánu i "zástup v dovolené", které mu plán
+// nasdílel, bez ohledu na to, kdo z nich útok reálně odeslal a označil.
+const playedRows = new Set();
 function rowKey(r) { return `${r.srcX}|${r.srcY}|${r.sendTime}`; }
 
 async function markRowPlayed(row) {
+  if (!assignmentId) return;
   const key = rowKey(row);
   playedRows.add(key);
-  try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
   try {
-    const { data: { session } } = await sbP.auth.getSession();
-    if (session) await sbP.from('played_rows').upsert({ user_id: session.user.id, row_key: key });
+    // Dotáhni čerstvý stav ze serveru těsně před zápisem, ať nepřepíšeš mezitím přidanou
+    // značku od druhé strany (vlastník/zástup) – stejný vzor jako u mergeAlarms().
+    const { data } = await sbP.from('plan_assignments').select('played_rows').eq('id', assignmentId).single();
+    const serverRows = new Set(Array.isArray(data?.played_rows) ? data.played_rows : []);
+    serverRows.add(key);
+    playedRows.clear(); serverRows.forEach(k => playedRows.add(k));
+    await sbP.from('plan_assignments').update({ played_rows: [...serverRows] }).eq('id', assignmentId);
   } catch(e) {}
 }
 
 async function syncPlayedRows() {
+  if (!assignmentId) return;
   try {
-    const { data: { session } } = await sbP.auth.getSession();
-    if (!session) return;
-    const { data } = await sbP.from('played_rows').select('row_key').eq('user_id', session.user.id);
-    if (data?.length) {
-      data.forEach(r => playedRows.add(r.row_key));
-      try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
-    }
+    const { data, error } = await sbP.from('plan_assignments').select('played_rows').eq('id', assignmentId).single();
+    if (error || !data) return;
+    const rows = Array.isArray(data.played_rows) ? data.played_rows : [];
+    playedRows.clear();
+    rows.forEach(k => playedRows.add(k));
   } catch(e) {}
 }
 
@@ -1560,16 +1572,15 @@ function init() {
   });
   const soundLeadInput = document.getElementById('sound-lead-input');
   if (soundLeadInput) soundLeadInput.value = getSoundLeadMin();
-  syncPlayedRows().then(async () => {
-    // Polling každých 30s
-    setInterval(async () => {
-      const prev = playedRows.size;
-      await syncPlayedRows();
-      if (playedRows.size > prev) renderTable();
-    }, 30000);
+  (async () => {
   const hash = location.hash.slice(1);
   if (!hash) {
-    document.getElementById('app').innerHTML = '<div class="error">⚠️ Neplatný odkaz – chybí data plánu.</div>';
+    // Stránka bez hashe nemá data plánu k zobrazení (typicky odkaz z push notifikace,
+    // který směřuje jen na holou /plan.html bez konkrétního plánu) – appka bez toho neumí
+    // nic vykreslit. Místo "mrtvé" prázdné stránky (tělo zůstávalo visibility:hidden navždy)
+    // přesměruj rovnou na dashboard, kde si hráč svůj plán otevře přes "▶ Otevřít".
+    document.body.style.visibility = 'visible';
+    window.location.href = 'dashboard.html';
     return;
   }
   try {
@@ -1607,13 +1618,22 @@ function init() {
     // bylo mezitím reálně uloženo (proto se uložený manuální řádek po F5 jevil jako needitovaný).
     if (assignmentId) {
       try {
-        const { data: fresh, error: freshErr } = await sbP.from('plan_assignments').select('rows_data, plan_input').eq('id', assignmentId).single();
+        const { data: fresh, error: freshErr } = await sbP.from('plan_assignments').select('rows_data, plan_input, played_rows').eq('id', assignmentId).single();
         if (!freshErr && fresh) {
           attackRows = (fresh.rows_data || []).sort((x,y)=>(x.sendTime||0)-(y.sendTime||0));
           playerVillages = fresh.plan_input?.villages || playerVillages;
+          const rows = Array.isArray(fresh.played_rows) ? fresh.played_rows : [];
+          playedRows.clear(); rows.forEach(k => playedRows.add(k));
           renderTable();
         }
       } catch(e) { console.warn('Dotažení aktuálního stavu ze serveru se nepodařilo:', e); }
+      // Polling každých 30s – "odesláno" je teď stav PLÁNU, takže se musí kontrolovat i
+      // změny, které udělal vlastník/zástup na druhém zařízení/účtu.
+      setInterval(async () => {
+        const prev = playedRows.size;
+        await syncPlayedRows();
+        if (playedRows.size !== prev) renderTable();
+      }, 30000);
     }
     // Naplánuj notifikace pokud jsou povoleny – pro TENTO konkrétní plán (ne globálně pro zařízení)
     if (isNotifEnabledForThisPlan() && Notification.permission === 'granted') {
@@ -1629,10 +1649,11 @@ function init() {
       if (btn) { btn.textContent='✓ Zapnuto'; btn.style.background='#205020'; btn.style.color='#80d080'; }
     }
   } catch(e) {
+    document.body.style.visibility = 'visible';
     document.getElementById('app').innerHTML = `<div class="error">⚠️ Nepodařilo se načíst plán útoků. Odkaz je poškozený nebo neplatný.<br><small style="opacity:.6">${e.message}</small></div>`;
     console.error(e);
   }
-  }); // end syncPlayedRows.then
+  })(); // end async IIFE
 }
 
 window.addEventListener('DOMContentLoaded', init);
@@ -1697,11 +1718,15 @@ async function unmarkRowPlayed(el) {
   if (!row) return;
   const key = rowKey(row);
   playedRows.delete(key);
-  try { localStorage.setItem('dk_played_rows', JSON.stringify([...playedRows])); } catch(e) {}
-  try {
-    const { data: { session } } = await sbP.auth.getSession();
-    if (session) await sbP.from('played_rows').delete().eq('user_id', session.user.id).eq('row_key', key);
-  } catch(e) {}
+  if (assignmentId) {
+    try {
+      const { data } = await sbP.from('plan_assignments').select('played_rows').eq('id', assignmentId).single();
+      const serverRows = new Set(Array.isArray(data?.played_rows) ? data.played_rows : []);
+      serverRows.delete(key);
+      playedRows.clear(); serverRows.forEach(k => playedRows.add(k));
+      await sbP.from('plan_assignments').update({ played_rows: [...serverRows] }).eq('id', assignmentId);
+    } catch(e) {}
+  }
   tr.classList.remove('played-row');
   el.textContent = 'Zmeškal';
   el.style.cursor = 'pointer';

@@ -873,12 +873,15 @@ async function scheduleNotifications(rows) {
     if (!session) return;
     const planId = notifPlanKey();
     const freshAlarms = buildAlarmsForThisPlan(rows);
-    const deviceId = localStorage.getItem('dk_device_id') || 'default';
-    const { data: existingRow } = await sb.from('push_subscriptions').select('alarms').eq('user_id', session.user.id).eq('device_id', deviceId).maybeSingle();
-    const mergedAlarms = mergeAlarms(existingRow?.alarms, planId, freshAlarms);
-    await sb.from('push_subscriptions').update({
-      alarms: mergedAlarms, updated_at: new Date().toISOString()
-    }).eq('user_id', session.user.id).eq('device_id', deviceId);
+    // Aktualizuj alarmy pro TENTO plán na VŠECH zařízeních hráče, ne jen na tom aktuálním –
+    // jinak ostatním zařízením zůstanou zastaralé alarmy a notifikace na nich nepřijde.
+    const { data: allRows } = await sb.from('push_subscriptions').select('device_id, alarms').eq('user_id', session.user.id);
+    for (const row of allRows || []) {
+      const mergedAlarms = mergeAlarms(row.alarms, planId, freshAlarms);
+      await sb.from('push_subscriptions').update({
+        alarms: mergedAlarms, updated_at: new Date().toISOString()
+      }).eq('user_id', session.user.id).eq('device_id', row.device_id);
+    }
   } catch(e) { console.warn('Schedule update failed:', e); }
 }
 
