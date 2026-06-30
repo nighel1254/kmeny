@@ -432,18 +432,42 @@ async function loadSubstitutePlans(email) {
     return;
   }
   const ownerByPlanId = Object.fromEntries(shares.map(s => [s.plan_assignment_id, s.owner_email]));
-  container.innerHTML = assignments.map(a => buildSubstituteCard(a, ownerByPlanId[a.id])).join('');
+  // Jméno vlastníka (ne email) – stejně jako u "Už nasdíleno" v modalu Sdílet.
+  const ownerEmails = [...new Set(shares.map(s => s.owner_email))];
+  const { data: ownerProfiles } = await sb.from('profiles').select('email, player_name').in('email', ownerEmails);
+  const ownerNameByEmail = Object.fromEntries((ownerProfiles||[]).filter(p=>p.email).map(p => [p.email.toLowerCase(), p.player_name]));
+  container.innerHTML = assignments.map(a => buildSubstituteCard(a, ownerByPlanId[a.id], ownerNameByEmail)).join('');
 }
 
-function buildSubstituteCard(a, ownerEmail) {
-  const rows = a.rows_data || [];
+function buildSubstituteCard(a, ownerEmail, ownerNameByEmail) {
+  const rows   = a.rows_data || [];
+  const sharp  = rows.filter(r => !r.isFake && !r.isNoble);
+  const nobles = rows.filter(r => r.isNoble);
+  const fakes  = rows.filter(r => r.isFake && !r.isFakeNoble);
+  const fakeN  = rows.filter(r => r.isFakeNoble);
+
+  const fixTime = t => t > 1e12 ? new Date(t) : new Date(t*1000);
+  const sendTimes = rows.map(r => r.sendTime).filter(Boolean);
+  let arrTimes  = rows.map(r => r.arrivalTime).filter(Boolean);
+  const firstSend = sendTimes.length ? fixTime(Math.min(...sendTimes)) : null;
+  if (!arrTimes.length) arrTimes = (a.plans?.data?.rows || []).map(r => r.arrivalTime).filter(Boolean);
+  const firstArr  = arrTimes.length  ? fixTime(Math.min(...arrTimes))  : null;
+
   const assignedAt = new Date(a.created_at);
   const label = a.plans?.label || a.plan_label || `Plán ${fmtDT(assignedAt)}`;
+  const updatedAt = a.plan_input?.updatedAt ? new Date(a.plan_input.updatedAt) : null;
+  const ownerName = ownerNameByEmail[ownerEmail.toLowerCase()] || ownerEmail;
+
   return `<div class="card">
     <div class="card-header">
       <div>
         <div class="card-title">🌴 ${label}</div>
-        <div class="card-meta">Zástup za: <strong>${ownerEmail}</strong></div>
+        <div class="card-meta">
+          Zástup za: <strong>${ownerName}</strong>
+          ${firstSend ? ` · První odeslání: <strong style="color:var(--gold2)">${fmtDT(firstSend)}</strong>` : ''}
+          ${firstArr  ? ` · Příchod: <strong>${fmtDT(firstArr)}</strong>` : ''}
+          ${updatedAt ? ` · Upraveno: <strong>${fmtDT(updatedAt)}</strong>` : ''}
+        </div>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
         ${!a.plan_id ? `<button class="btn-open" style="border-color:var(--gold2);color:var(--gold2);" onclick="editPlan('${a.id}')">✎ Upravit</button>` : ''}
@@ -451,12 +475,18 @@ function buildSubstituteCard(a, ownerEmail) {
       </div>
     </div>
     <div class="plan-stats">
-      <span class="stat" style="color:var(--dim);">Celkem útoků: <strong>${rows.length}</strong></span>
+      ${sharp.length  ? `<span class="stat">${AXE_RED} <strong>${sharp.length}</strong> ostrých</span>` : ''}
+      ${nobles.length ? `<span class="stat" style="color:#ff80c0;">${NOBLE_IMG} <strong>${nobles.length}</strong> vlaků</span>` : ''}
+      ${fakes.length  ? `<span class="stat" style="color:#50cc50;">${AXE_GRN} <strong>${fakes.length}</strong> fejků</span>` : ''}
+      ${fakeN.length  ? `<span class="stat" style="color:#cc80ff;">${NOBLE_FLIP} <strong>${fakeN.length}</strong> f.vlaků</span>` : ''}
+      ${!rows.length  ? `<span style="color:#50cc50;">🟢 Žádné útoky – volná ruka</span>` : ''}
+      <span class="stat" style="color:var(--dim);margin-left:auto;">Celkem: <strong>${rows.length}</strong></span>
     </div>
   </div>`;
 }
 
 let _shareAssignmentId = null;
+let _playerNameByEmail = {}; // email -> player_name, pro zobrazení nicku místo emailu v "Už nasdíleno"
 
 async function openShareModal(assignmentId) {
   _shareAssignmentId = assignmentId;
@@ -469,6 +499,7 @@ async function openShareModal(assignmentId) {
   select.innerHTML = '<option value="">– načítám hráče –</option>';
   const { data: players, error } = await sb.from('profiles').select('email, player_name').eq('role', 'player');
   if (error || !players) { select.innerHTML = '<option value="">Chyba při načítání hráčů</option>'; return; }
+  _playerNameByEmail = Object.fromEntries(players.filter(p => p.email).map(p => [p.email.toLowerCase(), p.player_name]));
   const others = players.filter(p => p.email && p.email.toLowerCase() !== currentUserEmail)
     .sort((a,b) => (a.player_name||a.email).localeCompare(b.player_name||b.email, 'cs'));
   select.innerHTML = others.length
@@ -489,7 +520,7 @@ async function loadExistingShares(assignmentId) {
   if (!shares?.length) { list.innerHTML = ''; return; }
   list.innerHTML = `<label>Už nasdíleno</label>` + shares.map(s => `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;font-size:12px;">
-      <span>${s.shared_with_email}</span>
+      <span>${_playerNameByEmail[s.shared_with_email.toLowerCase()] || s.shared_with_email}</span>
       <button class="btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="removeShare('${s.id}')">Odebrat</button>
     </div>`).join('');
 }
@@ -514,6 +545,20 @@ async function submitShare() {
   msg.textContent = '✓ Plán nasdílen.';
   select.value = '';
   loadExistingShares(_shareAssignmentId);
+  const planLabel = _planLabelsById[_shareAssignmentId] || 'Plán';
+  const ownerNick = document.getElementById('user-name').textContent;
+  notifyUser(email, '🌴 Nový zástup v dovolené', `${ownerNick} ti nasdílel plán "${planLabel}"`);
+}
+
+async function notifyUser(email, title, body) {
+  if (!email) return;
+  try {
+    await fetch('https://ucvgyduiyvfhxbyypyih.supabase.co/functions/v1/notify-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, title, body, url: '/kmeny/dashboard.html' })
+    });
+  } catch(e) { console.warn('notifyUser failed:', e); }
 }
 
 async function removeShare(shareId) {

@@ -295,9 +295,12 @@
         <label style="margin-top:12px;">Krok 2 – Vlož JSON sem</label>
         <textarea id="json-paste" rows="4" placeholder='{"villages":[...]}'
           style="font-family:monospace;font-size:11px;resize:vertical;"></textarea>
-        <div class="btn-row">
+        <div class="btn-row" style="align-items:center;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary btn-sm" onclick="importJson()">▶ Načíst JSON</button>
           <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearJson()">✕ Smazat</button>
+          <select id="json-history-select" style="max-width:200px;font-size:12px;" onchange="loadJsonSnapshotIntoTextarea(this.value)">
+            <option value="">📂 Uložené importy…</option>
+          </select>
         </div>
         <div class="status-bar" id="json-status"></div>
 
@@ -1050,6 +1053,54 @@ function updateSrcCounts() {
   document.getElementById('cnt-trains').textContent = trains;
 }
 
+// ── HISTORIE JSON IMPORTŮ ────────────────────────────────────────────────
+// Stejný princip jako v commander.html – každý úspěšně načtený JSON se viditelně uloží
+// (vázáno na účet), ať se k němu hráč může kdykoliv vrátit přes dropdown.
+const JSON_SNAPSHOT_KIND = 'player';
+const JSON_SNAPSHOT_LIMIT = 20;
+
+async function saveJsonSnapshot(rawText) {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const label = `Jednotky ${fmtSnapshotLabel(new Date())}`;
+    await sb.from('json_snapshots').insert({ user_id: session.user.id, kind: JSON_SNAPSHOT_KIND, label, payload: rawText });
+    const { data: old } = await sb.from('json_snapshots').select('id').eq('user_id', session.user.id).eq('kind', JSON_SNAPSHOT_KIND).order('created_at', { ascending: false });
+    if (old && old.length > JSON_SNAPSHOT_LIMIT) {
+      const toDelete = old.slice(JSON_SNAPSHOT_LIMIT).map(r => r.id);
+      await sb.from('json_snapshots').delete().in('id', toDelete);
+    }
+    refreshJsonHistoryDropdown();
+  } catch(e) { console.warn('saveJsonSnapshot failed:', e); }
+}
+
+function fmtSnapshotLabel(d) {
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getDate()}.${d.getMonth()+1}. ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function refreshJsonHistoryDropdown() {
+  const select = document.getElementById('json-history-select');
+  if (!select) return;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const { data: snapshots } = await sb.from('json_snapshots').select('id, label, created_at').eq('user_id', session.user.id).eq('kind', JSON_SNAPSHOT_KIND).order('created_at', { ascending: false });
+    select.innerHTML = '<option value="">📂 Uložené importy…</option>' + (snapshots||[]).map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+  } catch(e) {}
+}
+
+async function loadJsonSnapshotIntoTextarea(id) {
+  if (!id) return;
+  try {
+    const { data } = await sb.from('json_snapshots').select('payload').eq('id', id).single();
+    if (data?.payload) {
+      document.getElementById('json-paste').value = data.payload;
+      toast('✓ Import natažen do pole – klikni "Načíst JSON" pro potvrzení.', 'ok', 4000);
+    }
+  } catch(e) { toast('Nepodařilo se načíst uložený import.', 'err'); }
+}
+
 function importJson() {
   const raw = document.getElementById('json-paste').value.trim();
   if (!raw) return;
@@ -1065,6 +1116,7 @@ function importJson() {
       if (v.noble_total === undefined) v.noble_total = v.noble || 0;
     });
     importedJsonVillages = [...jsonVillages];
+    saveJsonSnapshot(raw);
     applyMode();
 
     // Offky
@@ -2057,6 +2109,7 @@ async function init(){
   loadFakeTemplate();
   renderFakeTemplateBox();
   syncFakeTemplateFromServer(); // doplní/přepíše čerstvými daty ze serveru, jakmile dorazí
+  refreshJsonHistoryDropdown();
   const soundLeadInput = document.getElementById('sound-lead-input');
   if (soundLeadInput) soundLeadInput.value = getSoundLeadMin();
   const pushLeadInput = document.getElementById('push-lead-input');

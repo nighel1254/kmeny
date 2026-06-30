@@ -313,7 +313,6 @@
     <ul style="margin:4px 0 0 18px;font-size:12.5px;color:var(--text);line-height:1.5;">
       <li>Po výpočtu appka vypíše tabulku se všemi útoky – kliknutím na název sloupce (hráč, zdroj, typ, cíl, časy, doba cesty) si je můžeš přeřadit.</li>
       <li>Do vyhledávacího pole můžeš napsat název vesnice, jméno hráče nebo typ útoku, a tabulka se přefiltruje. Napsáním slova „nový" (nebo „new") si rychle zobrazíš jen příkazy, které appka nově dopočítala (např. po nahrazení chybějících hráčů).</li>
-      <li>Přepínač „Skrýt noční" skryje útoky, které by se posílaly v noci.</li>
       <li><strong>Appka se sama snaží noční odesílání minimalizovat</strong> – když nějakému útoku vyjde čas odeslání mezi 0:00–6:00, automaticky zkusí najít jinou stejně silnou (nebo silnější) vesnici stejného hráče/kmene, ze které vyjde odeslání přes den, a pokud takovou najde a nic to nerozbije (kapacita 5 fejků na vesnici, počet šlechticů ve vesnici, žádný čas v minulosti), použije ji místo původní. Pokud žádná taková vesnice neexistuje, útok zůstane v noci – to znamená, že to jinak opravdu nejde.</li>
       <li>Jednotlivé řádky lze i ručně upravit přímo v tabulce, pokud chceš něčemu přiřadit jinou vesnici nebo jiný čas – u nočních řádků pomůže tlačítko ↺, které najde a nabídne náhradní denní vesnici.</li>
     </ul>
@@ -466,9 +465,12 @@
           <label>Vlož JSON z kmenového skriptu</label>
           <div class="json-import">
             <textarea id="json-paste" rows="5" placeholder='{"villages":[...]}'></textarea>
-            <div class="btn-row">
+            <div class="btn-row" style="align-items:center;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-primary btn-sm" onclick="importJson()">▶ Načíst JSON</button>
               <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearJson()">✕ Smazat</button>
+              <select id="json-history-select" style="max-width:220px;font-size:12px;" onchange="loadJsonSnapshotIntoTextarea(this.value)">
+                <option value="">📂 Uložené importy…</option>
+              </select>
             </div>
           </div>
           <div class="status-bar" id="json-status"></div>
@@ -747,10 +749,6 @@
           <div class="table-filter">
             <input type="text" id="table-search" placeholder="🔍 Filtr (vesnice, hráč…)" oninput="renderResults()">
           </div>
-          <label class="night-toggle">
-            <input type="checkbox" id="hide-night" onchange="renderResults()">
-            🌙 Skrýt noční (0–6h)
-          </label>
           <span id="attack-count" style="font-size:11px;color:var(--dim);font-weight:normal;"></span>
           <button class="btn btn-sm" style="background:#0a1a2a;border:1px solid #204060;color:#60a0e0;font-weight:normal;" onclick="saveAction()" title="Uloží aktuální akci a odebere použité offky ze zdrojů">💾 Přidat do plánu</button>
           <button class="btn btn-sm" style="background:#0a2a0a;border:1px solid #205020;color:#60c060;font-weight:normal;" onclick="savePlanWithName()" title="Uloží plán do kmenových plánů">🏰 Uložit plán</button>
@@ -1055,6 +1053,56 @@ function renderCapacitySummary() {
     (giga ? `<span title="GigaFullky (off pop. 22000+) – nikdy se nezařazují automaticky do plánu, hráč si je přiřazuje sám" style="color:#ff60c0;">💎<b>${giga}</b><span style="color:var(--dim);font-size:11px;"> GigaFullek (nepřiřazuje se)</span></span>` : '');
 }
 
+// ── HISTORIE JSON IMPORTŮ ────────────────────────────────────────────────
+// Každý úspěšně načtený JSON se viditelně uloží (vázáno na účet, ne jen localStorage),
+// ať se dá kdykoliv vrátit ke staršímu importu přes dropdown, aniž by hráč/commander
+// musel znovu spouštět bookmarklet ve hře.
+const JSON_SNAPSHOT_KIND = 'tribe';
+const JSON_SNAPSHOT_LIMIT = 20;
+
+async function saveJsonSnapshot(rawText) {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const label = `Jednotky ${fmtSnapshotLabel(new Date())}`;
+    await sb.from('json_snapshots').insert({ user_id: session.user.id, kind: JSON_SNAPSHOT_KIND, label, payload: rawText });
+    // Ořež historii na posledních JSON_SNAPSHOT_LIMIT záznamů, ať tabulka neroste do nekonečna.
+    const { data: old } = await sb.from('json_snapshots').select('id').eq('user_id', session.user.id).eq('kind', JSON_SNAPSHOT_KIND).order('created_at', { ascending: false });
+    if (old && old.length > JSON_SNAPSHOT_LIMIT) {
+      const toDelete = old.slice(JSON_SNAPSHOT_LIMIT).map(r => r.id);
+      await sb.from('json_snapshots').delete().in('id', toDelete);
+    }
+    refreshJsonHistoryDropdown();
+  } catch(e) { console.warn('saveJsonSnapshot failed:', e); }
+}
+
+function fmtSnapshotLabel(d) {
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getDate()}.${d.getMonth()+1}. ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function refreshJsonHistoryDropdown() {
+  const select = document.getElementById('json-history-select');
+  if (!select) return;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const { data: snapshots } = await sb.from('json_snapshots').select('id, label, created_at').eq('user_id', session.user.id).eq('kind', JSON_SNAPSHOT_KIND).order('created_at', { ascending: false });
+    select.innerHTML = '<option value="">📂 Uložené importy…</option>' + (snapshots||[]).map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+  } catch(e) {}
+}
+
+async function loadJsonSnapshotIntoTextarea(id) {
+  if (!id) return;
+  try {
+    const { data } = await sb.from('json_snapshots').select('payload').eq('id', id).single();
+    if (data?.payload) {
+      document.getElementById('json-paste').value = data.payload;
+      toast('✓ Import natažen do pole – klikni "Načíst JSON" pro potvrzení.', 'ok', 4000);
+    }
+  } catch(e) { toast('Nepodařilo se načíst uložený import.', 'err'); }
+}
+
 function importJson() {
   const raw = document.getElementById('json-paste').value.trim();
   if (!raw) return;
@@ -1063,13 +1111,14 @@ function importJson() {
     jsonVillages = data.villages || [];
     if (!jsonVillages.length) throw new Error('Žádné vesnice v JSON');
     importedJsonVillages = [...jsonVillages];
+    saveJsonSnapshot(raw);
     setStatus('json-status', 'ok', `✓ Načteno ${jsonVillages.length} vesnic z kmene`);
     document.getElementById('src-filter-wrap').style.display = 'block';
     applyJsonFilter();
     populateNoblePanel();
 
     // Naplň checklist hráčů v záložce Hráč (multi-select)
-    const players = [...new Set(jsonVillages.map(v => v.player_name).filter(Boolean))].sort();
+    const players = [...new Set(jsonVillages.map(v => v.player_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'cs'));
     const list = document.getElementById('src-player-checklist');
     list.innerHTML = players.map(p =>
       `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;">
@@ -1104,7 +1153,7 @@ function refreshPlayerGroupSelect() {
   const sel = document.getElementById('src-player-group-select');
   if (!sel) return;
   const groups = getPlayerGroups();
-  const names = Object.keys(groups).sort();
+  const names = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'cs'));
   const cur = sel.value;
   sel.innerHTML = '<option value="">— skupina hráčů —</option>' +
     names.map(n => `<option value="${n}">${n} (${groups[n].length})</option>`).join('');
@@ -1188,7 +1237,7 @@ function populateNoblePanel() {
   el.style.display = 'block'; empty.style.display = 'none';
 
   // Naplň checklist hráčů (multi-select)
-  const players = [...new Set(nobleVillages.map(v => v.player_name).filter(Boolean))].sort();
+  const players = [...new Set(nobleVillages.map(v => v.player_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'cs'));
   const list = document.getElementById('noble-player-checklist');
   list.innerHTML = players.map(p =>
     `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;">
@@ -1366,6 +1415,7 @@ function clearJson() {
 
 // ── VILLAGES + PLAYERS ────────────────────────────────────
 let allPlayers = new Map(); // id → name
+let allPlayerPoints = new Map(); // id → celkové body hráče (z player.txt), pro "morálku" v sharp-target přiřazení
 
 async function ensureVillages() {
   if (allVillages.length) return;
@@ -1373,10 +1423,13 @@ async function ensureVillages() {
     fetchWithFallback(`${API_BASE}/map/village.txt`),
     fetchWithFallback(`${API_BASE}/map/player.txt`)
   ]);
-  // Players
+  // Players (formát: id,jméno,kmen_id,počet_vesnic,body,pořadí)
   (await pr.text()).trim().split('\n').forEach(line => {
-    const [id, pname] = line.split(',');
+    const parts = line.split(',');
+    const [id, pname] = parts;
     allPlayers.set(id, decodeURIComponent((pname||'').replace(/\+/g,' ')));
+    const pts = parseInt(parts[4]);
+    if (!isNaN(pts)) allPlayerPoints.set(id, pts);
   });
   // Villages
   allVillages = (await vr.text()).trim().split('\n').map(line => {
@@ -2051,8 +2104,20 @@ async function calculate() {
   const now  = Date.now();
 
   const ratioCheckEnabled = document.getElementById('ratio-check-enabled')?.checked ?? true;
-  const playerPoints      = ratioCheckEnabled ? getPlayerPointsByName() : null;
+  // Vždy spočítej body hráčů (ne jen když je zapnutý ratio-check) – potřeba i pro "morálku"
+  // (preferuj přiřazení zdroj→cíl, kde má hráč zdroje body co nejblíž bodům vlastníka cíle).
+  const playerPoints      = getPlayerPointsByName();
   const ratioViolations   = new Map();
+
+  // Menší číslo = lepší shoda bodů (zdroj vs. vlastník cíle) = vyšší "morálka".
+  // Neznámé body (hráč mimo náš import) se neblokují, jen se neřadí výš ani níž (Infinity).
+  function pointsDiffScore(srcPlayer, tgtPlayer) {
+    if (!srcPlayer || !tgtPlayer) return Infinity;
+    const a = playerPoints.get(srcPlayer);
+    const b = playerPoints.get(tgtPlayer);
+    if (!a || !b) return Infinity;
+    return Math.abs(a - b);
+  }
 
   // ── Společná logika přiřazení ostrých ──────────────────────
   // Alfa omega: čas příchodu je pevný.
@@ -2162,11 +2227,16 @@ async function calculate() {
       .sort((a, b) => {
         // 1. silnější kategorie
         if (b.catRank !== a.catRank) return b.catRank - a.catRank;
-        // 2. denní odeslání
+        // 2. morálka – preferuj zdroj, jehož hráč má body co nejblíž bodům vlastníka cíle
+        // (slabý hráč ať útočí na slabé cíle, silný na silné – ne naopak).
+        const aMorale = pointsDiffScore(a.sv.player_name, tgt.owner);
+        const bMorale = pointsDiffScore(b.sv.player_name, tgt.owner);
+        if (aMorale !== bMorale) return aMorale - bMorale;
+        // 3. denní odeslání
         const aDay = a.perTgt.get(tgt)?.isDay ? 1 : 0;
         const bDay = b.perTgt.get(tgt)?.isDay ? 1 : 0;
         if (aDay !== bDay) return bDay - aDay;
-        // 3. nejblíže cíli
+        // 4. nejblíže cíli
         return distSq(a.sv, tgt) - distSq(b.sv, tgt);
       });
 
@@ -2435,7 +2505,7 @@ function renderResults(nightWarnings) {
   const warnings = lastNightWarnings || [];
 
   const area      = document.getElementById('results-area');
-  const hideNight = document.getElementById('hide-night').checked;
+  const hideNight = false; // tlačítko "Skrýt noční" bylo odebráno, logika zůstává neaktivní
   const search    = (document.getElementById('table-search').value || '').toLowerCase();
   const now       = Date.now();
 
@@ -2451,13 +2521,15 @@ function renderResults(nightWarnings) {
 
   let warningHtml = '';
   if (warnings.length > 0) {
-    // Rozděl extra varování (začínají ⚔️ nebo 💨) od nočních
-    const extra = warnings.filter(w => w.startsWith('⚔️') || w.startsWith('💨') || w.startsWith('⚠️'));
-    const night = warnings.filter(w => !w.startsWith('⚔️') && !w.startsWith('💨') && !w.startsWith('⚠️'));
+    // Rozděl extra varování (kapacita offek/fejků, poměr bodů 20:1 a jeho detailní řádky) od nočních.
+    // Pozn.: řádky s detaily poměru bodů začínají mezerami ("   • Hráč: ..."), proto trim() před testem.
+    const isExtra = w => { const t = w.trimStart(); return t.startsWith('⚔️') || t.startsWith('💨') || t.startsWith('⚠️') || t.startsWith('🚫') || t.startsWith('•'); };
+    const extra = warnings.filter(isExtra);
+    const night = warnings.filter(w => !isExtra(w));
 
     if (extra.length > 0) {
       warningHtml += `<div style="background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:13px;font-weight:bold;color:#ff9955;">
-        ${extra.map(w => `• ${w}`).join('<br>')}
+        ${extra.map(w => w.trimStart().startsWith('•') ? w : `• ${w}`).join('<br>')}
       </div>`;
     }
     if (night.length > 0) {
@@ -2564,7 +2636,7 @@ function renderResults(nightWarnings) {
 }
 
 function updateCount(visible) {
-  const hideNight   = document.getElementById('hide-night').checked;
+  const hideNight   = false; // tlačítko "Skrýt noční" bylo odebráno, logika zůstává neaktivní
   const now         = Date.now();
   const v           = visible || attackRows.filter(r => !(hideNight && r.night && !r.isPast));
   const active      = v.filter(r => !r.isPast && r.sendTime > now).length;
@@ -2828,7 +2900,7 @@ function restoreInputSnapshot(snap) {
       applyJsonFilter();
       populateNoblePanel();
       // Checklist hráčů sestav z CELÉHO importu, ať se neztratí hráč, který má vše už použité
-      const players = [...new Set(importedJsonVillages.map(v => v.player_name).filter(Boolean))].sort();
+      const players = [...new Set(importedJsonVillages.map(v => v.player_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'cs'));
       const list = document.getElementById('src-player-checklist');
       if (list) list.innerHTML = players.map(p =>
         `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:12px;">
@@ -3069,7 +3141,7 @@ function openExport() {
   const allRows = getAllRowsIncludingCurrent(); // dedupuje překryv mezi savedActions a attackRows
   if (!allRows.length) { toast('Nejprve vypočítej plán nebo ulož akci!', 'err'); return; }
 
-  const hideNight = document.getElementById('hide-night').checked;
+  const hideNight = false; // tlačítko "Skrýt noční" bylo odebráno, logika zůstává neaktivní
   const now = Date.now();
 
   const visible = allRows.filter(r => !(hideNight && r.night && !r.isPast));
@@ -3947,6 +4019,7 @@ sb.auth.getSession().then(async ({ data: { session } }) => {
   document.body.style.visibility = 'visible';
   const nick = profile?.player_name || session.user.email?.split('@')[0] || '?';
   document.getElementById('nav-user-name').textContent = nick;
+  refreshJsonHistoryDropdown();
   // Sync odeslaných příkazů z DB
   syncPlayedRows().then(() => renderResults());
   // Polling každých 30s pro sync mezi zařízeními
@@ -3979,7 +4052,8 @@ async function publishToPlayers() {
 
   // Načti VŠECHNY registrované hráče
   const { data: allProfiles } = await sb.from('profiles').select('email, player_name, role');
-  const players = allProfiles?.filter(p => p.role === 'player') || [];
+  const players = (allProfiles?.filter(p => p.role === 'player') || [])
+    .sort((a,b) => (a.player_name||'').localeCompare(b.player_name||'', 'cs'));
 
   // Pokus najít plan_id – buď z načteného plánu nebo podle posledního kmenového plánu
   let planId = _currentPlanId;
@@ -4155,7 +4229,22 @@ async function publishSelected() {
   let msg = `✓ Plán odeslán: ${sent.join(', ')}`;
   if (empty.length) msg += ` &nbsp;|&nbsp; ⚠️ prázdný: ${empty.join(', ')}`;
   toast(msg, 'ok', 6000);
+  // Pošli hráčům push notifikaci, že dostali nový plán – nezávisle na tom, jestli mají
+  // zapnuté notifikace pro konkrétní plán (to je obecné info "máš nový přiřazený plán").
+  const planLabel = _publishPlan.planLabel || 'Plán útoku';
+  assignments.forEach(a => notifyUser(a.player_email, '⚔️ Nový plán útoku', `Velitel ti přiřadil plán "${planLabel}"`));
   _publishPlan = null;
+}
+
+async function notifyUser(email, title, body) {
+  if (!email) return;
+  try {
+    await fetch('https://ucvgyduiyvfhxbyypyih.supabase.co/functions/v1/notify-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, title, body, url: '/kmeny/dashboard.html' })
+    });
+  } catch(e) { console.warn('notifyUser failed:', e); }
 }
 
 
