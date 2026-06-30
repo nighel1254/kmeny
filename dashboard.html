@@ -385,7 +385,7 @@ function buildPlanCard(a, isPersonal) {
         <div style="display:flex;gap:8px;flex-shrink:0;">
           ${!a.plan_id ? `<button class="btn-open" style="border-color:var(--gold2);color:var(--gold2);" onclick="editPlan('${a.id}')">✎ Upravit</button>` : ''}
           <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít</button>
-          <button class="btn-open" style="border-color:#7ec8a0;color:#7ec8a0;" onclick="openShareModal('${a.id}')" title="Sdílet plán – zástup v dovolené"><img src="https://e7.pngegg.com/pngimages/228/376/png-clipart-share-icon-social-media-computer-icons-social-networking-service-sharing-icon-social-media-share-icon-thumbnail.png" style="width:14px;height:14px;vertical-align:middle;filter:invert(.7) sepia(1) saturate(2) hue-rotate(80deg);" onerror="this.style.display='none'"> Sdílet</button>
+          <button class="btn-open" onclick="openShareModal('${a.id}')" title="Sdílet plán – zástup v dovolené"><img src="https://e7.pngegg.com/pngimages/228/376/png-clipart-share-icon-social-media-computer-icons-social-networking-service-sharing-icon-social-media-share-icon-thumbnail.png" style="width:14px;height:14px;vertical-align:middle;" onerror="this.style.display='none'"> Sdílet</button>
           <button class="btn-del" onclick="deletePlan('${a.id}',this)" title="Smazat plán"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm-2 3h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"/></svg></button>
         </div>
       </div>
