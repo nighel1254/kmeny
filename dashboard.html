@@ -30,12 +30,17 @@
   .btn-donate-hdr.active{border-color:var(--gold);background:rgba(180,140,0,.2);color:#ffe060;box-shadow:0 0 14px rgba(180,140,0,.25);}
 
   /* ── Layout ── */
-  .page-body{max-width:900px;margin:0 auto;padding:20px 16px;display:flex;flex-direction:column;gap:18px;}
+  .page-body{max-width:1180px;margin:0 auto;padding:20px 16px;display:flex;flex-direction:column;gap:18px;}
 
   /* ── Cards ── */
   .card{background:linear-gradient(180deg,#261a09,#1e1408);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.03);transition:border-color .15s,box-shadow .15s;}
   .card:hover{border-color:#6b4f2a;box-shadow:0 6px 24px rgba(0,0,0,.6);}
-  .card-header{padding:14px 18px;background:linear-gradient(90deg,#3d2a0a,#2a1e08);border-bottom:1px solid var(--border);border-left:3px solid var(--gold);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .card-header{padding:14px 18px;background:linear-gradient(90deg,#3d2a0a,#2a1e08);border-bottom:1px solid var(--border);border-left:3px solid var(--gold);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .sections-row{display:flex;gap:20px;align-items:flex-start;}
+  .sections-row>.section-col{flex:1;min-width:0;}
+  @media (max-width:900px){
+    .sections-row{flex-direction:column;}
+  }
   .card-title{font-size:15px;color:var(--gold2);font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.4);}
   .card-meta{font-size:11px;color:var(--dim);margin-top:3px;}
   .card-meta strong{color:var(--text);}
@@ -251,19 +256,27 @@
     </div>
   </div>
 
-  <!-- Assigned plans -->
-  <div class="section-label">📋 Přiřazené plány</div>
-  <div id="plans-container">
-    <div class="empty"><div class="empty-icon">⏳</div><p>Načítám plány...</p></div>
+  <div class="sections-row">
+    <!-- Assigned plans -->
+    <div class="section-col">
+      <div class="section-label">📋 Přiřazené plány</div>
+      <div id="plans-container">
+        <div class="empty"><div class="empty-icon">⏳</div><p>Načítám plány...</p></div>
+      </div>
+    </div>
+
+    <!-- Personal plans -->
+    <div class="section-col">
+      <div class="section-label">🗒 Osobní plány</div>
+      <div id="personal-plans-container"></div>
+    </div>
+
+    <!-- Plans shared with me (vacation substitute) -->
+    <div class="section-col">
+      <div class="section-label" id="substitute-section-label">🌴 Plány – zástup v dovolené</div>
+      <div id="substitute-plans-container"></div>
+    </div>
   </div>
-
-  <!-- Personal plans -->
-  <div class="section-label" style="margin-top:18px;">🗒 Osobní plány</div>
-  <div id="personal-plans-container"></div>
-
-  <!-- Plans shared with me (vacation substitute) -->
-  <div class="section-label" style="margin-top:18px;" id="substitute-section-label">🌴 Plány – zástup v dovolené</div>
-  <div id="substitute-plans-container"></div>
 
 </div>
 
