@@ -2226,45 +2226,47 @@ async function calculate() {
     return ptsScore + dayScore + wClose * closeness + wMorale * moraleScore;
   }
 
-  // ── Průchod 1: Bottleneck-first distribuce fullek ──────────────────────────
-  // Problém globálního greedy: cíle s MÁLO ratio-kompatibilními fullkami ("bottleneck cíle")
-  // mohou přijít o fullky, protože je greedy přiřadil k jiným cílům s lepším pairScore.
-  // Řešení: zpracuj nejdřív cíle s nejméně dostupnými fullkami (vzácné zdroje rezervuj dřív).
-  // Uvnitř každého cíle stále volíme nejlepší fullku podle pairScore.
+  // ── Průchod 1: Optimální distribuce fullek (Hungarian algorithm) ────────────
+  // Expanduj každý cíl na tgtQuota slotů → globálně optimální párování fullka→slot
+  // maximalizující součet pairScore. O(n³), n ≈ max(počet fullek, počet slotů).
+  {
+    const FORBIDDEN = -1e9;
+    const tgtSlots = []; // každý cíl opakován tolikrát, kolik je jeho kvóta
+    for (const tgt of sortedTargets) {
+      const quota = tgtQuota.get(tgt) || 0;
+      for (let s = 0; s < quota; s++) tgtSlots.push(tgt);
+    }
 
-  // Spočítej, kolik ratio-kompatibilních fullek má každý cíl k dispozici
-  const tgtFullkyCount = new Map();
-  for (const tgt of sortedTargets) {
-    const cnt = fullkyInfos.filter(si =>
-      ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations)
-    ).length;
-    tgtFullkyCount.set(tgt, cnt);
-  }
+    const eligibleFullky = fullkyInfos.filter(si =>
+      sortedTargets.some(tgt => ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations))
+    );
 
-  // Seřaď cíle: nejdřív ty s nejméně fullkami (scarcest first), při shodě ponech původní pořadí (body)
-  const tgtsBottleneckFirst = [...sortedTargets].sort((a, b) => {
-    const diff = tgtFullkyCount.get(a) - tgtFullkyCount.get(b);
-    return diff !== 0 ? diff : sortedTargets.indexOf(a) - sortedTargets.indexOf(b);
-  });
+    const nW = eligibleFullky.length;
+    const nJ = tgtSlots.length;
 
-  const filledCount = new Map();
-  for (const tgt of tgtsBottleneckFirst) {
-    const quota = tgtQuota.get(tgt) || 0;
-    if (quota <= 0) continue;
+    if (nW > 0 && nJ > 0) {
+      const scoreMatrix = Array.from({length: nW}, (_, i) =>
+        Array.from({length: nJ}, (_, j) => {
+          const si  = eligibleFullky[i];
+          const tgt = tgtSlots[j];
+          if (!ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations)) return FORBIDDEN;
+          return pairScore(si, tgt);
+        })
+      );
 
-    // Nejlepší dostupné fullky pro tento cíl, seřazené podle pairScore
-    const available = fullkyInfos
-      .filter(si => !usedSrc.has(svKey(si.sv)) && ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations))
-      .sort((a, b) => pairScore(b, tgt) - pairScore(a, tgt));
+      const assignment = hungarianMax(scoreMatrix, nW, nJ);
 
-    const toAssign = Math.min(quota, available.length);
-    for (let i = 0; i < toAssign; i++) {
-      const si = available[i];
-      const k = svKey(si.sv);
-      usedSrc.add(k);
-      filledCount.set(tgt, (filledCount.get(tgt) || 0) + 1);
-      if (!sharpAssign.has(k)) sharpAssign.set(k, []);
-      sharpAssign.get(k).push(tgt);
+      for (let i = 0; i < nW; i++) {
+        const j = assignment[i];
+        if (j < 0 || j >= nJ) continue;
+        if (scoreMatrix[i][j] <= FORBIDDEN / 2) continue;
+        const si  = eligibleFullky[i];
+        const tgt = tgtSlots[j];
+        const k   = svKey(si.sv);
+        usedSrc.add(k);
+        if (!sharpAssign.has(k)) sharpAssign.set(k, []);
+        sharpAssign.get(k).push(tgt);
+      }
     }
   }
 
@@ -2582,6 +2584,56 @@ async function calculate() {
     restoreSrcVillages(_reservedVillages);
     if (_calcBtn) { _calcBtn.classList.remove('btn-loading'); _calcBtn.innerHTML = _calcBtn.dataset.origHtml || '⚔️ Vypočítat plán'; }
   }
+}
+
+// ── Hungarian algorithm – optimální bipartitní párování s vahami ──────────────
+// Maximalizuje součet skóre přes všechna přiřazení (worker → job).
+// Handles rectangular matrices; O(n³) kde n = max(nW, nJ).
+function hungarianMax(cost, nW, nJ) {
+  const n = Math.max(nW, nJ);
+  const INF = Infinity;
+  const links = new Int32Array(n + 1);   // links[j] = worker přiřazený k jobu j (1-indexed), 0=volno
+  const u     = new Float64Array(n + 1); // potenciály workers
+  const v     = new Float64Array(n + 1); // potenciály jobs
+  const way   = new Int32Array(n + 1);
+  const minv  = new Float64Array(n + 1);
+  const used  = new Uint8Array(n + 1);
+
+  const c = (i0, j) => { // i0,j: 1-indexed; negace pro minimalizaci
+    const wi = i0 - 1, ji = j - 1;
+    return (wi < nW && ji < nJ) ? -cost[wi][ji] : 0;
+  };
+
+  for (let i = 1; i <= n; i++) {
+    links[0] = i;
+    let j0 = 0;
+    minv.fill(INF); used.fill(0);
+    do {
+      used[j0] = 1;
+      const i0 = links[j0];
+      let delta = INF, j1 = -1;
+      for (let j = 1; j <= n; j++) {
+        if (!used[j]) {
+          const cur = c(i0, j) - u[i0] - v[j];
+          if (cur < minv[j]) { minv[j] = cur; way[j] = j0; }
+          if (minv[j] < delta) { delta = minv[j]; j1 = j; }
+        }
+      }
+      for (let j = 0; j <= n; j++) {
+        if (used[j]) { u[links[j]] += delta; v[j] -= delta; }
+        else minv[j] -= delta;
+      }
+      j0 = j1;
+    } while (links[j0] !== 0);
+    do { const j1 = way[j0]; links[j0] = links[j1]; j0 = j1; } while (j0);
+  }
+
+  const result = new Array(nW).fill(-1);
+  for (let j = 1; j <= nJ; j++) {
+    const w = links[j] - 1;
+    if (w >= 0 && w < nW) result[w] = j - 1;
+  }
+  return result;
 }
 
 // ── RENDER ─────────────────────────────────────────────────
