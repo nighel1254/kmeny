@@ -2420,7 +2420,7 @@ async function calculate() {
         const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
         const sendTime = tgt.arrivalTime - travel;
         byTgtKey[k].push({
-          srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcId:sv.id||sv.village_id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
           tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id, tgtOwner:tgt.owner||(allPlayers.get((allVillages.find(v=>v.x===tgt.x&&v.y===tgt.y)||{}).playerId)||''),
           unit:tgt.unit, arrivalTime:tgt.arrivalTime, sendTime, travel,
@@ -2475,7 +2475,7 @@ async function calculate() {
         const sendTime = tgt.arrivalTime - travel;
         usedSendTimesGlobal.add(sendTime);
         rows.push({
-          srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcId:sv.id||sv.village_id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
           tgtX:tgt.x, tgtY:tgt.y, tgtName:tgt.name, tgtId:tgt.id, tgtOwner:tgt.owner||(allPlayers.get((allVillages.find(v=>v.x===tgt.x&&v.y===tgt.y)||{}).playerId)||''),
           unit:tgt.unit, arrivalTime:tgt.arrivalTime, sendTime, travel,
@@ -2518,7 +2518,7 @@ async function calculate() {
         usedFakeSrcs.add(`${sv.x}|${sv.y}`);
         usedSendTimesGlobal.add(sendTime);
         rows.push({
-          srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcId:sv.id||sv.village_id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
           tgtX:ft.x, tgtY:ft.y, tgtName:ft.name, tgtId:ft.id, tgtOwner:ft.owner||(allPlayers.get((allVillages.find(v=>v.x===ft.x&&v.y===ft.y)||{}).playerId)||''),
           unit:fakeUnit, arrivalTime, sendTime, travel,
@@ -2571,7 +2571,7 @@ async function calculate() {
         usedFakeNobleSrcs.add(`${sv.x}|${sv.y}`);
         usedSendTimesGlobal.add(sendTime);
         rows.push({
-          srcId:sv.id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
+          srcId:sv.id||sv.village_id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
           tgtX:ft.x, tgtY:ft.y, tgtName:ft.name, tgtId:ft.id, tgtOwner:ft.owner||(allPlayers.get((allVillages.find(v=>v.x===ft.x&&v.y===ft.y)||{}).playerId)||''),
           unit:'ram', arrivalTime, sendTime, travel,

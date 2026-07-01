@@ -197,9 +197,13 @@ $.getAll(
                     if (!$link.length) return;
 
                     var linkText   = $link.text().trim();
+                    var href = $link.attr('href') || '';
+                    // Vytáhni village ID z odkazu (game.php?village=12345&...)
+                    var villageIdMatch = href.match(/village=(\d+)/);
+                    var villageId = villageIdMatch ? +villageIdMatch[1] : null;
+
                     var coordMatch = linkText.match(/\((\d+)\|(\d+)\)/);
                     if (!coordMatch) {
-                        var href = $link.attr('href') || '';
                         coordMatch = href.match(/x=(\d+).*?y=(\d+)/) || href.match(/y=(\d+).*?x=(\d+)/);
                         if (!coordMatch) return;
                     }
@@ -223,6 +227,7 @@ $.getAll(
                         player_name:  playerName,
                         village_name: villageName,
                         x: x, y: y,
+                        village_id: villageId,
                         units:    units,
                         category: category || 'none',
                         noble:    noble
