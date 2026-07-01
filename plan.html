@@ -304,7 +304,7 @@ let playerVillages = [], assignmentId = null, planLabel = 'Plán útoků';
 const CAT_LABEL = { fullka:'fullka', triq_off:'3/4', half_off:'1/2', mini_off:'mini', def:'def', gigafullka:'GigaFull' };
 // Které typy vesnic lze nabídnout jako náhradu za daný typ příkazu (fullku lze nahradit 3/4 vesnicí a naopak, atd.)
 function compatibleCategories(rowCat) {
-  if (rowCat === 'fullka')   return ['fullka','triq_off'];
+  if (rowCat === 'fullka')   return ['gigafullka','fullka','triq_off'];
   if (rowCat === 'triq_off') return ['triq_off','fullka','half_off'];
   if (rowCat === 'half_off') return ['half_off','triq_off'];
   return [rowCat];
@@ -1044,9 +1044,10 @@ function getManualCandidates(typeKey, rowIdx) {
       return usedNobles < v.noble;
     });
   }
-  // Ostrý útok – přesně daná kategorie (žádné sousední tiery), vesnice ještě nepoužitá v plánu.
+  // Ostrý útok – kompatibilní kategorie (gigafullka nabízíme i pro fullka řádky), vesnice ještě nepoužitá.
   const usedKeys = new Set(attackRows.filter((r,i) => i!==rowIdx && !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
-  return playerVillages.filter(v => v.category === typeKey && !usedKeys.has(`${v.x}|${v.y}`));
+  const okCats = compatibleCategories(typeKey);
+  return playerVillages.filter(v => okCats.includes(v.category) && !usedKeys.has(`${v.x}|${v.y}`));
 }
 
 function addManualRow() {
