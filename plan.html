@@ -943,6 +943,9 @@ function renderMyVillagesSummary() {
   if (!wrap) return;
   const addManualWrap = document.getElementById('add-manual-wrap');
   if (addManualWrap) addManualWrap.style.display = playerVillages.length ? 'block' : 'none';
+  const noblePlanPanel = document.getElementById('noble-plan-panel');
+  const hasNobles = playerVillages.some(v => (v.noble || 0) > 0);
+  if (noblePlanPanel) noblePlanPanel.style.display = hasNobles ? 'block' : 'none';
   if (!playerVillages.length) { wrap.style.display = 'none'; return; }
 
   const usedKeys = new Set(attackRows.filter(r => !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
@@ -1048,6 +1051,93 @@ function getManualCandidates(typeKey, rowIdx) {
   const usedKeys = new Set(attackRows.filter((r,i) => i!==rowIdx && !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
   const okCats = compatibleCategories(typeKey);
   return playerVillages.filter(v => okCats.includes(v.category) && !usedKeys.has(`${v.x}|${v.y}`));
+}
+
+function addNoblePlanRows() {
+  const mode = document.querySelector('input[name="noble-mode-plan"]:checked')?.value || 'train';
+  const noblePerTarget = mode === 'three' ? 3 : 4;
+
+  const targetVal = (document.getElementById('noble-plan-target')?.value || '').trim();
+  const m = targetVal.match(/^(\d+)\|(\d+)/);
+  if (!m) { toast('Zadej platné souřadnice cíle (X|Y)!', 'err'); return; }
+  const tgtX = +m[1], tgtY = +m[2];
+
+  const arrStr = document.getElementById('noble-plan-arrival')?.value;
+  if (!arrStr) { toast('Nastav čas příchodu šlechticů!', 'err'); return; }
+  const arrivalTime = new Date(arrStr).getTime();
+
+  const msPerDist = msPerDistForUnit('noble');
+  if (!msPerDist) { toast('Nelze spočítat rychlost – v plánu zatím není žádný útok jako reference.', 'err', 7000); return; }
+
+  const now = Date.now();
+
+  // Spočítej kolik šlechticů je z každé vesnice už využito v plánu
+  const usedNobles = new Map();
+  attackRows.filter(r => r.isNoble).forEach(r => {
+    const k = `${r.srcX}|${r.srcY}`;
+    usedNobles.set(k, (usedNobles.get(k) || 0) + (r.nobleCount || 1));
+  });
+
+  const newRows = [];
+
+  if (mode === 'one_by_one') {
+    // Najdi vesnice s ≥1 volným šlechticem, preferuj ty s ≤3 celkem (nevyplní vlak)
+    const candidates = playerVillages
+      .filter(v => {
+        const total = v.noble || 0;
+        const used = usedNobles.get(`${v.x}|${v.y}`) || 0;
+        return total - used >= 1;
+      })
+      .sort((a, b) => {
+        const remA = (a.noble||0) - (usedNobles.get(`${a.x}|${a.y}`) || 0);
+        const remB = (b.noble||0) - (usedNobles.get(`${b.x}|${b.y}`) || 0);
+        if ((remA <= 3) !== (remB <= 3)) return remA <= 3 ? -1 : 1;
+        return Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2) - Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2);
+      });
+
+    const toSend = Math.min(4, candidates.length);
+    if (toSend < 4) toast(`Jen ${toSend}/4 šlechticů dostupných!`, 'err', 5000);
+    for (let i = 0; i < toSend; i++) {
+      const sv = candidates[i];
+      const dist = Math.sqrt((sv.x-tgtX)**2+(sv.y-tgtY)**2);
+      const travel = Math.round(dist * msPerDist / 1000) * 1000;
+      const sendTime = arrivalTime - travel;
+      if (sendTime < now + 60000) { toast(`${sv.x}|${sv.y}: čas odeslání je v minulosti.`, 'err'); continue; }
+      newRows.push({ srcId:sv.id||null, srcName:sv.name||'', srcPlayer:sv.player||'',
+        srcX:sv.x, srcY:sv.y, srcCategory:'noble',
+        tgtX, tgtY, tgtName:`${tgtX}|${tgtY}`, tgtId:null, tgtOwner:'',
+        unit:'noble', nobleCount:1, arrivalTime, sendTime, travel,
+        night:isNight(sendTime), isFake:false, isNoble:true, isFakeNoble:false, isPast:false });
+    }
+  } else {
+    // Vlak nebo ŠlechtiVlak: nejbližší vesnice s dostatkem šlechticů
+    const candidates = playerVillages
+      .filter(v => {
+        const total = v.noble || 0;
+        const used = usedNobles.get(`${v.x}|${v.y}`) || 0;
+        return total - used >= noblePerTarget;
+      })
+      .sort((a, b) => Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2) - Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2));
+
+    if (!candidates.length) { toast('Žádná vesnice nemá dostatek šlechticů!', 'err'); return; }
+    const sv = candidates[0];
+    const dist = Math.sqrt((sv.x-tgtX)**2+(sv.y-tgtY)**2);
+    const travel = Math.round(dist * msPerDist / 1000) * 1000;
+    const sendTime = arrivalTime - travel;
+    if (sendTime < now + 60000) { toast('Čas odeslání by byl v minulosti!', 'err'); return; }
+    newRows.push({ srcId:sv.id||null, srcName:sv.name||'', srcPlayer:sv.player||'',
+      srcX:sv.x, srcY:sv.y, srcCategory:'noble',
+      tgtX, tgtY, tgtName:`${tgtX}|${tgtY}`, tgtId:null, tgtOwner:'',
+      unit:'noble', nobleCount:noblePerTarget, arrivalTime, sendTime, travel,
+      night:isNight(sendTime), isFake:false, isNoble:true, isFakeNoble:false, isPast:false });
+  }
+
+  if (!newRows.length) { toast('Žádné řádky nebyly přidány.', 'err'); return; }
+  attackRows.push(...newRows);
+  attackRows.sort((a, b) => (a.sendTime||0) - (b.sendTime||0));
+  renderTable();
+  persistRows();
+  toast(`✓ Přidáno ${newRows.length} ${newRows.length===1?'příkaz':'příkazů'} šlechticů.`, 'ok');
 }
 
 function addManualRow() {
@@ -1532,6 +1622,35 @@ function render(data) {
     </div>
     <div id="warnings-wrap" style="display:none;"></div>
     <div id="my-villages-wrap" style="display:none;"></div>
+    <div id="noble-plan-panel" style="display:none;" class="panel">
+      <div class="panel-header" style="cursor:pointer;user-select:none;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+        <span><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Plánovat šlechtice</span>
+      </div>
+      <div class="panel-body" style="display:none;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="4 šlechtici z jedné vesnice, 1 příkaz">
+            <input type="radio" name="noble-mode-plan" value="train" checked style="width:auto;accent-color:var(--gold);">🚂 Vlak (4 z 1 vesnice)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="1 šlechtic z každé ze 4 různých vesnic – preferuje vesnice s ≤3 šlechtici">
+            <input type="radio" name="noble-mode-plan" value="one_by_one" style="width:auto;accent-color:var(--gold);">👑 Po jednom (1 z každé ze 4 vesnic)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="3 šlechtici z jedné vesnice, 1 příkaz">
+            <input type="radio" name="noble-mode-plan" value="three" style="width:auto;accent-color:var(--gold);">⚔️ ŠlechtiVlak (3 z 1 vesnice)
+          </label>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div>
+            <label style="font-size:12px;display:block;margin-bottom:4px;">Cílová vesnice</label>
+            <input type="text" id="noble-plan-target" placeholder="567|503" style="width:110px;padding:5px 8px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
+          </div>
+          <div>
+            <label style="font-size:12px;display:block;margin-bottom:4px;">⏰ Čas příchodu</label>
+            <input type="datetime-local" id="noble-plan-arrival" step="1" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
+          </div>
+          <button onclick="addNoblePlanRows()" style="background:var(--gold);color:#1a0e00;border:none;border-radius:4px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:13px;">➕ Přidat</button>
+        </div>
+      </div>
+    </div>
     <div class="panel">
       <div class="filter-bar">
         <input type="text" id="tbl-search" placeholder="🔍 Filtr – vesnice, hráč, typ…" oninput="renderTable()">
@@ -1545,18 +1664,6 @@ function render(data) {
       </div>
       <div id="tbl-wrap"></div>
       <div id="add-manual-wrap" style="display:none;padding:8px 14px;border-top:1px solid var(--border);">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-          <span style="font-size:11px;color:var(--dim);white-space:nowrap;">Typ šlechtického útoku:</span>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="4 šlechtici z jedné vesnice">
-            <input type="radio" name="noble-mode-plan" value="train" checked style="width:auto;accent-color:var(--gold);">🚂 Vlak
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="1 šlechtic z této vesnice">
-            <input type="radio" name="noble-mode-plan" value="one_by_one" style="width:auto;accent-color:var(--gold);">👑 Po jednom
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="3 šlechtici z jedné vesnice">
-            <input type="radio" name="noble-mode-plan" value="three" style="width:auto;accent-color:var(--gold);">⚔️ ŠlechtiVlak
-          </label>
-        </div>
         <button onclick="addManualRow()" style="background:#1e1508;border:1px solid var(--gold);color:var(--gold2);border-radius:4px;padding:6px 14px;font-size:12px;cursor:pointer;">➕ Přidat útok</button>
       </div>
     </div>`;
