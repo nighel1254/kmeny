@@ -1066,8 +1066,9 @@ function addNoblePlanRows() {
   if (!arrStr) { toast('Nastav čas příchodu šlechticů!', 'err'); return; }
   const arrivalTime = new Date(arrStr).getTime();
 
-  const msPerDist = msPerDistForUnit('noble');
-  if (!msPerDist) { toast('Nelze spočítat rychlost – v plánu zatím není žádný útok jako reference.', 'err', 7000); return; }
+  // Pokud v plánu ještě nejsou žádné referenční útoky, použij základní rychlost šlechtice (2100 s/pole).
+  // Nebude zohledněna rychlost světa, ale je to lepší než nic.
+  const msPerDist = msPerDistForUnit('noble') || (UNIT_BASE_SPEED_S.noble * 1000);
 
   const now = Date.now();
 
@@ -1623,10 +1624,10 @@ function render(data) {
     <div id="warnings-wrap" style="display:none;"></div>
     <div id="my-villages-wrap" style="display:none;"></div>
     <div id="noble-plan-panel" style="display:none;" class="panel">
-      <div class="panel-header" style="cursor:pointer;user-select:none;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+      <div class="panel-header">
         <span><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Plánovat šlechtice</span>
       </div>
-      <div class="panel-body" style="display:none;">
+      <div class="panel-body">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="4 šlechtici z jedné vesnice, 1 příkaz">
             <input type="radio" name="noble-mode-plan" value="train" checked style="width:auto;accent-color:var(--gold);">🚂 Vlak (4 z 1 vesnice)
