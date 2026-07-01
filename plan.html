@@ -902,7 +902,12 @@ function quickSwapRow(rowIdx) {
   if (!playerVillages.length) { replanRowPlan(rowIdx); return; }
   const pool = getRowCandidates(r, rowIdx).filter(v => !(v.x===r.srcX && v.y===r.srcY));
   if (!pool.length) { toast('⚠ Nemáš žádnou jinou volnou vesnici tohoto typu.', 'err', 5000); return; }
-  const pick = pool[Math.floor(Math.random()*pool.length)];
+  // Vyber nejbližší dostupnou vesnici (ne náhodnou) – deterministic, aby ↺ nepřekvapovalo.
+  const pick = pool.reduce((best, v) => {
+    const d = (v.x-r.tgtX)**2 + (v.y-r.tgtY)**2;
+    const db = (best.x-r.tgtX)**2 + (best.y-r.tgtY)**2;
+    return d < db ? v : best;
+  });
   applySourceSwap(rowIdx, pick.x, pick.y);
 }
 
@@ -1011,7 +1016,6 @@ const MANUAL_TYPE_DEFS = {
   half_off:   { label:'1/2 off',         unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
   fake:       { label:'Fejk',            unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:false },
   fakeNoble:  { label:'Fejk vlak',       unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:true  },
-  noble:      { label:'Vlak (šlechtic)', unit:'noble', isFake:false, isNoble:true,  isFakeNoble:false },
 };
 const UNIT_BASE_SPEED_S = { ram:1800, noble:2100 };
 
@@ -1623,6 +1627,22 @@ function render(data) {
     </div>
     <div id="warnings-wrap" style="display:none;"></div>
     <div id="my-villages-wrap" style="display:none;"></div>
+    <div class="panel">
+      <div class="filter-bar">
+        <input type="text" id="tbl-search" placeholder="🔍 Filtr – vesnice, hráč, typ…" oninput="renderTable()">
+        <label class="toggle-wrap" title="Skrýt odeslané" onclick="setTimeout(()=>renderTable(),10)">
+          <input type="checkbox" id="hide-played" checked>
+          <div class="toggle-track"></div>
+          <span class="filter-label">⚔️ Odeslané</span>
+        </label>
+        <button onclick="reloadFromServer()" title="Synchronizuje změny provedené na PC a na telefonu" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:11px;padding:4px 8px;">🔄 Synchronizovat</button>
+        <span id="sum-count" style="font-size:11px;color:var(--dim);white-space:nowrap;margin-left:auto;"></span>
+      </div>
+      <div id="tbl-wrap"></div>
+      <div id="add-manual-wrap" style="display:none;padding:8px 14px;border-top:1px solid var(--border);">
+        <button onclick="addManualRow()" style="background:#1e1508;border:1px solid var(--gold);color:var(--gold2);border-radius:4px;padding:6px 14px;font-size:12px;cursor:pointer;">➕ Přidat útok</button>
+      </div>
+    </div>
     <div id="noble-plan-panel" style="display:none;" class="panel">
       <div class="panel-header">
         <span><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Plánovat šlechtice</span>
@@ -1650,22 +1670,6 @@ function render(data) {
           </div>
           <button onclick="addNoblePlanRows()" style="background:var(--gold);color:#1a0e00;border:none;border-radius:4px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:13px;">➕ Přidat</button>
         </div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="filter-bar">
-        <input type="text" id="tbl-search" placeholder="🔍 Filtr – vesnice, hráč, typ…" oninput="renderTable()">
-        <label class="toggle-wrap" title="Skrýt odeslané" onclick="setTimeout(()=>renderTable(),10)">
-          <input type="checkbox" id="hide-played" checked>
-          <div class="toggle-track"></div>
-          <span class="filter-label">⚔️ Odeslané</span>
-        </label>
-        <button onclick="reloadFromServer()" title="Synchronizuje změny provedené na PC a na telefonu" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:11px;padding:4px 8px;">🔄 Synchronizovat</button>
-        <span id="sum-count" style="font-size:11px;color:var(--dim);white-space:nowrap;margin-left:auto;"></span>
-      </div>
-      <div id="tbl-wrap"></div>
-      <div id="add-manual-wrap" style="display:none;padding:8px 14px;border-top:1px solid var(--border);">
-        <button onclick="addManualRow()" style="background:#1e1508;border:1px solid var(--gold);color:var(--gold2);border-radius:4px;padding:6px 14px;font-size:12px;cursor:pointer;">➕ Přidat útok</button>
       </div>
     </div>`;
 

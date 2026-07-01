@@ -569,7 +569,7 @@ async function removeShare(shareId) {
 async function openPlan(assignmentId) {
   const { data: a } = await sb.from('plan_assignments').select('*, plans(label,world)').eq('id', assignmentId).single();
   if (!a) { alert('Plán nenalezen.'); return; }
-  const nick = document.getElementById('user-name').textContent;
+  const nick = a.player_name || document.getElementById('user-name').textContent;
   // Osobní plány (vytvořené v myplan.html, plan_id chybí) nemají plan_input.villages jako
   // přiřazené plány od velitele – mají importedJsonVillages v jiném tvaru (z bookmarkletu).
   // Pro stejné funkce v plan.html (Moje vesnice, editovatelný zdroj, ➕ přidat útok) je třeba

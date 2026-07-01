@@ -753,7 +753,12 @@
       </div>
     </div>
 
-    <div style="text-align:center;">
+    <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;">
+      <label style="font-size:12px;color:var(--dim);display:flex;align-items:center;gap:8px;">
+        <span>Odeslat nejdříve za</span>
+        <input type="number" id="min-send-delay" min="0" max="9999" value="30" style="width:60px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:12px;text-align:center;">
+        <span>minut od teď</span>
+      </label>
       <button id="calc-btn" class="btn btn-primary" style="font-size:15px;padding:10px 28px;" onclick="calculate()">
         ⚔️ Vypočítat plán
       </button>
@@ -2150,10 +2155,17 @@ async function calculate() {
   if (fakeNobleCount > 0 && !fakeNobleTargets.length) { toast('Zadej cíle pro fejk vlaky!', 'err'); return; }
   if (fakeNobleCount > 0 && !fakeNobleArrFrom) { toast('Nastav čas příchodu fejk vlaků!', 'err'); return; }
 
-  const rows = [];
+  let rows = [];
   const usedSendTimesGlobal = new Set(); // globální sledování časů odeslání
   const now  = Date.now();
   uncoveredReasons.clear();
+
+  // Deff vesnice zahrnutých hráčů – prioritní zdroj pro fejky (nepoužívají se na ostrý útok).
+  const checkedPlayersForDeff = new Set([...document.querySelectorAll('.src-player-cb:checked')].map(cb => cb.value));
+  const deffVillages = jsonVillages.filter(v =>
+    v.category === 'deff' &&
+    (checkedPlayersForDeff.size === 0 || checkedPlayersForDeff.has(v.player_name))
+  );
 
   const ratioCheckEnabled  = document.getElementById('ratio-check-enabled')?.checked ?? true;
   const priorityMorale     = document.querySelector('input[name="assign-priority"]:checked')?.value === 'morale';
@@ -2425,11 +2437,17 @@ async function calculate() {
   // ── S FEJKY ──
   } else {
 
-    const maxFakeTargets = Math.floor(srcVillages.length / fakeCount);
+    const usedSrcKeys = new Set([...usedSrc]);
+    const deffFirst = deffVillages.filter(v => !usedSrcKeys.has(`${v.x}|${v.y}`));
+    const fakePoolSize = deffFirst.length + srcVillages.length;
+    const maxFakeTargets = Math.floor(fakePoolSize / fakeCount);
     const coveredFakes   = Math.min(maxFakeTargets, fakeTargets.length);
 
-    // Seřaď zdroje pro fejky
-    const sortedSrcForFake = [...srcVillages].sort((a,b) => (ORDER[a.category]??9)-(ORDER[b.category]??9));
+    // Seřaď zdroje pro fejky: deff vesnice první (šetří off kapacitu), pak off vesnice
+    const sortedSrcForFake = [
+      ...deffFirst,
+      ...srcVillages.sort((a,b) => (ORDER[a.category]??9)-(ORDER[b.category]??9))
+    ];
     const fakeAssign = new Map();
     for (let fi = 0; fi < coveredFakes; fi++) {
       const ft = fakeTargets[fi];
@@ -2570,10 +2588,22 @@ async function calculate() {
 
   // Pokud už existují dříve uložená kola (savedActions), tento čerstvě přepočítaný
   // výsledek se s nimi může překrývat (vesnice se teď znovu nabízí z plného poolu) – viditelně ho odliš.
-  if (savedActions.length > 0) rows.forEach(r => r.isNew = true);
+  // Nepřiřazujeme isNew při přidání druhého plánu – příznaky "Nový" mají jen náhradní / ručně přidané příkazy.
 
   // Zkus za noční odeslání dosadit stejně silnou vesnici, ze které vychází odeslání ve dne.
   const nightSwapped = minimizeNightSends(rows) || 0;
+
+  // Odfiltruj příkazy, jejichž čas odeslání by byl dřív než nastavený minimální delay.
+  const minSendDelay = (parseInt(document.getElementById('min-send-delay')?.value) || 0) * 60000;
+  if (minSendDelay > 0) {
+    const minSendTime = now + minSendDelay;
+    const tooSoon = rows.filter(r => r.sendTime < minSendTime);
+    tooSoon.forEach(r => {
+      if (!r.isFake && !r.isFakeNoble && !r.isNoble) uncoveredReasons.set(`${r.tgtX}|${r.tgtY}`, 'příkaz by musel odejít dříve než minimální delay');
+    });
+    rows = rows.filter(r => r.sendTime >= minSendTime);
+    if (tooSoon.length) extraWarnings.push(`⏱ ${tooSoon.length} příkaz${tooSoon.length===1?'':'ů'} vynecháno – odeslání by vyšlo na méně než ${Math.round(minSendDelay/60000)} min od teď`);
+  }
 
   rows.sort((a,b)=>a.sendTime-b.sendTime);
   attackRows = rows;
@@ -2678,9 +2708,19 @@ function hungarianMax(cost, nW, nJ) {
 }
 
 // ── RENDER ─────────────────────────────────────────────────
+let _newBadgeTimer = null;
 function renderResults(nightWarnings) {
   if (nightWarnings !== undefined) lastNightWarnings = nightWarnings;
   const warnings = lastNightWarnings || [];
+
+  // Příznaky "Nový" zmizí po 30 sekundách automaticky
+  clearTimeout(_newBadgeTimer);
+  if (attackRows.some(r => r.isNew)) {
+    _newBadgeTimer = setTimeout(() => {
+      attackRows.forEach(r => { r.isNew = false; });
+      renderResults();
+    }, 30000);
+  }
 
   const area      = document.getElementById('results-area');
   const hideNight = false; // tlačítko "Skrýt noční" bylo odebráno, logika zůstává neaktivní

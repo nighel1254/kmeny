@@ -64,13 +64,20 @@ function calcOffPop(units) {
 
 function classifyVillage(units) {
     var axe = units.axe || 0;
-    if (axe < THRESH.axe_min) return null; // pod limitem – vůbec nezahrnovat
     var pop = calcOffPop(units);
-    if (pop >= THRESH.giga) return 'gigafullka';
-    if (pop >= THRESH.full) return 'fullka';
-    if (pop >= THRESH.triq) return 'triq_off';
-    if (pop >= THRESH.half) return 'half_off';
-    return null; // pod 10k pop – nezahrnovat
+    if (axe >= THRESH.axe_min) {
+        if (pop >= THRESH.giga) return 'gigafullka';
+        if (pop >= THRESH.full) return 'fullka';
+        if (pop >= THRESH.triq) return 'triq_off';
+        if (pop >= THRESH.half) return 'half_off';
+    }
+    // Deff vesnice – dobrá pro fejky (má alespoň 1 beranidlo nebo katapult)
+    var ram = units.ram || 0;
+    var cat = units.catapult || 0;
+    var spear = units.spear || 0;
+    var sword = units.sword || 0;
+    if ((ram >= 1 || cat >= 1) && (spear + sword) >= 500) return 'deff';
+    return null;
 }
 
 // ── SBÍRÁNÍ HRÁČŮ ─────────────────────────────────────────
@@ -241,6 +248,7 @@ $.getAll(
             triq_off:    allVillages.filter(function(v){ return v.category==='triq_off'; }).length,
             fullka:      allVillages.filter(function(v){ return v.category==='fullka'; }).length,
             gigafullka:  allVillages.filter(function(v){ return v.category==='gigafullka'; }).length,
+            deff:        allVillages.filter(function(v){ return v.category==='deff'; }).length,
             thresholds:  THRESH,
             villages:    allVillages
         };
@@ -262,7 +270,8 @@ $.getAll(
                     '• 1/2 off: <b>' + summary.half_off + '</b><br>' +
                     '• 3/4 off: <b>' + summary.triq_off + '</b><br>' +
                     '• Fullka: <b>' + summary.fullka + '</b><br>' +
-                    '• GigaFullka: <b>' + summary.gigafullka + '</b><br><br>' +
+                    '• GigaFullka: <b>' + summary.gigafullka + '</b><br>' +
+                    '• Deff (pro fejky): <b>' + summary.deff + '</b><br><br>' +
                     '<span style="color:#7ec87e">✓ JSON zkopírován do schránky</span><br>' +
                     copyCloseBtns
                 );
