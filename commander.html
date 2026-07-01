@@ -2226,29 +2226,46 @@ async function calculate() {
     return ptsScore + dayScore + wClose * closeness + wMorale * moraleScore;
   }
 
-  // KDO dostane KTERÝ cíl: globální greedy podle kombinovaného skóre,
-  // ale s respektováním kvóty (kolik fullek max smí dostat každý cíl)
-  const allPairs = [];
-  for (const si of fullkyInfos) {
-    for (const tgt of sortedTargets) {
-      if (tgtQuota.get(tgt) > 0 && ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations)) {
-        allPairs.push({ si, tgt, score: pairScore(si, tgt) });
-      }
-    }
+  // ── Průchod 1: Bottleneck-first distribuce fullek ──────────────────────────
+  // Problém globálního greedy: cíle s MÁLO ratio-kompatibilními fullkami ("bottleneck cíle")
+  // mohou přijít o fullky, protože je greedy přiřadil k jiným cílům s lepším pairScore.
+  // Řešení: zpracuj nejdřív cíle s nejméně dostupnými fullkami (vzácné zdroje rezervuj dřív).
+  // Uvnitř každého cíle stále volíme nejlepší fullku podle pairScore.
+
+  // Spočítej, kolik ratio-kompatibilních fullek má každý cíl k dispozici
+  const tgtFullkyCount = new Map();
+  for (const tgt of sortedTargets) {
+    const cnt = fullkyInfos.filter(si =>
+      ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations)
+    ).length;
+    tgtFullkyCount.set(tgt, cnt);
   }
-  allPairs.sort((a, b) => b.score - a.score);
+
+  // Seřaď cíle: nejdřív ty s nejméně fullkami (scarcest first), při shodě ponech původní pořadí (body)
+  const tgtsBottleneckFirst = [...sortedTargets].sort((a, b) => {
+    const diff = tgtFullkyCount.get(a) - tgtFullkyCount.get(b);
+    return diff !== 0 ? diff : sortedTargets.indexOf(a) - sortedTargets.indexOf(b);
+  });
 
   const filledCount = new Map();
-  for (const { si, tgt } of allPairs) {
-    const k = svKey(si.sv);
-    if (usedSrc.has(k)) continue;
-    const cap = tgtQuota.get(tgt);
-    const cur = filledCount.get(tgt) || 0;
-    if (cur >= cap) continue;
-    usedSrc.add(k);
-    filledCount.set(tgt, cur + 1);
-    if (!sharpAssign.has(k)) sharpAssign.set(k, []);
-    sharpAssign.get(k).push(tgt);
+  for (const tgt of tgtsBottleneckFirst) {
+    const quota = tgtQuota.get(tgt) || 0;
+    if (quota <= 0) continue;
+
+    // Nejlepší dostupné fullky pro tento cíl, seřazené podle pairScore
+    const available = fullkyInfos
+      .filter(si => !usedSrc.has(svKey(si.sv)) && ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations))
+      .sort((a, b) => pairScore(b, tgt) - pairScore(a, tgt));
+
+    const toAssign = Math.min(quota, available.length);
+    for (let i = 0; i < toAssign; i++) {
+      const si = available[i];
+      const k = svKey(si.sv);
+      usedSrc.add(k);
+      filledCount.set(tgt, (filledCount.get(tgt) || 0) + 1);
+      if (!sharpAssign.has(k)) sharpAssign.set(k, []);
+      sharpAssign.get(k).push(tgt);
+    }
   }
 
   // Průchod 2: Doplň zbývající sloty
@@ -2705,6 +2722,7 @@ function renderResults(nightWarnings) {
           <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
         </a>
         ${row.isFake || row.isFakeNoble ? `<button onclick="refreshRow(${rowIdx})" title="Najít jiný zdroj (ne v noci)" style="background:none;border:none;cursor:pointer;color:var(--dim);font-size:13px;padding:2px 4px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>` : ''}
+        <button onclick="deleteRow(${rowIdx})" title="Smazat příkaz a vrátit cíl do nepřiřazených" style="background:none;border:none;cursor:pointer;color:#a04040;font-size:14px;padding:2px 4px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">🗑</button>
         <input type="checkbox" class="replan-cb" data-rowidx="${rowIdx}"
           style="width:15px;height:15px;accent-color:var(--gold);vertical-align:middle;margin-left:2px;"
           onchange="updateReplanBar()">
@@ -3566,13 +3584,16 @@ async function replanSelected() {
     const isSharpRow = !origRow.isFake && !origRow.isFakeNoble && !origRow.isNoble;
     const candidates = [];
 
+    const origKey = `${origRow.srcX}|${origRow.srcY}`;
     for (const v of pool) {
       const vx = v.x ?? v.srcX;
       const vy = v.y ?? v.srcY;
       if (!vx || !vy) continue;
-      if (excludeSrcs.has(`${vx}|${vy}`)) continue;
+      const vKey = `${vx}|${vy}`;
+      if (vKey === origKey) continue; // nesmí nabídnout stejnou vesnici co je v originálním řádku
+      if (excludeSrcs.has(vKey)) continue;
       // Vesnice s existujícím ostrým útokem nesmí dostat druhý ostrý (fejky ano)
-      if (isSharpRow && sharpUsedKeys.has(`${vx}|${vy}`)) continue;
+      if (isSharpRow && sharpUsedKeys.has(vKey)) continue;
 
       // Kategorie vesnice
       const vCat = v.category || v.srcCategory || 'other';
@@ -3739,6 +3760,25 @@ function cancelReplanRow(rowIdx) {
 function isNightSend(sendTimeMs) {
   const h = new Date(sendTimeMs).getHours();
   return h >= 0 && h < 6;
+}
+
+function deleteRow(rowIdx) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+  // Vrať cílovou vesnici do nepokrytých (pokud není ostrý útok na tentýž cíl v jiném řádku)
+  if (!row.isFake && !row.isFakeNoble && !row.isNoble) {
+    const tgtKey = `${row.tgtX}|${row.tgtY}`;
+    const stillCovered = attackRows.some((r, i) =>
+      i !== rowIdx && !r.isFake && !r.isFakeNoble && !r.isNoble &&
+      r.tgtX === row.tgtX && r.tgtY === row.tgtY
+    );
+    if (!stillCovered) {
+      uncoveredReasons.set(tgtKey, 'příkaz smazán');
+    }
+  }
+  attackRows.splice(rowIdx, 1);
+  renderResults();
+  autosave();
 }
 
 function refreshRow(rowIdx) {
