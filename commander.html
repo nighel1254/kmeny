@@ -589,10 +589,20 @@
       <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Šlechtici</span></div>
       <div class="panel-body">
 
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-          <label style="white-space:nowrap;font-size:13px;margin:0;">Počet šlechticů na cíl:</label>
-          <input type="number" id="noble-count-per-target" min="1" max="4" value="4" style="width:60px;text-align:center;">
-          <span style="font-size:11px;color:var(--dim);">(obvykle 4 pro snobení)</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <span style="font-size:12px;color:var(--dim);white-space:nowrap;">Typ vlaku:</span>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="4 šlechtici z jedné vesnice, 1 příkaz na cíl">
+            <input type="radio" name="noble-mode" value="train" checked style="width:auto;accent-color:var(--gold);">
+            🚂 Vlak (4 z 1 vesnice)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="1 šlechtic z každé ze 4 vesnic – preferuje vesnice se ≤3 šlechtici">
+            <input type="radio" name="noble-mode" value="one_by_one" style="width:auto;accent-color:var(--gold);">
+            👑 Po jednom (1 z každé ze 4 vesnic)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="3 šlechtici z jedné vesnice, 1 příkaz na cíl">
+            <input type="radio" name="noble-mode" value="three" style="width:auto;accent-color:var(--gold);">
+            ⚔️ ŠlechtiVlak (3 z 1 vesnice)
+          </label>
         </div>
 
         <!-- Výběr zdroje šlechticů -->
@@ -1306,7 +1316,8 @@ function calculateNobles(rows, extraWarnings) {
   const arrFrom = new Date(arrStr).getTime();
   const arrToStr = document.getElementById('noble-arrival-to').value;
   const arrTo = arrToStr ? new Date(arrToStr).getTime() : null;
-  const noblePerTarget = parseInt(document.getElementById('noble-count-per-target').value) || 4;
+  const nobleMode = document.querySelector('input[name="noble-mode"]:checked')?.value || 'train';
+  const noblePerTarget = nobleMode === 'three' ? 3 : 4; // pro vlak/ŠlechtiVlak; po jednom používá 1
 
   // Sestav pool šlechticů
   const nobleCheckedPlayers = [...document.querySelectorAll('.noble-player-cb:checked')].map(cb => cb.value);
@@ -1316,19 +1327,16 @@ function calculateNobles(rows, extraWarnings) {
     .filter(v => !nobleCheckedPlayers.length || nobleCheckedPlayers.includes(v.player_name));
   if (!pool.length) { toast('Žádní šlechtici v importu!', 'err'); return; }
 
-  // Pracovní kopie – počet celých vlaků které může každá vesnice poslat
-  // vlak = noblePerTarget šlechticů, takže vlaky = floor(remaining / noblePerTarget)
+  // Pracovní kopie – tracking zbývajících šlechticů v každé vesnici
   const available = pool.map(v => ({
     ...v,
-    nobleCount: v.noble || (v.units && v.units.noble) || 0,
     remaining: v.noble || (v.units && v.units.noble) || 0,
-    get trains() { return Math.floor(this.remaining / noblePerTarget); }
   }));
 
   const now = Date.now();
   const nobleUnit = 'noble';
 
-  // Pro každý cíl přiřaď 1 vlak z nejbližší dostupné vesnice
+  // Pro každý cíl přiřaď šlechtice podle zvoleného módu
   for (const coordStr of coordLines) {
     const m = coordStr.match(/^(\d+)\|(\d+)/);
     if (!m) continue;
@@ -1338,22 +1346,51 @@ function calculateNobles(rows, extraWarnings) {
     const tgtId = tgtAv?.id || null;
     const tgtOwner = tgtAv ? (allPlayers.get(tgtAv.playerId) || '') : '';
 
-    // Seřaď dostupné zdroje (s alespoň 1 vlakem) podle vzdálenosti
+    if (nobleMode === 'one_by_one') {
+      // 4 samostatné příkazy, každý z jiné vesnice se ≥1 šlechticem
+      // Preferuj vesnice s ≤3 šlechtici (nevyplní vlak), pak ostatní, vše dle vzdálenosti
+      const sorted = available
+        .filter(v => v.remaining > 0 && ratioAllowed(ratioCheckEnabled, playerPoints, v.player_name || selectedPlayer, tgtOwner, ratioViolations))
+        .sort((a, b) => {
+          const aSmall = a.remaining <= 3, bSmall = b.remaining <= 3;
+          if (aSmall !== bSmall) return aSmall ? -1 : 1;
+          return Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2) - Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2);
+        });
+      const toSend = Math.min(4, sorted.length);
+      if (toSend < 4) toast(`⚠️ Cíl ${tgtX}|${tgtY}: jen ${toSend}/4 šlechticů dostupných (po jednom)!`, 'err', 6000);
+      for (let i = 0; i < toSend; i++) {
+        const sv = sorted[i];
+        const arrTime = bestArrivalTime(arrFrom, arrTo, [sv], {x:tgtX, y:tgtY, unit:nobleUnit}, nobleUnit);
+        const travel = travelMs(sv.x, sv.y, tgtX, tgtY, nobleUnit);
+        const sendTime = arrTime - travel;
+        const srcAv = allVillages.find(v => v.x === sv.x && v.y === sv.y);
+        rows.push({
+          srcId: srcAv?.id || sv.id || null,
+          srcName: sv.village_name || sv.name || '',
+          srcPlayer: sv.player_name || selectedPlayer || '',
+          srcX: sv.x, srcY: sv.y,
+          srcCategory: 'noble',
+          tgtX, tgtY, tgtName, tgtId, tgtOwner,
+          unit: nobleUnit, nobleCount: 1,
+          arrivalTime: arrTime, sendTime, travel,
+          night: isNight(sendTime), isPast: sendTime < now,
+          isFake: false, forced_night: false, isNoble: true
+        });
+        sv.remaining -= 1;
+      }
+      continue;
+    }
+
+    // Vlak nebo ŠlechtiVlak: 1 příkaz z nejbližší vesnice s dostatkem šlechticů
     const sorted = available
-      .filter(v => Math.floor(v.remaining / noblePerTarget) > 0)
-      .filter(v => ratioAllowed(ratioCheckEnabled, playerPoints, v.player_name || selectedPlayer, tgtOwner, ratioViolations))
-      .sort((a, b) => {
-        const da = Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2);
-        const db = Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2);
-        return da - db;
-      });
+      .filter(v => v.remaining >= noblePerTarget && ratioAllowed(ratioCheckEnabled, playerPoints, v.player_name || selectedPlayer, tgtOwner, ratioViolations))
+      .sort((a, b) => Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2) - Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2));
 
     if (!sorted.length) {
       toast(`⚠️ Cíl ${tgtX}|${tgtY}: žádné dostupné vlaky šlechticů!`, 'err');
       continue;
     }
 
-    // Přiřaď nejbližší vesnici – 1 vlak
     const sv = sorted[0];
     const arrTime = bestArrivalTime(arrFrom, arrTo, [sv], {x:tgtX, y:tgtY, unit:nobleUnit}, nobleUnit);
     const travel = travelMs(sv.x, sv.y, tgtX, tgtY, nobleUnit);
@@ -1366,8 +1403,7 @@ function calculateNobles(rows, extraWarnings) {
       srcX: sv.x, srcY: sv.y,
       srcCategory: 'noble',
       tgtX, tgtY, tgtName, tgtId, tgtOwner,
-      unit: nobleUnit,
-      nobleCount: noblePerTarget,
+      unit: nobleUnit, nobleCount: noblePerTarget,
       arrivalTime: arrTime, sendTime, travel,
       night: isNight(sendTime), isPast: sendTime < now,
       isFake: false, forced_night: false, isNoble: true
@@ -1428,6 +1464,9 @@ function clearJson() {
 let allPlayers = new Map(); // id → name
 let allPlayerPoints = new Map(); // id → celkové body hráče (z player.txt), pro "morálku" v sharp-target přiřazení
 let uncoveredReasons = new Map(); // 'x|y' → důvod, proč cíl nebyl pokryt (pro zobrazení v UI)
+// Data pro scoring v přeplánování – aktualizuje se po každém calculatePlan
+let _replanAllByName = new Map(); // name → body (kmenovci + svět)
+let _replanMaxAllPts = 1;
 
 async function ensureVillages() {
   if (allVillages.length) return;
@@ -2131,6 +2170,8 @@ async function calculate() {
     if (name && !allByName.has(name)) allByName.set(name, pts); // nepřepisuj kmenovce lepší daty
   }
   const maxAllPts = Math.max(1, ...[...allByName.values()]);
+  _replanAllByName = new Map(allByName);
+  _replanMaxAllPts = maxAllPts;
 
   // Menší číslo = lepší shoda bodů (zdroj vs. vlastník cíle) = vyšší "morálka".
   // Teď funguje i pro nepřátelské cíle díky allByName.
@@ -2750,7 +2791,7 @@ function renderResults(nightWarnings) {
       typeHtml = row.srcCategory === 'fullka'   ? `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`
                : row.srcCategory === 'triq_off' ? `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 3/4 off</span>`
                : row.srcCategory === 'half_off' ? `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 1/2 off</span>`
-               : row.srcCategory === 'noble'    ? `<span class="chip chip-noble">${NOBLE_NORM} vlak</span>`
+               : row.srcCategory === 'noble'    ? `<span class="chip chip-noble">${NOBLE_NORM} ${row.nobleCount===1?'po jednom':row.nobleCount===3?'ŠlechtiVlak':'vlak'}</span>`
                : '';
     }
 
@@ -3024,7 +3065,7 @@ function clearAll() {
   document.getElementById('global-arrival-to').value = '';
   document.getElementById('fake-count').value = '0';
   document.getElementById('fake-noble-count').value = '0';
-  document.getElementById('noble-count-per-target').value = '4';
+  const nobleReset = document.querySelector('input[name="noble-mode"][value="train"]'); if (nobleReset) nobleReset.checked = true;
   document.getElementById('sharp-count').value = '1';
   document.getElementById('noble-target-count').textContent = '';
   document.getElementById('fake-coord-count') && (document.getElementById('fake-coord-count').textContent = '');
@@ -3124,7 +3165,7 @@ function captureInputSnapshot() {
     fakeNobleArrival: g('fake-noble-arrival'),
     fakeNobleArrTo:   g('fake-noble-arrival-to'),
     // Šlechtici
-    noblePerTarget:   g('noble-count-per-target'),
+    nobleMode:        document.querySelector('input[name="noble-mode"]:checked')?.value || 'train',
     nobleTarget:      g('noble-target-coords'),
     nobleArrival:     g('noble-arrival'),
     nobleArrivalTo:   g('noble-arrival-to'),
@@ -3185,7 +3226,7 @@ function restoreInputSnapshot(snap) {
   if (document.getElementById('fake-noble-arrival-to')) document.getElementById('fake-noble-arrival-to').value = snap.fakeNobleArrTo || '';
   if (snap.fakeNobleCoords) parseFakeNobleCoords();
   // Šlechtici
-  if (document.getElementById('noble-count-per-target')) document.getElementById('noble-count-per-target').value = snap.noblePerTarget || '4';
+  { const m = document.querySelector(`input[name="noble-mode"][value="${snap.nobleMode||'train'}"]`); if (m) m.checked = true; }
   if (document.getElementById('noble-target-coords')) document.getElementById('noble-target-coords').value = snap.nobleTarget || '';
   if (document.getElementById('noble-arrival')) document.getElementById('noble-arrival').value = snap.nobleArrival || '';
   if (document.getElementById('noble-arrival-to')) document.getElementById('noble-arrival-to').value = snap.nobleArrivalTo || '';
@@ -3682,28 +3723,55 @@ async function replanSelected() {
       });
     }
 
-    // Seřaď: ne noc napřed, pak nejméně vytížené, pak nejblíže
-    candidates.sort((a, b) => {
-      if (a.isNightTime !== b.isNightTime) return a.isNightTime ? 1 : -1;
-      if (a.usage !== b.usage) return a.usage - b.usage;
-      const da = Math.abs(a.srcX - origRow.srcX) + Math.abs(a.srcY - origRow.srcY);
-      const db = Math.abs(b.srcX - origRow.srcX) + Math.abs(b.srcY - origRow.srcY);
-      return da - db;
-    });
+    // Seřaď podle kombinovaného skóre (vzdálenost k cíli + morálka + vytíženost), noc vždy na konec
+    const priorityMorale = document.querySelector('input[name="assign-priority"]:checked')?.value === 'morale';
+    const replanScore = c => {
+      const dist = Math.sqrt((c.srcX - c.tgtX)**2 + (c.srcY - c.tgtY)**2);
+      const closeness = Math.max(0, 1 - dist / 1500);
+      const usageScore = 1 / (1 + c.usage);
+      let moraleScore = 0.5;
+      if (_replanMaxAllPts > 1) {
+        const srcPts = _replanAllByName.get(c.srcPlayer);
+        const tgtPts = _replanAllByName.get(c.tgtOwner);
+        if (srcPts && tgtPts) moraleScore = 1 - Math.min(Math.abs(srcPts - tgtPts) / _replanMaxAllPts, 1);
+      }
+      const wClose  = priorityMorale ? 1 : 3;
+      const wMorale = priorityMorale ? 3 : 1;
+      return (c.isNightTime ? -100 : 0) + wClose * closeness + wMorale * moraleScore + usageScore;
+    };
+    candidates.sort((a, b) => replanScore(b) - replanScore(a));
     return candidates;
   }
 
-  // Přiřaď kandidáty greedy algoritmem
+  // Přiřaď kandidáty – pro každý řádek si pamatujeme seřazený seznam a index
+  // (opakované přeplánování stejného řádku nabídne vždy dalšího kandidáta v pořadí)
   const usedSrcs = new Set();
   const proposals = [];
 
   for (const { idx, row } of selectedRows) {
-    const candidates = findCandidates(row, usedSrcs);
-    if (!candidates.length) {
+    const tgtKey = `${row.tgtX}|${row.tgtY}`;
+    // Pokud máme cached seznam pro stejný cíl, použijeme ho (jinak přepočítáme)
+    if (!row._replanCandidates || row._replanCandidatesFor !== tgtKey) {
+      row._replanCandidates = findCandidates(row, new Set()); // full list bez cross-row exkluze
+      row._replanCandidatesFor = tgtKey;
+      row._replanCandidateIdx = 0;
+    }
+    // Vyber první dostupný kandidát od uloženého indexu (přeskoč vesnice zabrané jiným řádkem)
+    const list = row._replanCandidates;
+    let best = null, nextIdx = row._replanCandidateIdx;
+    for (let i = nextIdx; i < list.length; i++) {
+      const c = list[i];
+      const k = `${c.srcX}|${c.srcY}`;
+      if (!usedSrcs.has(k) && !sharpUsedKeys.has(k)) {
+        best = c;
+        row._replanCandidateIdx = i + 1; // příště začni od dalšího
+        break;
+      }
+    }
+    if (!best) {
       proposals.push({ idx, row, proposal: null });
       continue;
     }
-    const best = candidates[0];
     usedSrcs.add(`${best.srcX}|${best.srcY}`);
     proposals.push({ idx, row, proposal: best });
   }
@@ -3773,6 +3841,9 @@ function acceptReplanRow(rowIdx) {
   const proposal = attackRows[rowIdx]?._replanProposal;
   if (!proposal) { cancelReplanRow(rowIdx); return; }
   delete proposal._replanProposal;
+  delete proposal._replanCandidates;
+  delete proposal._replanCandidatesFor;
+  delete proposal._replanCandidateIdx;
 
   // Ulož orig identifikátory
   const orig = attackRows[rowIdx];
