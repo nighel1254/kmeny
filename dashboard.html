@@ -35,7 +35,7 @@
   /* ── Cards ── */
   .card{background:linear-gradient(180deg,#261a09,#1e1408);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.03);transition:border-color .15s,box-shadow .15s;}
   .card:hover{border-color:#6b4f2a;box-shadow:0 6px 24px rgba(0,0,0,.6);}
-  .card-header{padding:14px 18px;background:linear-gradient(90deg,#3d2a0a,#2a1e08);border-bottom:1px solid var(--border);border-left:3px solid var(--gold);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .card-header{padding:14px 18px;background:linear-gradient(90deg,#3d2a0a,#2a1e08);border-bottom:1px solid var(--border);border-left:3px solid var(--gold);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;min-width:0;}
   .sections-row{display:flex;gap:20px;align-items:flex-start;}
   .sections-row>.section-col{flex:1;min-width:0;}
   @media (max-width:900px){
@@ -395,7 +395,7 @@ function buildPlanCard(a, isPersonal) {
             ${updatedAt ? ` · Upraveno: <strong>${fmtDT(updatedAt)}</strong>` : ''}
           </div>
         </div>
-        <div style="display:flex;gap:8px;flex-shrink:0;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
           ${!a.plan_id ? `<button class="btn-open" style="border-color:var(--gold2);color:var(--gold2);" onclick="editPlan('${a.id}')">✎ Upravit</button>` : ''}
           <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít</button>
           <button class="btn-open" onclick="openShareModal('${a.id}')" title="Sdílet plán – zástup v dovolené"><img src="https://e7.pngegg.com/pngimages/228/376/png-clipart-share-icon-social-media-computer-icons-social-networking-service-sharing-icon-social-media-share-icon-thumbnail.png" style="width:14px;height:14px;vertical-align:middle;mix-blend-mode:multiply;" onerror="this.style.display='none'"> Sdílet</button>
@@ -469,7 +469,7 @@ function buildSubstituteCard(a, ownerEmail, ownerNameByEmail) {
           ${updatedAt ? ` · Upraveno: <strong>${fmtDT(updatedAt)}</strong>` : ''}
         </div>
       </div>
-      <div style="display:flex;gap:8px;flex-shrink:0;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
         ${!a.plan_id ? `<button class="btn-open" style="border-color:var(--gold2);color:var(--gold2);" onclick="editPlan('${a.id}')">✎ Upravit</button>` : ''}
         <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít</button>
       </div>

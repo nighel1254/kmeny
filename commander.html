@@ -501,10 +501,21 @@
           <span style="font-size:11px;color:var(--dim);">(1 = každá offka pošle 1 ostrý)</span>
         </div>
 
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-bottom:12px;cursor:pointer;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin-bottom:8px;cursor:pointer;">
           <input type="checkbox" id="ratio-check-enabled" checked style="width:auto;accent-color:var(--gold);">
           Kontrolovat poměr bodů 20:1 (nepřiřadí cíl, na který hráč podle pravidel nemůže útočit)
         </label>
+
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="Preferuj bližší vesnici, i kdyby morálka byla horší. Vzdálenost je hlavní kritérium výběru offky.">
+            <input type="radio" name="assign-priority" id="priority-dist" value="dist" checked style="width:auto;accent-color:var(--gold);">
+            📍 Preferuj vzdálenost
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="Preferuj hráče, jehož body jsou blíž bodům vlastníka cíle, i kdyby offka byla dál. Morálka je hlavní kritérium.">
+            <input type="radio" name="assign-priority" id="priority-morale" value="morale" style="width:auto;accent-color:var(--gold);">
+            ⚖️ Preferuj morálku
+          </label>
+        </div>
 
         <div class="tabs">
           <div class="tab active" onclick="switchTargetTab('coords')">📋 Souřadnice</div>
@@ -1416,6 +1427,7 @@ function clearJson() {
 // ── VILLAGES + PLAYERS ────────────────────────────────────
 let allPlayers = new Map(); // id → name
 let allPlayerPoints = new Map(); // id → celkové body hráče (z player.txt), pro "morálku" v sharp-target přiřazení
+let uncoveredReasons = new Map(); // 'x|y' → důvod, proč cíl nebyl pokryt (pro zobrazení v UI)
 
 async function ensureVillages() {
   if (allVillages.length) return;
@@ -2102,19 +2114,30 @@ async function calculate() {
   const rows = [];
   const usedSendTimesGlobal = new Set(); // globální sledování časů odeslání
   const now  = Date.now();
+  uncoveredReasons.clear();
 
-  const ratioCheckEnabled = document.getElementById('ratio-check-enabled')?.checked ?? true;
+  const ratioCheckEnabled  = document.getElementById('ratio-check-enabled')?.checked ?? true;
+  const priorityMorale     = document.querySelector('input[name="assign-priority"]:checked')?.value === 'morale';
   // Vždy spočítej body hráčů (ne jen když je zapnutý ratio-check) – potřeba i pro "morálku"
   // (preferuj přiřazení zdroj→cíl, kde má hráč zdroje body co nejblíž bodům vlastníka cíle).
   const playerPoints      = getPlayerPointsByName();
   const ratioViolations   = new Map();
 
+  // Kombinovaná mapa jméno→body: zahrnuje VŠECHNY světové hráče (z player.txt přes allPlayers+allPlayerPoints),
+  // ne jen naše hráče. To umožňuje morálku počítat i pro nepřátelské cíle.
+  const allByName = new Map(playerPoints); // začni od kmene (součet vesnic)
+  for (const [id, pts] of allPlayerPoints) {
+    const name = allPlayers.get(id);
+    if (name && !allByName.has(name)) allByName.set(name, pts); // nepřepisuj kmenovce lepší daty
+  }
+  const maxAllPts = Math.max(1, ...[...allByName.values()]);
+
   // Menší číslo = lepší shoda bodů (zdroj vs. vlastník cíle) = vyšší "morálka".
-  // Neznámé body (hráč mimo náš import) se neblokují, jen se neřadí výš ani níž (Infinity).
+  // Teď funguje i pro nepřátelské cíle díky allByName.
   function pointsDiffScore(srcPlayer, tgtPlayer) {
     if (!srcPlayer || !tgtPlayer) return Infinity;
-    const a = playerPoints.get(srcPlayer);
-    const b = playerPoints.get(tgtPlayer);
+    const a = allByName.get(srcPlayer);
+    const b = allByName.get(tgtPlayer);
     if (!a || !b) return Infinity;
     return Math.abs(a - b);
   }
@@ -2140,6 +2163,11 @@ async function calculate() {
 
   if (targets.length > maxTargets) {
     extraWarnings.push(`⚔️ Více cílů (${targets.length}) než kapacita offek (${srcVillages.length}÷${sharpCount}=${maxTargets}) – ${targets.length - maxTargets} cílů nedostane ostrý útok!`);
+    // Cíle za kapacitou – okamžitě zaznam důvod
+    for (let ti = maxTargets; ti < targets.length; ti++) {
+      const t = targets[ti];
+      uncoveredReasons.set(`${t.x}|${t.y}`, 'překročena kapacita offek');
+    }
   }
 
   // Pro každou src spočítej sendTime pro každý cíl
@@ -2165,8 +2193,12 @@ async function calculate() {
   const fullkyPerTgt = coveredTargets > 0 ? Math.floor(fullkyInfos.length / coveredTargets) : 0;
   const fullkyRem    = coveredTargets > 0 ? fullkyInfos.length % coveredTargets : 0;
 
-  const sharpAssign  = new Map();
-  const usedSrc      = new Set();
+  // sharpAssign a usedSrc klíčovány KOORDINÁTOVÝM ŘETĚZCEM 'x|y', nikoli referencí objektu.
+  // Důvod: srcVillages může (díky chybě v datech nebo merge) obsahovat dvě různé instance
+  // pro stejnou vesnici – object-reference porovnání by je oba prošlo, vznikly by duplicitní řádky.
+  const svKey       = sv => `${sv.x}|${sv.y}`;
+  const sharpAssign = new Map(); // 'x|y' → tgt[]
+  const usedSrc     = new Set(); // Set of 'x|y' strings
 
   // Kvóta fullek na cíl – body cíle určují KOLIK fullek cíl dostane
   // (vyšší bodový cíl = víc fullek, první cíle v pořadí dostávají i zbytek)
@@ -2186,7 +2218,12 @@ async function calculate() {
     const ptsScore  = (tgt.points || 0) / maxPts;                  // 0–1, vyšší body = lépe
     const dayScore  = si.perTgt.get(tgt)?.isDay ? 1 : 0;            // 0 nebo 1
     const closeness = 1 - distSq(si.sv, tgt) / maxDistFull;        // 0–1, blíž = lépe
-    return ptsScore + dayScore + closeness; // stejná váha, prostě sečteno
+    const diff = pointsDiffScore(si.sv.player_name, tgt.owner);
+    const moraleScore = diff === Infinity ? 0.5 : 1 - Math.min(diff / maxAllPts, 1); // 0–1, blíž = lépe
+    // Vzdálenost vs. morálka: vítěz má váhu 3×, poražený 1× (stále se bere v potaz)
+    const wClose  = priorityMorale ? 1 : 3;
+    const wMorale = priorityMorale ? 3 : 1;
+    return ptsScore + dayScore + wClose * closeness + wMorale * moraleScore;
   }
 
   // KDO dostane KTERÝ cíl: globální greedy podle kombinovaného skóre,
@@ -2203,14 +2240,15 @@ async function calculate() {
 
   const filledCount = new Map();
   for (const { si, tgt } of allPairs) {
-    if (usedSrc.has(si.sv)) continue;
+    const k = svKey(si.sv);
+    if (usedSrc.has(k)) continue;
     const cap = tgtQuota.get(tgt);
     const cur = filledCount.get(tgt) || 0;
     if (cur >= cap) continue;
-    usedSrc.add(si.sv);
+    usedSrc.add(k);
     filledCount.set(tgt, cur + 1);
-    if (!sharpAssign.has(si.sv)) sharpAssign.set(si.sv, []);
-    sharpAssign.get(si.sv).push(tgt);
+    if (!sharpAssign.has(k)) sharpAssign.set(k, []);
+    sharpAssign.get(k).push(tgt);
   }
 
   // Průchod 2: Doplň zbývající sloty
@@ -2223,28 +2261,34 @@ async function calculate() {
     if (needed <= 0) continue;
 
     const candidates = srcInfos
-      .filter(si => !usedSrc.has(si.sv) && ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations))
+      .filter(si => !usedSrc.has(svKey(si.sv)) && ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, ratioViolations))
       .sort((a, b) => {
-        // 1. silnější kategorie
+        // 1. silnější kategorie (vždy)
         if (b.catRank !== a.catRank) return b.catRank - a.catRank;
-        // 2. morálka – preferuj zdroj, jehož hráč má body co nejblíž bodům vlastníka cíle
-        // (slabý hráč ať útočí na slabé cíle, silný na silné – ne naopak).
-        const aMorale = pointsDiffScore(a.sv.player_name, tgt.owner);
-        const bMorale = pointsDiffScore(b.sv.player_name, tgt.owner);
-        if (aMorale !== bMorale) return aMorale - bMorale;
-        // 3. denní odeslání
+        // 2. denní odeslání (vždy)
         const aDay = a.perTgt.get(tgt)?.isDay ? 1 : 0;
         const bDay = b.perTgt.get(tgt)?.isDay ? 1 : 0;
         if (aDay !== bDay) return bDay - aDay;
-        // 4. nejblíže cíli
-        return distSq(a.sv, tgt) - distSq(b.sv, tgt);
+        // 3+4. morálka vs. vzdálenost – pořadí závisí na tlačítku priority
+        const aMorale = pointsDiffScore(a.sv.player_name, tgt.owner);
+        const bMorale = pointsDiffScore(b.sv.player_name, tgt.owner);
+        const aDist   = distSq(a.sv, tgt);
+        const bDist   = distSq(b.sv, tgt);
+        if (priorityMorale) {
+          if (aMorale !== bMorale) return aMorale - bMorale; // menší rozdíl = lepší morálka
+          return aDist - bDist;
+        } else {
+          if (aDist !== bDist) return aDist - bDist;         // blíže = lépe
+          return aMorale - bMorale;
+        }
       });
 
     for (let k = 0; k < needed && k < candidates.length; k++) {
       const si = candidates[k];
-      usedSrc.add(si.sv);
-      if (!sharpAssign.has(si.sv)) sharpAssign.set(si.sv, []);
-      sharpAssign.get(si.sv).push(tgt);
+      const sk = svKey(si.sv);
+      usedSrc.add(sk);
+      if (!sharpAssign.has(sk)) sharpAssign.set(sk, []);
+      sharpAssign.get(sk).push(tgt);
     }
   }
 
@@ -2253,6 +2297,18 @@ async function calculate() {
   const needed  = coveredTargets * sharpCount;
   if (fullky.length > 0 && fullky.length < needed) {
     extraWarnings.push(`⚠️ Fullků (${fullky.length}) nestačí na ${sharpCount}× ${coveredTargets} cílů – doplňuje se 3/4 a 1/2 off`);
+  }
+
+  // Důvody pro cíle bez přiřazení (v rámci kapacity)
+  for (const tgt of sortedTargets) {
+    const assignedCount = [...sharpAssign.values()].flat().filter(t => t === tgt).length;
+    if (assignedCount === 0) {
+      const allRatioBlocked = srcInfos.length > 0 && srcInfos.every(
+        si => !ratioAllowed(ratioCheckEnabled, playerPoints, si.sv.player_name, tgt.owner, new Map())
+      );
+      const reason = allRatioBlocked ? 'poměr bodů 20:1' : 'žádná volná offka v dosahu';
+      uncoveredReasons.set(`${tgt.x}|${tgt.y}`, reason);
+    }
   }
 
   // Varování – poměr bodů 20:1 zablokoval kombinace hráčů
@@ -2264,21 +2320,29 @@ async function calculate() {
     }
   }
 
+  // Rychlý lookup 'x|y' → village objekt (pro bestArrivalTime a BEZ FEJKŮ)
+  const svByKey = new Map(srcInfos.map(si => [svKey(si.sv), si.sv]));
+
   // ── Optimalizuj čas příchodu pro každý cíl ──────────────────
   // Pro každý cíl vezmi skupinu přiřazených offek a najdi nejlepší čas v rozmezí
   for (const tgt of sortedTargets) {
     if (!tgt._arrTo || tgt._arrTo <= tgt._arrFrom) continue; // fixní čas, nic neoptimalizuj
     const assignedSrcs = [...sharpAssign.entries()]
       .filter(([, tgts]) => tgts.includes(tgt))
-      .map(([sv]) => sv);
+      .map(([k]) => svByKey.get(k))
+      .filter(Boolean);
     tgt.arrivalTime = bestArrivalTime(tgt._arrFrom, tgt._arrTo, assignedSrcs, tgt, tgt.unit);
   }
 
   // ── BEZ FEJKŮ ──
   if (fakeCount === 0) {
     const byTgtKey = {};
+    const processedSrcKeys = new Set(); // ochrana proti duplikátním vesnicím v srcVillages
     for (const sv of srcVillages) {
-      for (const tgt of (sharpAssign.get(sv) || [])) {
+      const sk = svKey(sv);
+      if (processedSrcKeys.has(sk)) continue; // přeskoč duplicitní záznam
+      processedSrcKeys.add(sk);
+      for (const tgt of (sharpAssign.get(sk) || [])) {
         const k = `${tgt.x}|${tgt.y}`;
         if (!byTgtKey[k]) byTgtKey[k] = [];
         const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
@@ -2322,8 +2386,12 @@ async function calculate() {
     }
 
     // Generuj řádky – ostrý útok
+    const processedSharpKeys = new Set(); // ochrana proti duplikátním vesnicím v srcVillages
     for (const sv of srcVillages) {
-      const tgts = sharpAssign.get(sv) || [];
+      const sk = svKey(sv);
+      if (processedSharpKeys.has(sk)) continue;
+      processedSharpKeys.add(sk);
+      const tgts = sharpAssign.get(sk) || [];
       for (const tgt of tgts) {
         const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
         const sendTime = tgt.arrivalTime - travel;
@@ -2528,9 +2596,24 @@ function renderResults(nightWarnings) {
     const night = warnings.filter(w => !isExtra(w));
 
     if (extra.length > 0) {
-      warningHtml += `<div style="background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:13px;font-weight:bold;color:#ff9955;">
-        ${extra.map(w => w.trimStart().startsWith('•') ? w : `• ${w}`).join('<br>')}
-      </div>`;
+      // Ratio 🚫 varování dej do collapsible sekce, ostatní extra (⚔️ ⚠️ 💨) zobraz normálně
+      const ratioLines  = extra.filter(w => w.trimStart().startsWith('🚫') || w.trimStart().startsWith('•'));
+      const otherExtra  = extra.filter(w => !w.trimStart().startsWith('🚫') && !w.trimStart().startsWith('•'));
+      if (otherExtra.length > 0) {
+        warningHtml += `<div style="background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:13px;font-weight:bold;color:#ff9955;">
+          ${otherExtra.map(w => `• ${w}`).join('<br>')}
+        </div>`;
+      }
+      if (ratioLines.length > 0) {
+        const ratioHeader = ratioLines.find(w => w.trimStart().startsWith('🚫')) || ratioLines[0];
+        const ratioDetail = ratioLines.filter(w => w.trimStart().startsWith('•'));
+        warningHtml += `<details style="background:#2a0a00;border:1px solid #8b3000;border-radius:6px;padding:6px 12px;margin-bottom:6px;">
+          <summary style="cursor:pointer;font-size:13px;font-weight:bold;color:#ff9955;user-select:none;">${ratioHeader.trimStart()}</summary>
+          <div style="margin-top:6px;font-size:12px;color:#ff9955;font-weight:normal;font-family:monospace;line-height:1.8;">
+            ${ratioDetail.map(w => w.trimStart()).join('<br>')}
+          </div>
+        </details>`;
+      }
     }
     if (night.length > 0) {
       const nightSharpMatch = night.find(w => w.match(/^\d+ ostrých/));
@@ -2675,11 +2758,107 @@ function updateCount(visible) {
   const uncWrap = document.getElementById('uncovered-wrap');
   if (uncoveredCoords.length > 0) {
     document.getElementById('uncovered-count').textContent = uncoveredCoords.length;
-    document.getElementById('uncovered-list').textContent = uncoveredCoords.join('  ');
+    // Zjisti seznam zaškrtnutých hráčů pro dropdown ručního přiřazení
+    const checkedForAssign = [...document.querySelectorAll('.src-player-cb:checked')].map(cb => cb.value).sort((a,b) => a.localeCompare(b,'cs'));
+    const playerOptsHtml = checkedForAssign.map(p => `<option value="${p}">${p}</option>`).join('');
+    const allTargetMap = new Map((coordTargets.length ? coordTargets : tgtVillages).map(t => [`${t.x}|${t.y}`, t]));
+    document.getElementById('uncovered-list').innerHTML = uncoveredCoords.map(coord => {
+      const reason = uncoveredReasons.get(coord) || '';
+      const reasonHtml = reason ? ` <span style="color:var(--dim);font-size:11px;">(${reason})</span>` : '';
+      const tgt = allTargetMap.get(coord);
+      const dataAttrs = tgt
+        ? `data-x="${tgt.x}" data-y="${tgt.y}" data-owner="${(tgt.owner||tgt.name||'').replace(/"/g,'&quot;')}" data-unit="${tgt.unit||'ram'}" data-arr="${tgt.arrivalTime||''}" data-id="${tgt.id||''}"`
+        : `data-x="${coord.split('|')[0]}" data-y="${coord.split('|')[1]}"`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0;flex-wrap:wrap;">
+        <span class="coords" style="min-width:70px;">${coord}</span>${reasonHtml}
+        <button onclick="openManualAssign(this)" ${dataAttrs}
+          style="background:linear-gradient(180deg,#3a2800,#241a00);border:1px solid #6b4f2a;color:var(--gold);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;">➕ Přiřadit</button>
+        <span class="manual-assign-drop" style="display:none;align-items:center;gap:4px;">
+          <select style="font-size:11px;padding:2px 4px;max-width:160px;">${playerOptsHtml}</select>
+          <button onclick="confirmManualAssign(this)" style="background:linear-gradient(180deg,#205020,#102010);border:1px solid #4a9a4a;color:#a0e0a0;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;">✓ Potvrdit</button>
+          <button onclick="this.closest('.manual-assign-drop').style.display='none'" style="background:none;border:none;color:var(--dim);font-size:13px;cursor:pointer;">✕</button>
+        </span>
+      </div>`;
+    }).join('');
     uncWrap.style.display = 'block';
   } else {
     uncWrap.style.display = 'none';
   }
+}
+
+// ── Ruční přiřazení nepokrytého cíle ─────────────────────────────────────────
+function openManualAssign(btn) {
+  // Zavři ostatní otevřené dropdown
+  document.querySelectorAll('.manual-assign-drop').forEach(d => d.style.display = 'none');
+  const drop = btn.nextElementSibling;
+  if (drop) drop.style.display = 'flex';
+}
+
+function confirmManualAssign(confirmBtn) {
+  const drop    = confirmBtn.closest('.manual-assign-drop');
+  const row     = drop.closest('div[style]');
+  const addBtn  = row.querySelector('button[data-x]');
+  if (!addBtn) return;
+
+  const tgtX    = +addBtn.dataset.x;
+  const tgtY    = +addBtn.dataset.y;
+  const tgtOwner = addBtn.dataset.owner || '';
+  const unit    = addBtn.dataset.unit || 'ram';
+  const tgtId   = addBtn.dataset.id || null;
+  const tgtName = `${tgtX}|${tgtY}`;
+  const playerName = drop.querySelector('select').value;
+  if (!playerName) return;
+
+  // Použij čas příchodu z cíle, nebo z globálního políčka
+  let arrTime = addBtn.dataset.arr ? +addBtn.dataset.arr : null;
+  if (!arrTime) {
+    const globalEl = document.getElementById('global-arrival');
+    if (globalEl?.value) arrTime = new Date(globalEl.value).getTime();
+  }
+  if (!arrTime) { toast('Cíl nemá čas příchodu – nastav globální čas příchodu a přepočítej plán.', 'err'); return; }
+
+  // Najdi nejlepší volnou vesnici vybraného hráče (stejná logika jako Pass 2:
+  // nejsilnější kategorie → morálka → denní odeslání → nejblíže)
+  const CAT_RANK = { fullka:3, triq_off:2, half_off:1 };
+  const usedSrcKeys = new Set(attackRows.filter(r => !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
+  const candidates = jsonVillages
+    .filter(v =>
+      v.player_name === playerName &&
+      ['fullka','triq_off','half_off'].includes(v.category) &&
+      !usedSrcKeys.has(`${v.x}|${v.y}`)
+    )
+    .map(v => {
+      const travel  = travelMs(v.x, v.y, tgtX, tgtY, unit);
+      const sendTime = arrTime - travel;
+      return { v, travel, sendTime, isDay: !isNight(sendTime) && sendTime >= Date.now(), catRank: CAT_RANK[v.category] ?? -1 };
+    })
+    .sort((a, b) => {
+      if (b.catRank !== a.catRank) return b.catRank - a.catRank;
+      if (a.isDay !== b.isDay) return b.isDay - a.isDay;
+      return distSq({ x: a.v.x, y: a.v.y }, { x: tgtX, y: tgtY }) - distSq({ x: b.v.x, y: b.v.y }, { x: tgtX, y: tgtY });
+    });
+
+  if (!candidates.length) {
+    toast(`Hráč ${playerName} nemá žádnou volnou útočnou vesnici pro tento cíl.`, 'err', 5000);
+    return;
+  }
+
+  const { v: sv, travel, sendTime } = candidates[0];
+  const newRow = {
+    srcId: (allVillages.find(av => av.x===sv.x && av.y===sv.y)||{}).id || null,
+    srcName: sv.village_name || sv.name || `${sv.x}|${sv.y}`,
+    srcPlayer: sv.player_name || '',
+    srcX: sv.x, srcY: sv.y, srcCategory: sv.category,
+    tgtX, tgtY, tgtName, tgtId, tgtOwner,
+    unit, arrivalTime: arrTime, sendTime, travel,
+    night: isNight(sendTime), isPast: sendTime < Date.now(),
+    isFake: false, forced_night: false, isNew: true
+  };
+  attackRows.push(newRow);
+  uncoveredReasons.delete(`${tgtX}|${tgtY}`);
+  drop.style.display = 'none';
+  renderResults();
+  toast(`✓ Přidán útok: ${sv.x}|${sv.y} (${playerName}) → ${tgtX}|${tgtY}`, 'ok', 3500);
 }
 
 let currentSort = 'send', sortAsc = true;
@@ -3369,10 +3548,13 @@ async function replanSelected() {
 
   // Kolik útoků jde z každé vesnice (mimo vybrané řádky)
   const usageCount = {};
+  // Vesnice s ostrým útokem (mimo vybrané řádky) – nesmí dostat druhý ostrý při přeplánování
+  const sharpUsedKeys = new Set();
   attackRows.forEach((r, i) => {
     if (idxs.includes(i)) return;
     const key = `${r.srcX}|${r.srcY}`;
     usageCount[key] = (usageCount[key]||0) + 1;
+    if (!r.isFake && !r.isFakeNoble && !r.isNoble) sharpUsedKeys.add(key);
   });
 
   // Pro každý vybraný řádek najdi kandidáty
@@ -3381,6 +3563,7 @@ async function replanSelected() {
   function findCandidates(origRow, excludeSrcs = new Set()) {
     const arrivalMs = origRow.arrivalTime;
     const origCatVal = catPriority[origRow.srcCategory] || 0;
+    const isSharpRow = !origRow.isFake && !origRow.isFakeNoble && !origRow.isNoble;
     const candidates = [];
 
     for (const v of pool) {
@@ -3388,6 +3571,8 @@ async function replanSelected() {
       const vy = v.y ?? v.srcY;
       if (!vx || !vy) continue;
       if (excludeSrcs.has(`${vx}|${vy}`)) continue;
+      // Vesnice s existujícím ostrým útokem nesmí dostat druhý ostrý (fejky ano)
+      if (isSharpRow && sharpUsedKeys.has(`${vx}|${vy}`)) continue;
 
       // Kategorie vesnice
       const vCat = v.category || v.srcCategory || 'other';
