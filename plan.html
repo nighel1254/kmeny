@@ -932,7 +932,8 @@ function applySourceSwap(rowIdx, vx, vy) {
   }
 
   row.srcX = vx; row.srcY = vy;
-  row.srcName = v.name; row.srcId = v.id;
+  row.srcName = v.name;
+  row.srcId = v.id || attackRows.find(r => r.srcX===vx && r.srcY===vy && r.srcId)?.srcId || null;
   if (!row.isNoble) row.srcCategory = v.category;
   row.travel = travel; row.sendTime = sendTime; row.night = isNight(sendTime);
   row.isNew = true; // řádek po výměně skočí jinam v pořadí – oznámkujeme ho, ať ho hráč v tabulce najde
@@ -1207,7 +1208,8 @@ function onManualSrcSelectChange(rowIdx, value) {
   const [x,y] = value.split('|').map(Number);
   const v = findVillageByCoords(x, y);
   if (!v) return;
-  row.srcX = x; row.srcY = y; row.srcName = v.name; row.srcId = v.id;
+  row.srcX = x; row.srcY = y; row.srcName = v.name;
+  row.srcId = v.id || attackRows.find(r => r.srcX===x && r.srcY===y && r.srcId)?.srcId || null;
   recalcManualRow(rowIdx);
   renderTable();
   persistRows();
@@ -1442,10 +1444,13 @@ function renderTable() {
     const played   = playedRows.has(rowKey(r));
     const rowClass = played ? 'played-row' : past ? 'past-row' : r.night ? 'night-row' : '';
     const sendCls  = r.night ? 'send-time night' : 'send-time';
-    let gameLink = r.srcId
+    const resolvedSrcId = r.srcId
+      || playerVillages.find(v => v.x===r.srcX && v.y===r.srcY)?.id
+      || null;
+    let gameLink = resolvedSrcId
       ? (r.tgtId
-          ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}`
-          : `${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`)
+          ? `${API_BASE}/game.php?village=${resolvedSrcId}&screen=place&target=${r.tgtId}`
+          : `${API_BASE}/game.php?village=${resolvedSrcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`)
       : `${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`;
     if (r.isFake) gameLink += fakeTemplateQuery();
 

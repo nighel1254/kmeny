@@ -2439,14 +2439,18 @@ async function calculate() {
 
     const usedSrcKeys = new Set([...usedSrc]);
     const deffFirst = deffVillages.filter(v => !usedSrcKeys.has(`${v.x}|${v.y}`));
-    const fakePoolSize = deffFirst.length + srcVillages.length;
+    // Fejky posílej jen z vesnic, kde je aspoň 1 beranidlo nebo katapult
+    const fakeableSrcVillages = srcVillages.filter(sv =>
+      (sv.units?.ram || sv.ram || 0) >= 1 || (sv.units?.catapult || sv.catapult || 0) >= 1
+    );
+    const fakePoolSize = deffFirst.length + fakeableSrcVillages.length;
     const maxFakeTargets = Math.floor(fakePoolSize / fakeCount);
     const coveredFakes   = Math.min(maxFakeTargets, fakeTargets.length);
 
-    // Seřaď zdroje pro fejky: deff vesnice první (šetří off kapacitu), pak off vesnice
+    // Seřaď zdroje pro fejky: deff vesnice první (šetří off kapacitu), pak off vesnice s beranidlem/katapultem
     const sortedSrcForFake = [
       ...deffFirst,
-      ...srcVillages.sort((a,b) => (ORDER[a.category]??9)-(ORDER[b.category]??9))
+      ...fakeableSrcVillages.sort((a,b) => (ORDER[a.category]??9)-(ORDER[b.category]??9))
     ];
     const fakeAssign = new Map();
     for (let fi = 0; fi < coveredFakes; fi++) {
