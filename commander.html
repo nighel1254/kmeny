@@ -592,15 +592,15 @@
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
           <span style="font-size:12px;color:var(--dim);white-space:nowrap;">Typ vlaku:</span>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="4 šlechtici z jedné vesnice, 1 příkaz na cíl">
-            <input type="radio" name="noble-mode" value="train" checked style="width:auto;accent-color:var(--gold);">
+            <input type="radio" name="noble-mode" value="train" checked style="width:auto;accent-color:var(--gold);" onchange="refreshNoblelist()">
             🚂 Vlak (4 z 1 vesnice)
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="1 šlechtic z každé ze 4 vesnic – preferuje vesnice se ≤3 šlechtici">
-            <input type="radio" name="noble-mode" value="one_by_one" style="width:auto;accent-color:var(--gold);">
+            <input type="radio" name="noble-mode" value="one_by_one" style="width:auto;accent-color:var(--gold);" onchange="refreshNoblelist()">
             👑 Po jednom (1 z každé ze 4 vesnic)
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="3 šlechtici z jedné vesnice, 1 příkaz na cíl">
-            <input type="radio" name="noble-mode" value="three" style="width:auto;accent-color:var(--gold);">
+            <input type="radio" name="noble-mode" value="three" style="width:auto;accent-color:var(--gold);" onchange="refreshNoblelist()">
             ⚔️ ŠlechtiVlak (3 z 1 vesnice)
           </label>
         </div>
@@ -1084,7 +1084,7 @@ function renderCapacitySummary() {
 // ať se dá kdykoliv vrátit ke staršímu importu přes dropdown, aniž by hráč/commander
 // musel znovu spouštět bookmarklet ve hře.
 const JSON_SNAPSHOT_KIND = 'tribe';
-const JSON_SNAPSHOT_LIMIT = 20;
+const JSON_SNAPSHOT_LIMIT = 5;
 
 async function saveJsonSnapshot(rawText) {
   try {
@@ -1282,19 +1282,26 @@ function setAllNoblePlayerChecks(checked) {
 
 function refreshNoblelist() {
   const checkedPlayers = [...document.querySelectorAll('.noble-player-cb:checked')].map(cb => cb.value);
+  const nobleMode = document.querySelector('input[name="noble-mode"]:checked')?.value || 'train';
+  const minNoble = nobleMode === 'train' ? 4 : nobleMode === 'three' ? 3 : 1;
+  const trainSize = nobleMode === 'three' ? 3 : nobleMode === 'one_by_one' ? 1 : 4;
+
   const nobleVillages = jsonVillages
-    .filter(v => (v.noble || (v.units && v.units.noble)) > 0)
+    .filter(v => (v.noble || (v.units && v.units.noble) || 0) >= minNoble)
     .filter(v => !checkedPlayers.length || checkedPlayers.includes(v.player_name));
 
   const listEl = document.getElementById('noble-village-list');
   listEl.innerHTML = nobleVillages.map(v => {
     const cnt = v.noble || (v.units && v.units.noble) || 0;
+    const trains = Math.floor(cnt / trainSize);
+    const trainsLabel = trains > 1 ? `<span style="color:#a0d0ff;font-size:11px;margin-left:4px;">(${trains}× ${nobleMode === 'one_by_one' ? 'solo' : nobleMode === 'three' ? 'ŠlechtiVlak' : 'vlak'})</span>` : '';
     return `<div class="village-item">
-      <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${cnt}</span> <span style="color:var(--dim);font-size:11px;">${v.player_name||''}</span></span>
+      <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${cnt}</span>${trainsLabel} <span style="color:var(--dim);font-size:11px;">${v.player_name||''}</span></span>
       <span class="village-coords">${v.x}|${v.y}</span>
     </div>`;
   }).join('');
-  document.getElementById('noble-count').textContent = `${nobleVillages.length} vesnic se šlechtici`;
+  const totalTrains = nobleVillages.reduce((s,v) => s + Math.floor((v.noble||(v.units&&v.units.noble)||0) / trainSize), 0);
+  document.getElementById('noble-count').textContent = `${nobleVillages.length} vesnic – celkem ${totalTrains} ${nobleMode === 'one_by_one' ? 'šlechticů' : nobleMode === 'three' ? 'ŠlechtiVlaků' : 'vlaků'}`;
 }
 
 function updateNobleTargetCount() {
@@ -1738,6 +1745,22 @@ function smartFillSingleDT(targetId, input) {
   input.style.color = '#7ec87e';
   setTimeout(() => { input.value = ''; input.style.color = ''; }, 800);
 }
+
+// Po napsání 4 číslic roku v datetime-local automaticky přeskočí na hodiny (2× ArrowRight)
+document.addEventListener('input', function(e) {
+  if (e.target.type !== 'datetime-local') return;
+  const el = e.target;
+  const val = el.value || '';
+  const year = val.slice(0, 4);
+  const prev = el._prevYearLen || 0;
+  el._prevYearLen = year.replace(/\D/g, '').length;
+  if (year.length === 4 && prev < 4 && parseInt(year) >= 2020 && parseInt(year) <= 2099) {
+    setTimeout(() => {
+      el.dispatchEvent(new KeyboardEvent('keydown', {key:'ArrowRight', code:'ArrowRight', keyCode:39, which:39, bubbles:true, cancelable:true}));
+      el.dispatchEvent(new KeyboardEvent('keydown', {key:'ArrowRight', code:'ArrowRight', keyCode:39, which:39, bubbles:true, cancelable:true}));
+    }, 0);
+  }
+});
 
 // ── Donate (commander) ──────────────────────────────────────
 let _cmdrDonateOpen = false, _cmdrQrAmt = 100;
@@ -2539,7 +2562,9 @@ async function calculate() {
     const maxFakeNoble = Math.floor(srcVillages.length / fakeNobleCount);
     const coveredFakeNoble = Math.min(maxFakeNoble, fakeNobleTargets.length);
     const fakeNobleAssign = new Map();
-    const sortedSrcForFakeNoble = [...srcVillages].sort((a,b) => (ORDER[a.category]??9)-(ORDER[b.category]??9));
+    const sortedSrcForFakeNoble = [...srcVillages]
+      .filter(sv => (sv.units?.ram||sv.ram||0)>=4 || (sv.units?.catapult||sv.catapult||0)>=4)
+      .sort((a,b) => (ORDER[a.category]??9)-(ORDER[b.category]??9));
     for (let fi = 0; fi < coveredFakeNoble; fi++) {
       const ft = fakeNobleTargets[fi];
       for (let k = 0; k < fakeNobleCount; k++) {

@@ -628,6 +628,22 @@ async function _confirmDelete(assignmentId) {
   const cards = document.getElementById('plans-container').querySelectorAll('.card');
   if (!cards.length) document.getElementById('plans-container').innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Žádné plány.</p></div>`;
   toast('✓ Plán smazán');
+  // Vyčisti alarmy smazaného plánu ze všech push_subscriptions – jinak by push notifikace
+  // chodily dál i ze smazaných plánů.
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      const planId = String(assignmentId);
+      const { data: subRows } = await sb.from('push_subscriptions').select('device_id, alarms').eq('user_id', session.user.id);
+      for (const row of subRows || []) {
+        const cleaned = (row.alarms || []).filter(a => a.plan_id !== planId);
+        if (cleaned.length !== (row.alarms || []).length) {
+          await sb.from('push_subscriptions').update({ alarms: cleaned, updated_at: new Date().toISOString() })
+            .eq('user_id', session.user.id).eq('device_id', row.device_id);
+        }
+      }
+    }
+  } catch(e) { console.warn('Cleanup push alarms failed:', e); }
 }
 
 async function doLogout() {

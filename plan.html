@@ -281,6 +281,7 @@ function typeChip(r) {
   if (r.srcCategory==='fullka')  return `<span class="chip" style="background:#2a0000;color:#ff4040;border:1px solid #802020">${AXE_RED} fullka</span>`;
   if (r.srcCategory==='triq_off')return `<span class="chip" style="background:#1a0e00;color:#c07840;border:1px solid #604020">${AXE_BRN} 3/4 off</span>`;
   if (r.srcCategory==='half_off')return `<span class="chip" style="background:#1a1a00;color:#f0c040;border:1px solid #606010">${AXE_YEL} 1/2 off</span>`;
+  if (r.srcCategory==='deff')    return `<span class="chip" style="background:#001a10;color:#40c080;border:1px solid #106040">🛡 deff</span>`;
   if (r.srcCategory==='noble')   return `<span class="chip chip-noble">${NOBLE_NORM} ${r.nobleCount===1?'po jednom':r.nobleCount===3?'ŠlechtiVlak':'vlak'}</span>`;
   return `<span class="chip" style="background:#1a0800;color:#c06020;border:1px solid #604010">${AXE_BRN} mini off</span>`;
 }
@@ -301,7 +302,7 @@ let attackRows = [], cdInterval = null;
 let currentSort = 'send', sortAsc = true;
 let playerVillages = [], assignmentId = null, planLabel = 'Plán útoků';
 
-const CAT_LABEL = { fullka:'fullka', triq_off:'3/4', half_off:'1/2', mini_off:'mini', def:'def', gigafullka:'GigaFull' };
+const CAT_LABEL = { fullka:'fullka', triq_off:'3/4', half_off:'1/2', mini_off:'mini', def:'def', gigafullka:'GigaFull', deff:'deff' };
 // Které typy vesnic lze nabídnout jako náhradu za daný typ příkazu (fullku lze nahradit 3/4 vesnicí a naopak, atd.)
 function compatibleCategories(rowCat) {
   if (rowCat === 'fullka')   return ['gigafullka','fullka','triq_off'];
@@ -709,19 +710,23 @@ async function scheduleNotifications(rows) {
     if (!session) return;
     const planId = notifPlanKey();
     const freshAlarms = buildAlarmsForThisPlan();
-    // Aktualizuj alarmy pro TENTO plán na VŠECH zařízeních hráče (telefon i notebook),
-    // ne jen na tom, ze kterého se zrovna edituje/přepočítává – jinak ostatním zařízením
-    // zůstanou zastaralé alarmy z dřívějška a notifikace na nich nepřijde vůbec nebo ve
-    // špatný čas.
+    // Aktualizuj alarmy pro TENTO plán jen na těch zařízeních, která pro tento plán
+    // notifikace skutečně zapnutá mají (tzn. v jejich alarms existuje alespoň jeden alarm
+    // s tímto plan_id). Zařízení, kde tento plán nikdy nikdo nezapnul, přeskočíme –
+    // jinak by dostávala push notifikace, aniž by si je hráč povolil.
     const { data: allRows } = await sbP.from('push_subscriptions').select('device_id, alarms').eq('user_id', session.user.id);
+    let updatedCount = 0;
     for (const row of allRows || []) {
-      const mergedAlarms = mergeAlarms(row.alarms, planId, freshAlarms);
+      const existing = row.alarms || [];
+      if (!existing.some(a => a.plan_id === planId)) continue; // tento plán tu nikdy nebyl zapnutý
+      const mergedAlarms = mergeAlarms(existing, planId, freshAlarms);
       await sbP.from('push_subscriptions').update({
         alarms: mergedAlarms,
         updated_at: new Date().toISOString()
       }).eq('user_id', session.user.id).eq('device_id', row.device_id);
+      updatedCount++;
     }
-    console.log(`Updated ${freshAlarms.length} alarms for this plan na ${(allRows||[]).length} zařízeních`);
+    console.log(`Updated ${freshAlarms.length} alarms for this plan na ${updatedCount} zařízeních (přeskočeno ${(allRows||[]).length - updatedCount} zařízení bez tohoto plánu)`);
   } catch(e) { console.warn('Schedule update failed:', e); }
 }
 
@@ -965,18 +970,27 @@ function renderMyVillagesSummary() {
     ? `<span class="stat" style="cursor:pointer;color:#4090ff;" onclick="toggleGigaFullList()" title="Klikni pro zobrazení vesnic – GigaFullky se do plánu nepřiřazují automaticky, přidej si z nich útok sám tlačítkem ➕ pod plánem.">${AXE_GIGA} GigaFull: <strong>${gigaUsed}</strong>/${gigaVs.length} ▾</span>`
     : `<span class="stat" style="color:#4090ff;">${AXE_GIGA} GigaFull: <strong>0</strong>/0</span>`);
 
-  const cats = [['fullka','Fullka',AXE_RED,'#ff4040'],['triq_off','3/4 off',AXE_BRN,'#c07840'],['half_off','1/2 off',AXE_YEL,'#f0c040']];
-  cats.forEach(([cat,label,icon,color]) => {
+  const catDefs = [
+    ['fullka',   'Fullka',   AXE_RED, '#ff4040', 'fullka-list'],
+    ['triq_off', '3/4 off',  AXE_BRN, '#c07840', 'triq-list'],
+    ['half_off', '1/2 off',  AXE_YEL, '#f0c040', 'half-list'],
+  ];
+  const catLists = {};
+  catDefs.forEach(([cat,label,icon,color,listId]) => {
     const vs = playerVillages.filter(v => v.category === cat);
     if (!vs.length) return;
     const unused = vs.filter(v => !usedKeys.has(`${v.x}|${v.y}`));
     unusedAll.push(...unused.map(v => ({...v, _catLabel: label})));
     const used = vs.length - unused.length;
-    parts.push(`<span class="stat" style="color:${color}">${icon} ${label}: <strong>${used}</strong>/${vs.length} využito &nbsp;(<span style="color:var(--green)">${unused.length} volných</span>)</span>`);
+    catLists[listId] = vs;
+    parts.push(`<span class="stat" style="cursor:pointer;color:${color}" onclick="toggleCatList('${listId}')" title="Klikni pro zobrazení vesnic">${icon} ${label}: <strong>${used}</strong>/${vs.length} &nbsp;(<span style="color:var(--green)">${unused.length} volných</span>) ▾</span>`);
   });
 
-  if (unusedAll.length) {
-    parts.push(`<span class="stat" style="cursor:pointer;color:var(--green);" onclick="toggleUnusedList()" title="Klikni pro zobrazení nevyužitých off vesnic v tomto plánu."><img src="https://dscs.innogamescdn.com/asset/8b28a2b1a4/graphic/icons/header.webp" style="width:14px;height:14px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'"> Nevyužité: <strong>${unusedAll.length}</strong> ▾</span>`);
+  // "Nepřiřazeno" = volné off vesnice + gigy (ty se nikdy nepřiřazují automaticky)
+  const unusedGiga = gigaVs.filter(v => !usedKeys.has(`${v.x}|${v.y}`));
+  const unusedWithGiga = [...unusedGiga.map(v => ({...v, _catLabel:'GigaFull'})), ...unusedAll];
+  if (unusedWithGiga.length) {
+    parts.push(`<span class="stat" style="cursor:pointer;color:var(--green);" onclick="toggleUnusedList()" title="Klikni pro zobrazení nepřiřazených vesnic."><img src="https://dscs.innogamescdn.com/asset/8b28a2b1a4/graphic/icons/header.webp" style="width:14px;height:14px;vertical-align:middle;margin-right:2px;" onerror="this.style.display='none'"> Nepřiřazeno: <strong>${unusedWithGiga.length}</strong> ▾</span>`);
   }
 
   const nobleVs = playerVillages.filter(v => (v.noble||0) > 0);
@@ -987,18 +1001,33 @@ function renderMyVillagesSummary() {
   }
 
   if (!parts.length) { wrap.style.display = 'none'; return; }
+
+  const makeCatListHtml = (listId, vs, bg, border) =>
+    `<div id="${listId}" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:6px;">
+      ${vs.map(v => `<span style="display:inline-flex;align-items:center;gap:5px;background:${bg};border:1px solid ${border};border-radius:5px;padding:4px 8px;white-space:nowrap;"><span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''}</span></span>`).join('')}
+    </div>`;
+
   wrap.innerHTML = `<div style="font-size:11px;color:var(--dim);padding:6px 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">🏰 <strong style="color:var(--gold2)">Moje vesnice:</strong> ${parts.join('')}</div>
     <div id="gigafull-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:6px;">
-      ${gigaVs.map(v => `<span style="display:inline-flex;align-items:center;gap:5px;background:#2a0020;border:1px solid #4a1040;border-radius:5px;padding:4px 8px;white-space:nowrap;cursor:text;" title="Zkopíruj a vlož do pole zdroje u GigaFull řádku"><span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''}</span></span>`).join('')}
+      ${gigaVs.map(v => `<span style="display:inline-flex;align-items:center;gap:5px;background:#2a0020;border:1px solid #4a1040;border-radius:5px;padding:4px 8px;white-space:nowrap;cursor:text;"><span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''}</span></span>`).join('')}
     </div>
+    ${catLists['fullka-list'] ? makeCatListHtml('fullka-list', catLists['fullka-list'], '#2a0000', '#601010') : ''}
+    ${catLists['triq-list']   ? makeCatListHtml('triq-list',   catLists['triq-list'],   '#1a0e00', '#503010') : ''}
+    ${catLists['half-list']   ? makeCatListHtml('half-list',   catLists['half-list'],   '#1a1a00', '#505010') : ''}
     <div id="unused-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:6px;">
-      ${unusedAll.map(v => `<span style="display:inline-flex;align-items:center;gap:5px;background:#0f2018;border:1px solid #1a3a28;border-radius:5px;padding:4px 8px;white-space:nowrap;"><span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''} (${v._catLabel})</span></span>`).join('')}
+      ${unusedWithGiga.map(v => `<span style="display:inline-flex;align-items:center;gap:5px;background:#0f2018;border:1px solid #1a3a28;border-radius:5px;padding:4px 8px;white-space:nowrap;"><span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''} (${v._catLabel})</span></span>`).join('')}
     </div>`;
   wrap.style.display = 'block';
 }
 
 function toggleGigaFullList() {
   const el = document.getElementById('gigafull-list');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+
+function toggleCatList(id) {
+  const el = document.getElementById(id);
   if (!el) return;
   el.style.display = el.style.display === 'none' ? 'flex' : 'none';
 }
