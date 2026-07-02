@@ -843,11 +843,15 @@ function getRowCandidates(r, rowIdx) {
   if (r.isFake) {
     pool = playerVillages.filter(v => (v.ram||0) > 0 || (v.catapult||0) > 0);
   } else if (r.isNoble) {
+    const minNoble = r.nobleCount || 1; // vlak=4, ŠlechtiVlak=3, po jednom=1
     pool = playerVillages.filter(v => {
-      if (!(v.noble > 0)) return false;
+      const total = v.noble || v.units?.noble || 0;
+      if (total < minNoble) return false;
       if (v.x === r.srcX && v.y === r.srcY) return true;
-      const usedNobles = attackRows.filter((rr,i) => i!==rowIdx && rr.isNoble && rr.srcX===v.x && rr.srcY===v.y).length;
-      return usedNobles < v.noble;
+      const usedNobles = attackRows
+        .filter((rr, i) => i !== rowIdx && rr.isNoble && rr.srcX === v.x && rr.srcY === v.y)
+        .reduce((s, rr) => s + (rr.nobleCount || 1), 0);
+      return total - usedNobles >= minNoble;
     });
   } else {
     const okCats = compatibleCategories(r.srcCategory);
@@ -1158,13 +1162,13 @@ function addNoblePlanRows() {
     // Najdi vesnice s ≥1 volným šlechticem, preferuj ty s ≤3 celkem (nevyplní vlak)
     const candidates = playerVillages
       .filter(v => {
-        const total = v.noble || 0;
+        const total = v.noble || v.units?.noble || 0;
         const used = usedNobles.get(`${v.x}|${v.y}`) || 0;
         return total - used >= 1;
       })
       .sort((a, b) => {
-        const remA = (a.noble||0) - (usedNobles.get(`${a.x}|${a.y}`) || 0);
-        const remB = (b.noble||0) - (usedNobles.get(`${b.x}|${b.y}`) || 0);
+        const remA = (a.noble||a.units?.noble||0) - (usedNobles.get(`${a.x}|${a.y}`) || 0);
+        const remB = (b.noble||b.units?.noble||0) - (usedNobles.get(`${b.x}|${b.y}`) || 0);
         if ((remA <= 3) !== (remB <= 3)) return remA <= 3 ? -1 : 1;
         return Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2) - Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2);
       });
@@ -1187,7 +1191,7 @@ function addNoblePlanRows() {
     // Vlak nebo ŠlechtiVlak: nejbližší vesnice s dostatkem šlechticů
     const candidates = playerVillages
       .filter(v => {
-        const total = v.noble || 0;
+        const total = v.noble || v.units?.noble || 0;
         const used = usedNobles.get(`${v.x}|${v.y}`) || 0;
         return total - used >= noblePerTarget;
       })
