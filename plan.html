@@ -1091,9 +1091,10 @@ function getManualCandidates(typeKey, rowIdx) {
 }
 
 function refreshNoblePlanList() {
-  const listEl  = document.getElementById('noble-plan-village-list');
+  const wrapEl  = document.getElementById('noble-plan-village-list');
+  const innerEl = document.getElementById('noble-plan-village-inner');
   const countEl = document.getElementById('noble-plan-count');
-  if (!listEl) return;
+  if (!wrapEl) return;
   const nobleMode = document.querySelector('input[name="noble-mode-plan"]:checked')?.value || 'train';
   const minNoble  = nobleMode === 'train' ? 4 : nobleMode === 'three' ? 3 : 1;
   const trainSize = nobleMode === 'one_by_one' ? 1 : nobleMode === 'three' ? 3 : 4;
@@ -1101,11 +1102,10 @@ function refreshNoblePlanList() {
     .filter(v => (v.noble || v.units?.noble || 0) >= minNoble)
     .sort((a,b) => (b.noble||b.units?.noble||0) - (a.noble||a.units?.noble||0));
   if (!villages.length) {
-    listEl.style.display = 'none';
-    if (countEl) countEl.textContent = '';
+    wrapEl.style.display = 'none';
     return;
   }
-  listEl.innerHTML = villages.map(v => {
+  if (innerEl) innerEl.innerHTML = villages.map(v => {
     const cnt = v.noble || v.units?.noble || 0;
     const trains = Math.floor(cnt / trainSize);
     const trainsLabel = trains > 1 ? `<span style="color:#a0d0ff;font-size:11px;margin-left:4px;">(${trains}× ${nobleMode==='one_by_one'?'solo':nobleMode==='three'?'ŠlechtiVlak':'vlak'})</span>` : '';
@@ -1114,9 +1114,16 @@ function refreshNoblePlanList() {
       <span class="village-coords">${v.x}|${v.y}</span>
     </div>`;
   }).join('');
-  listEl.style.display = 'block';
+  wrapEl.style.display = 'block';
   const totalTrains = villages.reduce((s,v) => s + Math.floor((v.noble||v.units?.noble||0) / trainSize), 0);
   if (countEl) countEl.textContent = `${villages.length} vesnic – celkem ${totalTrains} ${nobleMode==='one_by_one'?'šlechticů':nobleMode==='three'?'ŠlechtiVlaků':'vlaků'}`;
+  // obarvi aktivní segment
+  document.querySelectorAll('input[name="noble-mode-plan"]').forEach(r => {
+    const lbl = r.closest('label');
+    if (!lbl) return;
+    lbl.style.background = r.checked ? '#2e1f00' : '#1a1208';
+    lbl.style.color = r.checked ? 'var(--gold)' : 'var(--dim)';
+  });
 }
 
 function addNoblePlanRows() {
@@ -1713,30 +1720,51 @@ function render(data) {
       <div class="panel-header">
         <span><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Plánovat šlechtice</span>
       </div>
-      <div class="panel-body">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-          <span style="font-size:12px;color:var(--dim);white-space:nowrap;">Typ vlaku:</span>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="4 šlechtici z jedné vesnice, 1 příkaz">
-            <input type="radio" name="noble-mode-plan" value="train" checked style="width:auto;accent-color:var(--gold);" onchange="refreshNoblePlanList()">🚂 Vlak (4 z 1 vesnice)
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="1 šlechtic z každé ze 4 různých vesnic">
-            <input type="radio" name="noble-mode-plan" value="one_by_one" style="width:auto;accent-color:var(--gold);" onchange="refreshNoblePlanList()">👑 Po jednom (1 z každé ze 4 vesnic)
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="3 šlechtici z jedné vesnice, 1 příkaz">
-            <input type="radio" name="noble-mode-plan" value="three" style="width:auto;accent-color:var(--gold);" onchange="refreshNoblePlanList()">⚔️ ŠlechtiVlak (3 z 1 vesnice)
-          </label>
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+
+        <!-- Typ vlaku – segmented control -->
+        <div>
+          <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Typ vlaku</div>
+          <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;width:fit-content;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:7px 14px;background:#1a1208;color:var(--dim);border-right:1px solid var(--border);transition:background .15s;" onmouseover="this.style.background='#241a0a'" onmouseout="this.querySelector('input').checked?this.style.background='#2e1f00':this.style.background='#1a1208'">
+              <input type="radio" name="noble-mode-plan" value="train" checked style="display:none;" onchange="refreshNoblePlanList();this.closest('div').querySelectorAll('label').forEach(l=>{l.style.background=l.querySelector('input').checked?'#2e1f00':'#1a1208';l.style.color=l.querySelector('input').checked?'var(--gold)':'var(--dim)'})">
+              🚂 Vlak <span style="opacity:.6;font-size:11px;">(4 z 1)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:7px 14px;background:#1a1208;color:var(--dim);border-right:1px solid var(--border);transition:background .15s;" onmouseover="this.style.background='#241a0a'" onmouseout="this.querySelector('input').checked?this.style.background='#2e1f00':this.style.background='#1a1208'">
+              <input type="radio" name="noble-mode-plan" value="one_by_one" style="display:none;" onchange="refreshNoblePlanList();this.closest('div').querySelectorAll('label').forEach(l=>{l.style.background=l.querySelector('input').checked?'#2e1f00':'#1a1208';l.style.color=l.querySelector('input').checked?'var(--gold)':'var(--dim)'})">
+              👑 Po jednom <span style="opacity:.6;font-size:11px;">(1 z každé ze 4)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:7px 14px;background:#1a1208;color:var(--dim);transition:background .15s;" onmouseover="this.style.background='#241a0a'" onmouseout="this.querySelector('input').checked?this.style.background='#2e1f00':this.style.background='#1a1208'">
+              <input type="radio" name="noble-mode-plan" value="three" style="display:none;" onchange="refreshNoblePlanList();this.closest('div').querySelectorAll('label').forEach(l=>{l.style.background=l.querySelector('input').checked?'#2e1f00':'#1a1208';l.style.color=l.querySelector('input').checked?'var(--gold)':'var(--dim)'})">
+              ⚔️ ŠlechtiVlak <span style="opacity:.6;font-size:11px;">(3 z 1)</span>
+            </label>
+          </div>
         </div>
-        <div class="village-list" id="noble-plan-village-list" style="max-height:180px;overflow-y:auto;margin-bottom:4px;display:none;"></div>
-        <div style="font-size:11px;color:var(--gold);font-weight:bold;margin-bottom:12px;" id="noble-plan-count"></div>
-        <div style="margin-bottom:10px;">
-          <label style="font-size:13px;display:block;margin-bottom:6px;">Cílová vesnice</label>
-          <input type="text" id="noble-plan-target" placeholder="567|503" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:14px;">
+
+        <!-- Seznam vesnic -->
+        <div id="noble-plan-village-list" style="display:none;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+          <div style="max-height:180px;overflow-y:auto;" id="noble-plan-village-inner"></div>
+          <div style="font-size:11px;color:var(--gold);font-weight:600;padding:6px 10px;border-top:1px solid var(--border);background:#120e04;" id="noble-plan-count"></div>
         </div>
-        <div style="margin-bottom:12px;">
-          <label style="font-size:13px;display:block;margin-bottom:6px;">⏰ Čas příchodu</label>
-          <input type="datetime-local" id="noble-plan-arrival" step="1" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
+
+        <!-- Formulář -->
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:0 0 auto;">
+            <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">Cílová vesnice</div>
+            <input type="text" id="noble-plan-target" placeholder="567|503"
+              style="width:120px;padding:8px 10px;border-radius:5px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:14px;font-family:monospace;">
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">⏰ Čas příchodu</div>
+            <input type="datetime-local" id="noble-plan-arrival" step="1"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:5px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
+          </div>
+          <button onclick="addNoblePlanRows()"
+            style="flex:0 0 auto;background:var(--gold);color:#1a0e00;border:none;border-radius:5px;padding:8px 22px;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap;align-self:flex-end;">
+            ➕ Přidat
+          </button>
         </div>
-        <button onclick="addNoblePlanRows()" style="width:100%;background:var(--gold);color:#1a0e00;border:none;border-radius:6px;padding:12px 16px;font-weight:700;cursor:pointer;font-size:15px;letter-spacing:0.3px;">➕ Přidat šlechtice</button>
+
       </div>
     </div>`;
 
