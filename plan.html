@@ -1090,6 +1090,35 @@ function getManualCandidates(typeKey, rowIdx) {
   return playerVillages.filter(v => okCats.includes(v.category) && !usedKeys.has(`${v.x}|${v.y}`));
 }
 
+function refreshNoblePlanList() {
+  const listEl  = document.getElementById('noble-plan-village-list');
+  const countEl = document.getElementById('noble-plan-count');
+  if (!listEl) return;
+  const nobleMode = document.querySelector('input[name="noble-mode-plan"]:checked')?.value || 'train';
+  const minNoble  = nobleMode === 'train' ? 4 : nobleMode === 'three' ? 3 : 1;
+  const trainSize = nobleMode === 'one_by_one' ? 1 : nobleMode === 'three' ? 3 : 4;
+  const villages = (playerVillages || [])
+    .filter(v => (v.noble || v.units?.noble || 0) >= minNoble)
+    .sort((a,b) => (b.noble||b.units?.noble||0) - (a.noble||a.units?.noble||0));
+  if (!villages.length) {
+    listEl.style.display = 'none';
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+  listEl.innerHTML = villages.map(v => {
+    const cnt = v.noble || v.units?.noble || 0;
+    const trains = Math.floor(cnt / trainSize);
+    const trainsLabel = trains > 1 ? `<span style="color:#a0d0ff;font-size:11px;margin-left:4px;">(${trains}× ${nobleMode==='one_by_one'?'solo':nobleMode==='three'?'ŠlechtiVlak':'vlak'})</span>` : '';
+    return `<div class="village-item">
+      <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${cnt}</span>${trainsLabel}</span>
+      <span class="village-coords">${v.x}|${v.y}</span>
+    </div>`;
+  }).join('');
+  listEl.style.display = 'block';
+  const totalTrains = villages.reduce((s,v) => s + Math.floor((v.noble||v.units?.noble||0) / trainSize), 0);
+  if (countEl) countEl.textContent = `${villages.length} vesnic – celkem ${totalTrains} ${nobleMode==='one_by_one'?'šlechticů':nobleMode==='three'?'ŠlechtiVlaků':'vlaků'}`;
+}
+
 function addNoblePlanRows() {
   const mode = document.querySelector('input[name="noble-mode-plan"]:checked')?.value || 'train';
   const noblePerTarget = mode === 'three' ? 3 : 4;
@@ -1687,15 +1716,17 @@ function render(data) {
       <div class="panel-body">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="4 šlechtici z jedné vesnice, 1 příkaz">
-            <input type="radio" name="noble-mode-plan" value="train" checked style="width:auto;accent-color:var(--gold);">🚂 Vlak (4 z 1 vesnice)
+            <input type="radio" name="noble-mode-plan" value="train" checked style="width:auto;accent-color:var(--gold);" onchange="refreshNoblePlanList()">🚂 Vlak (4 z 1 vesnice)
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="1 šlechtic z každé ze 4 různých vesnic – preferuje vesnice s ≤3 šlechtici">
-            <input type="radio" name="noble-mode-plan" value="one_by_one" style="width:auto;accent-color:var(--gold);">👑 Po jednom (1 z každé ze 4 vesnic)
+            <input type="radio" name="noble-mode-plan" value="one_by_one" style="width:auto;accent-color:var(--gold);" onchange="refreshNoblePlanList()">👑 Po jednom (1 z každé ze 4 vesnic)
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:#1a1208;color:var(--dim);" title="3 šlechtici z jedné vesnice, 1 příkaz">
-            <input type="radio" name="noble-mode-plan" value="three" style="width:auto;accent-color:var(--gold);">⚔️ ŠlechtiVlak (3 z 1 vesnice)
+            <input type="radio" name="noble-mode-plan" value="three" style="width:auto;accent-color:var(--gold);" onchange="refreshNoblePlanList()">⚔️ ŠlechtiVlak (3 z 1 vesnice)
           </label>
         </div>
+        <div class="village-list" id="noble-plan-village-list" style="max-height:160px;margin-bottom:10px;display:none;"></div>
+        <div style="font-size:11px;color:var(--gold);margin-bottom:8px;" id="noble-plan-count"></div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
           <div>
             <label style="font-size:12px;display:block;margin-bottom:4px;">Cílová vesnice</label>
@@ -1711,6 +1742,7 @@ function render(data) {
     </div>`;
 
   renderTable();
+  refreshNoblePlanList();
   // Po načtení plánu automaticky smaž NOVÝ badge po 10 sekundách
   setTimeout(() => {
     if (attackRows.some(r => r.isNew)) {

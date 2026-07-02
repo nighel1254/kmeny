@@ -1028,14 +1028,14 @@ function applyMode() {
   jsonVillages.forEach(v => {
     if (planMode === 'total') {
       v._category = v.category_total || v.category;
-      v._noble = v.noble_total || v.noble || 0;
+      v._noble = v.noble_total || v.noble || v.units?.noble || 0;
       v._units = Object.fromEntries(
         Object.keys(v.available||{}).map(k => [k, (v.available[k]||0)+(v.traveling[k]||0)])
       );
       v._off_pop = v.off_pop_total || v.off_pop || 0;
     } else {
       v._category = v.category;
-      v._noble = v.noble || 0;
+      v._noble = v.noble || v.units?.noble || 0;
       v._units = v.available || v.units || {};
       v._off_pop = v.off_pop || 0;
     }
@@ -1203,6 +1203,8 @@ function applyFilter() {
   document.getElementById('src-selected-info').textContent=`✓ ${offVillages.length} útočných vesnic vybráno`;
   refreshNobleSrcList();
 }
+
+
 
 function refreshNobleSrcList() {
   const listEl  = document.getElementById('noble-village-list');
