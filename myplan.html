@@ -378,14 +378,34 @@
     <!-- ── ŠLECHTICI ── -->
     <div class="panel">
       <div class="panel-header"><span style="display:flex;align-items:center;gap:5px;"><img src="https://cs112.divokekmeny.cz/graphic/unit/unit_snob.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Vlaky šlechticů</span></div>
-      <div class="panel-body">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-          <label style="margin:0;white-space:nowrap;font-size:13px;">Šlechticů na cíl (vlak):</label>
-          <input type="number" id="noble-per-target" min="1" max="4" value="4" style="width:55px;text-align:center;" onchange="refreshNobleSrcList()">
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+        <!-- Typ vlaku – segmented control -->
+        <div>
+          <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">Typ vlaku</div>
+          <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;width:fit-content;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:7px 14px;background:#2e1f00;color:var(--gold);border-right:1px solid var(--border);" id="noble-mode-lbl-train">
+              <input type="radio" name="noble-mode-myplan" value="train" checked style="display:none;" onchange="onNobleModeChange()">
+              🚂 Vlak <span style="opacity:.6;font-size:11px;">(4 z 1)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:7px 14px;background:#1a1208;color:var(--dim);border-right:1px solid var(--border);" id="noble-mode-lbl-one_by_one">
+              <input type="radio" name="noble-mode-myplan" value="one_by_one" style="display:none;" onchange="onNobleModeChange()">
+              👑 Po jednom <span style="opacity:.6;font-size:11px;">(1 z každé ze 4)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:7px 14px;background:#1a1208;color:var(--dim);" id="noble-mode-lbl-three">
+              <input type="radio" name="noble-mode-myplan" value="three" style="display:none;" onchange="onNobleModeChange()">
+              ⚔️ ŠlechtiVlak <span style="opacity:.6;font-size:11px;">(3 z 1)</span>
+            </label>
+          </div>
+          <input type="hidden" id="noble-per-target" value="4">
         </div>
-        <div id="noble-src-info" style="font-size:12px;color:var(--dim);margin-bottom:4px;">Načti JSON pro zobrazení šlechticů.</div>
-        <div class="village-list" id="noble-village-list" style="max-height:160px;display:none;margin-bottom:8px;"></div>
-        <div style="font-size:11px;color:var(--gold);margin-bottom:8px;font-weight:bold;" id="noble-village-count"></div>
+        <!-- Seznam vesnic -->
+        <div>
+          <div id="noble-src-info" style="font-size:12px;color:var(--dim);">Načti JSON pro zobrazení šlechticů.</div>
+          <div style="display:none;border:1px solid var(--border);border-radius:6px;overflow:hidden;" id="noble-village-wrap">
+            <div class="village-list" id="noble-village-list" style="max-height:160px;overflow-y:auto;"></div>
+            <div style="font-size:11px;color:var(--gold);font-weight:bold;padding:6px 10px;border-top:1px solid var(--border);background:#120e04;" id="noble-village-count"></div>
+          </div>
+        </div>
         <label>Cílové souřadnice šlechticů</label>
         <textarea id="noble-coords" rows="3" placeholder="500|500&#10;501|502" oninput="nobleCoordsInput(this)"></textarea>
         <div class="btn-row">
@@ -1206,33 +1226,59 @@ function applyFilter() {
 
 
 
+function onNobleModeChange() {
+  const mode = document.querySelector('input[name="noble-mode-myplan"]:checked')?.value || 'train';
+  const perTarget = mode === 'three' ? 3 : mode === 'one_by_one' ? 1 : 4;
+  const hidden = document.getElementById('noble-per-target');
+  if (hidden) hidden.value = perTarget;
+  // obarvi segmented control
+  ['train','one_by_one','three'].forEach(v => {
+    const lbl = document.getElementById(`noble-mode-lbl-${v}`);
+    if (!lbl) return;
+    lbl.style.background = v === mode ? '#2e1f00' : '#1a1208';
+    lbl.style.color = v === mode ? 'var(--gold)' : 'var(--dim)';
+  });
+  refreshNobleSrcList();
+}
+
 function refreshNobleSrcList() {
   const listEl  = document.getElementById('noble-village-list');
+  const wrapEl  = document.getElementById('noble-village-wrap');
   const countEl = document.getElementById('noble-village-count');
   const infoEl  = document.getElementById('noble-src-info');
   if (!listEl) return;
   if (!nobleVillages.length) {
-    listEl.style.display = 'none';
+    if (wrapEl) wrapEl.style.display = 'none';
     if (countEl) countEl.textContent = '';
     if (infoEl) infoEl.textContent = 'Načti JSON pro zobrazení šlechticů.';
     return;
   }
-  const perTarget = parseInt(document.getElementById('noble-per-target')?.value) || 4;
-  const sorted = [...nobleVillages].sort((a,b) => b._noble - a._noble);
-  listEl.innerHTML = sorted.map(v => {
-    const trains = Math.floor(v._noble / perTarget);
+  const mode = document.querySelector('input[name="noble-mode-myplan"]:checked')?.value || 'train';
+  const minNoble  = mode === 'train' ? 4 : mode === 'three' ? 3 : 1;
+  const trainSize = mode === 'one_by_one' ? 1 : mode === 'three' ? 3 : 4;
+  const trainLabel = mode === 'one_by_one' ? 'solo' : mode === 'three' ? 'ŠlechtiVlak' : 'vlak';
+  const filtered = [...nobleVillages]
+    .filter(v => v._noble >= minNoble)
+    .sort((a,b) => b._noble - a._noble);
+  if (!filtered.length) {
+    if (wrapEl) wrapEl.style.display = 'none';
+    if (infoEl) infoEl.textContent = `Žádná vesnice nemá ≥${minNoble} šlechticů.`;
+    return;
+  }
+  listEl.innerHTML = filtered.map(v => {
+    const trains = Math.floor(v._noble / trainSize);
     const trainsLabel = trains > 1
-      ? `<span style="color:#a0d0ff;font-size:11px;margin-left:4px;">(${trains}× vlak)</span>` : '';
+      ? `<span style="color:#a0d0ff;font-size:11px;margin-left:4px;">(${trains}× ${trainLabel})</span>` : '';
     return `<div class="village-item">
       <span style="font-size:12px;">${v.village_name||`${v.x}|${v.y}`} <span style="color:var(--gold)">👑×${v._noble}</span>${trainsLabel}</span>
       <span class="village-coords">${v.x}|${v.y}</span>
     </div>`;
   }).join('');
-  listEl.style.display = 'block';
-  const totalNob  = nobleVillages.reduce((s,v)=>s+v._noble,0);
-  const totalTrain= nobleVillages.reduce((s,v)=>s+Math.floor(v._noble/perTarget),0);
-  if (countEl) countEl.textContent = `${nobleVillages.length} vesnic – celkem ${totalNob} šlechticů, ${totalTrain} vlaků (po ${perTarget})`;
+  if (wrapEl) wrapEl.style.display = 'block';
   if (infoEl) infoEl.textContent = '';
+  const totalNob   = filtered.reduce((s,v) => s + v._noble, 0);
+  const totalTrain = filtered.reduce((s,v) => s + Math.floor(v._noble / trainSize), 0);
+  if (countEl) countEl.textContent = `${filtered.length} vesnic – ${totalNob} šlechticů, ${totalTrain} ${trainLabel === 'solo' ? 'šlechticů' : trainLabel === 'ŠlechtiVlak' ? 'ŠlechtiVlaků' : 'vlaků'}`;
 }
 
 // Auto-format souřadnic v noble-coords textarea: 3 čísla → "|" → 3 čísla → focus na čas příchodu
@@ -2068,7 +2114,7 @@ function buildPlanInput(){
       sharpCount: document.getElementById('sharp-count').value,
       fakeCount: document.getElementById('fake-count').value,
       fakeNobCnt: document.getElementById('fakenob-count').value,
-      noblePerTgt: document.getElementById('noble-per-target').value,
+      nobleMode: document.querySelector('input[name="noble-mode-myplan"]:checked')?.value || 'train',
       planMode
     }
   };
@@ -2141,7 +2187,10 @@ async function loadForEdit(id){
   if(s.sharpCount!=null)document.getElementById('sharp-count').value=s.sharpCount;
   if(s.fakeCount!=null)document.getElementById('fake-count').value=s.fakeCount;
   if(s.fakeNobCnt!=null)document.getElementById('fakenob-count').value=s.fakeNobCnt;
-  if(s.noblePerTgt!=null)document.getElementById('noble-per-target').value=s.noblePerTgt;
+  if(s.nobleMode) {
+    const r = document.querySelector(`input[name="noble-mode-myplan"][value="${s.nobleMode}"]`);
+    if (r) { r.checked = true; onNobleModeChange(); }
+  }
   if(s.planMode) setMode(s.planMode);
 
   for(const type of ['sharp','noble','fake','fakenob']){

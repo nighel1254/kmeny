@@ -1990,6 +1990,22 @@ async function planLogout() {
   await sb2.auth.signOut();
   window.location.href = 'index.html';
 }
+
+// Po napsání 4 číslic roku v datetime-local automaticky přeskočí na hodiny
+document.addEventListener('input', function(e) {
+  if (e.target.type !== 'datetime-local') return;
+  const el = e.target;
+  const val = el.value || '';
+  const year = val.slice(0, 4);
+  const prev = el._prevYearLen || 0;
+  el._prevYearLen = year.replace(/\D/g, '').length;
+  if (year.length === 4 && prev < 4 && parseInt(year) >= 2020 && parseInt(year) <= 2099) {
+    setTimeout(() => {
+      el.dispatchEvent(new KeyboardEvent('keydown', {key:'ArrowRight',code:'ArrowRight',keyCode:39,which:39,bubbles:true,cancelable:true}));
+      el.dispatchEvent(new KeyboardEvent('keydown', {key:'ArrowRight',code:'ArrowRight',keyCode:39,which:39,bubbles:true,cancelable:true}));
+    }, 0);
+  }
+});
 </script>
 </body>
 </html>
