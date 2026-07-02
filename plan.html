@@ -1725,19 +1725,19 @@ function render(data) {
             <input type="radio" name="noble-mode-plan" value="three" style="width:auto;accent-color:var(--gold);" onchange="refreshNoblePlanList()">⚔️ ŠlechtiVlak (3 z 1 vesnice)
           </label>
         </div>
-        <div class="village-list" id="noble-plan-village-list" style="max-height:160px;margin-bottom:10px;display:none;"></div>
-        <div style="font-size:11px;color:var(--gold);margin-bottom:8px;" id="noble-plan-count"></div>
-        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="village-list" id="noble-plan-village-list" style="max-height:180px;overflow-y:auto;margin-bottom:6px;display:none;"></div>
+        <div style="font-size:11px;color:var(--gold);margin-bottom:10px;" id="noble-plan-count"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
           <div>
             <label style="font-size:12px;display:block;margin-bottom:4px;">Cílová vesnice</label>
-            <input type="text" id="noble-plan-target" placeholder="567|503" style="width:110px;padding:5px 8px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
+            <input type="text" id="noble-plan-target" placeholder="567|503" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:14px;">
           </div>
           <div>
             <label style="font-size:12px;display:block;margin-bottom:4px;">⏰ Čas příchodu</label>
-            <input type="datetime-local" id="noble-plan-arrival" step="1" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
+            <input type="datetime-local" id="noble-plan-arrival" step="1" style="width:100%;box-sizing:border-box;padding:7px 8px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
           </div>
-          <button onclick="addNoblePlanRows()" style="background:var(--gold);color:#1a0e00;border:none;border-radius:4px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:13px;">➕ Přidat</button>
         </div>
+        <button onclick="addNoblePlanRows()" style="width:100%;background:var(--gold);color:#1a0e00;border:none;border-radius:6px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:15px;">➕ Přidat</button>
       </div>
     </div>`;
 
