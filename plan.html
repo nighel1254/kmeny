@@ -1727,17 +1727,17 @@ function render(data) {
         </div>
         <div class="village-list" id="noble-plan-village-list" style="max-height:180px;overflow-y:auto;margin-bottom:6px;display:none;"></div>
         <div style="font-size:11px;color:var(--gold);margin-bottom:10px;" id="noble-plan-count"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-          <div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">
+          <div style="flex:0 0 130px;">
             <label style="font-size:12px;display:block;margin-bottom:4px;">Cílová vesnice</label>
             <input type="text" id="noble-plan-target" placeholder="567|503" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:14px;">
           </div>
-          <div>
+          <div style="flex:0 0 200px;">
             <label style="font-size:12px;display:block;margin-bottom:4px;">⏰ Čas příchodu</label>
             <input type="datetime-local" id="noble-plan-arrival" step="1" style="width:100%;box-sizing:border-box;padding:7px 8px;border-radius:4px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
           </div>
+          <button onclick="addNoblePlanRows()" style="flex:1;min-width:120px;background:var(--gold);color:#1a0e00;border:none;border-radius:6px;padding:9px 16px;font-weight:700;cursor:pointer;font-size:14px;">➕ Přidat</button>
         </div>
-        <button onclick="addNoblePlanRows()" style="width:100%;background:var(--gold);color:#1a0e00;border:none;border-radius:6px;padding:10px 16px;font-weight:700;cursor:pointer;font-size:15px;">➕ Přidat</button>
       </div>
     </div>`;
 
