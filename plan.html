@@ -1711,13 +1711,13 @@ function render(data) {
     </div>`;
 
   renderTable();
-  // Po načtení plánu automaticky smaž NOVÝ badge po 10 sekundách
+  // Po načtení plánu automaticky smaž NOVÝ badge po 15 sekundách
   setTimeout(() => {
     if (attackRows.some(r => r.isNew)) {
       attackRows.forEach(r => r.isNew = false);
       renderTable();
     }
-  }, 10000);
+  }, 15000);
   clearInterval(cdInterval);
   cdInterval = setInterval(() => {
     updateCountdowns();
