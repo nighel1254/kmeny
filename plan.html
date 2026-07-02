@@ -982,8 +982,8 @@ function renderMyVillagesSummary() {
     const unused = vs.filter(v => !usedKeys.has(`${v.x}|${v.y}`));
     unusedAll.push(...unused.map(v => ({...v, _catLabel: label})));
     const used = vs.length - unused.length;
-    catLists[listId] = vs;
-    parts.push(`<span class="stat" style="cursor:pointer;color:${color}" onclick="toggleCatList('${listId}')" title="Klikni pro zobrazení vesnic">${icon} ${label}: <strong>${used}</strong>/${vs.length} &nbsp;(<span style="color:var(--green)">${unused.length} volných</span>) ▾</span>`);
+    catLists[listId] = unused;
+    parts.push(`<span class="stat" style="cursor:pointer;color:${color}" onclick="toggleCatList('${listId}')" title="Klikni pro zobrazení volných vesnic">${icon} ${label}: <strong>${used}</strong>/${vs.length} &nbsp;(<span style="color:var(--green)">${unused.length} volných</span>) ▾</span>`);
   });
 
   // "Nepřiřazeno" = volné off vesnice + gigy (ty se nikdy nepřiřazují automaticky)
@@ -1015,7 +1015,10 @@ function renderMyVillagesSummary() {
     ${catLists['triq-list']   ? makeCatListHtml('triq-list',   catLists['triq-list'],   '#1a0e00', '#503010') : ''}
     ${catLists['half-list']   ? makeCatListHtml('half-list',   catLists['half-list'],   '#1a1a00', '#505010') : ''}
     <div id="unused-list" style="display:none;font-size:11px;color:var(--dim);padding:0 16px 8px 16px;flex-wrap:wrap;gap:6px;">
-      ${unusedWithGiga.map(v => `<span style="display:inline-flex;align-items:center;gap:5px;background:#0f2018;border:1px solid #1a3a28;border-radius:5px;padding:4px 8px;white-space:nowrap;"><span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''} (${v._catLabel})</span></span>`).join('')}
+      ${unusedWithGiga.map(v => {
+        const catColor = v.category==='gigafullka'?'#4090ff':v.category==='fullka'?'#ff4040':v.category==='triq_off'?'#c07840':v.category==='half_off'?'#f0c040':'#40c080';
+        return `<span style="display:inline-flex;align-items:center;gap:5px;background:#0f2018;border:1px solid #1a3a28;border-radius:5px;padding:4px 8px;white-space:nowrap;"><span class="coords">${v.x}|${v.y}</span> <span style="color:var(--dim)">${v.name||''}</span> <span style="color:${catColor};font-size:10px;">(${v._catLabel})</span></span>`;
+      }).join('')}
     </div>`;
   wrap.style.display = 'block';
 }
@@ -1708,6 +1711,13 @@ function render(data) {
     </div>`;
 
   renderTable();
+  // Po načtení plánu automaticky smaž NOVÝ badge po 30 sekundách
+  setTimeout(() => {
+    if (attackRows.some(r => r.isNew)) {
+      attackRows.forEach(r => r.isNew = false);
+      renderTable();
+    }
+  }, 30000);
   clearInterval(cdInterval);
   cdInterval = setInterval(() => {
     updateCountdowns();

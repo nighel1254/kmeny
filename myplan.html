@@ -1130,6 +1130,7 @@ function importJson() {
     document.getElementById('src-overview').style.display='block';
     updateSrcCounts();
     applyFilter();
+    refreshNobleSrcList();
     saveJsonToDb(data).catch(()=>{});
   } catch(e) {
     setStatus('json-status','err','❌ Chyba: '+e.message);
