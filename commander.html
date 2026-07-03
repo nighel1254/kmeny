@@ -3869,6 +3869,44 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
   aggZmesk.innerHTML = `<div style="background:#1a0404;padding:6px 12px;font-size:11px;color:#ff6060;font-weight:600;position:sticky;top:0;">⚠ Zmeškal — všechny zmeškaná příkazy (${allZmesk.length})</div>${aggTable(allZmesk,'Nikdo nic nezmeškal')}`;
   el.appendChild(aggZmesk);
 
+  // Per-hráč souhrn tabulka
+  const playerSummaryDiv = document.createElement('div');
+  playerSummaryDiv.style.cssText = 'margin-bottom:14px;border:1px solid var(--border);border-radius:6px;overflow:hidden;';
+  let psHtml = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead><tr style="background:#140e07;color:var(--dim);">
+      <th style="padding:5px 10px;text-align:left;font-weight:400;">Hráč</th>
+      <th style="padding:5px 10px;text-align:center;font-weight:400;color:var(--green);">Bude odesláno</th>
+      <th style="padding:5px 10px;text-align:center;font-weight:400;color:#888;">Odesláno</th>
+      <th style="padding:5px 10px;text-align:center;font-weight:400;color:#ff6060;">Zmeškal</th>
+      <th style="padding:5px 10px;text-align:center;font-weight:400;color:#e09040;">Změny</th>
+    </tr></thead><tbody>`;
+  for (const a of assignments) {
+    const rows = a.rows_data || [];
+    const ps2 = new Set(Array.isArray(a.played_rows)?a.played_rows:[]);
+    const rk2 = r => `${r.srcX}|${r.srcY}|${r.sendTime}`;
+    const pPend = rows.filter(r=>r.sendTime>=now).length;
+    const pOdesl = rows.filter(r=>r.sendTime<now&&ps2.has(rk2(r))).length;
+    const pZmesk = rows.filter(r=>r.sendTime<now&&!ps2.has(rk2(r))).length;
+    const pkey2 = (a.player_name||'').toLowerCase();
+    const orig2 = origByPlayer.get(pkey2)||[];
+    const origKeys2 = new Set(orig2.map(r=>`${r.tgtX}|${r.tgtY}|${r.unit}`));
+    const currKeys2 = new Set(rows.map(r=>`${r.tgtX}|${r.tgtY}|${r.unit}`));
+    const pChg = rows.filter(r=>!origKeys2.has(`${r.tgtX}|${r.tgtY}|${r.unit}`)).length
+               + orig2.filter(r=>!currKeys2.has(`${r.tgtX}|${r.tgtY}|${r.unit}`)).length
+               + rows.filter(r=>{ const o=orig2.find(x=>x.tgtX===r.tgtX&&x.tgtY===r.tgtY&&x.unit===r.unit); return o&&(o.srcX!==r.srcX||o.srcY!==r.srcY); }).length;
+    const alarm = pZmesk > 0;
+    psHtml += `<tr style="border-top:1px solid #1a1208;background:${alarm?'#160404':'#1a1208'};" onclick="document.getElementById('mc-${a.id}').style.display='block';document.getElementById('mc-${a.id}').scrollIntoView({behavior:'smooth',block:'nearest'})" title="Přejít na detail" style="cursor:pointer;">
+      <td style="padding:4px 10px;color:${alarm?'#ff6060':'var(--gold2)'};font-weight:600;cursor:pointer;">${alarm?'⚠ ':''}${a.player_name||a.player_email}</td>
+      <td style="padding:4px 10px;text-align:center;color:var(--green);font-weight:${pPend?'700':'400'};">${pPend||'—'}</td>
+      <td style="padding:4px 10px;text-align:center;color:#888;">${pOdesl||'—'}</td>
+      <td style="padding:4px 10px;text-align:center;color:${pZmesk?'#ff4040':'#4a7a4a'};font-weight:${pZmesk?'700':'400'};">${pZmesk||'—'}</td>
+      <td style="padding:4px 10px;text-align:center;color:${pChg?'#e09040':'var(--dim)'};">${pChg||'—'}</td>
+    </tr>`;
+  }
+  psHtml += '</tbody></table>';
+  playerSummaryDiv.innerHTML = psHtml;
+  el.appendChild(playerSummaryDiv);
+
   for (const a of assignments) {
     const rows = a.rows_data || [];
     const subs = sharesByAssign.get(a.id) || [];
