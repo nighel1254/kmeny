@@ -1368,6 +1368,7 @@ function addNoblePlanRows() {
   attackRows.sort((a, b) => (a.sendTime||0) - (b.sendTime||0));
   renderTable();
   persistRows();
+  refreshNoblePlanList();
   toast(`✓ Přidáno ${newRows.length} ${newRows.length===1?'příkaz':'příkazů'} šlechticů.`, 'ok');
 }
 
@@ -1375,6 +1376,7 @@ function removeNobleRow(rowIdx) {
   attackRows.splice(rowIdx, 1);
   renderTable();
   persistRows();
+  refreshNoblePlanList();
   toast('Příkaz šlechtice smazán.', 'ok', 2000);
 }
 
@@ -1899,6 +1901,7 @@ function doArmyUpdate() {
 
     document.getElementById('army-update-modal')?.remove();
     renderMyVillagesSummary();
+    refreshNoblePlanList();
 
     // Ulož aktualizované vesnice na server (plan_input)
     if (assignmentId) {
@@ -2138,6 +2141,7 @@ function init() {
           const rows = Array.isArray(fresh.played_rows) ? fresh.played_rows : [];
           playedRows.clear(); rows.forEach(k => playedRows.add(k));
           renderTable();
+          refreshNoblePlanList();
         }
       } catch(e) { console.warn('Dotažení aktuálního stavu ze serveru se nepodařilo:', e); }
       // Polling každých 30s – "odesláno" je teď stav PLÁNU, takže se musí kontrolovat i
