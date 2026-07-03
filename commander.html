@@ -3791,25 +3791,83 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
   const el = document.getElementById('monitoring-content');
   const now = Date.now();
 
-  // Souhrnný řádek nahoře
   const rk = r => `${r.srcX}|${r.srcY}|${r.sendTime}`;
-  const totalRows  = assignments.reduce((s,a) => s+(a.rows_data||[]).length, 0);
-  const totalPend  = assignments.reduce((s,a) => s+(a.rows_data||[]).filter(r=>r.sendTime>=now).length, 0);
-  const totalOdesl = assignments.reduce((s,a) => {
+
+  // Sesbírej agregovaná data
+  const totalRows = assignments.reduce((s,a) => s+(a.rows_data||[]).length, 0);
+  const allPend = [], allZmesk = [], allOdesl = [];
+  for (const a of assignments) {
     const ps = new Set(Array.isArray(a.played_rows)?a.played_rows:[]);
-    return s+(a.rows_data||[]).filter(r=>r.sendTime<now&&ps.has(rk(r))).length;
-  }, 0);
-  const totalZmesk = assignments.reduce((s,a) => {
-    const ps = new Set(Array.isArray(a.played_rows)?a.played_rows:[]);
-    return s+(a.rows_data||[]).filter(r=>r.sendTime<now&&!ps.has(rk(r))).length;
-  }, 0);
-  el.innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;padding:8px 12px;background:#140e07;border:1px solid ${totalZmesk?'#8b2020':'var(--border)'};border-radius:6px;">
-    <span style="color:var(--dim);">Hráčů: <b style="color:var(--text);">${assignments.length}</b></span>
-    <span style="color:var(--dim);">Celkem příkazů: <b style="color:var(--text);">${totalRows}</b></span>
-    <span style="color:var(--dim);">Bude odesláno: <b style="color:var(--green);">${totalPend}</b></span>
-    <span style="color:var(--dim);">Odesláno: <b style="color:#60c060;">${totalOdesl}</b></span>
-    ${totalZmesk ? `<span style="color:#ff4040;font-weight:700;">⚠ Zmeškal celkem: <b>${totalZmesk}</b></span>` : `<span style="color:#4a7a4a;">✓ nic nezmeškal</span>`}
-  </div>`;
+    const pname = a.player_name || a.player_email;
+    for (const r of (a.rows_data||[])) {
+      const tagged = {...r, _player: pname, _aid: a.id};
+      if (r.sendTime >= now) allPend.push(tagged);
+      else if (ps.has(rk(r))) allOdesl.push(tagged);
+      else allZmesk.push(tagged);
+    }
+  }
+
+  // Pomocná funkce pro agregovanou tabulku
+  function aggTable(rows, emptyMsg) {
+    if (!rows.length) return `<div style="padding:8px 14px;color:var(--dim);font-size:12px;">${emptyMsg}</div>`;
+    let t = `<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="color:var(--dim);background:#0d0d0d;">
+      <th style="padding:4px 8px;text-align:left;">Hráč</th>
+      <th style="padding:4px 8px;text-align:left;">Zdroj</th>
+      <th style="padding:4px 8px;text-align:left;">Cíl</th>
+      <th style="padding:4px 8px;text-align:left;">Typ</th>
+      <th style="padding:4px 8px;text-align:left;">Odeslání</th>
+      <th style="padding:4px 8px;text-align:left;">Dopad</th>
+    </tr></thead><tbody>`;
+    for (const r of rows) {
+      t += `<tr style="border-top:1px solid #1a1a1a;">
+        <td style="padding:3px 8px;color:var(--gold2);">${r._player}</td>
+        <td style="padding:3px 8px;font-family:monospace;">${r.srcX}|${r.srcY}<br><span style="color:var(--dim);font-size:10px;">${r.srcName||''}</span></td>
+        <td style="padding:3px 8px;">${monMapLink(r.tgtX,r.tgtY)?`<a href="${monMapLink(r.tgtX,r.tgtY)}" target="_blank" rel="noopener" style="font-family:monospace;color:var(--blue);text-decoration:none;">${r.tgtX}|${r.tgtY}</a>`:r.tgtX+'|'+r.tgtY}<br><span style="color:var(--dim);font-size:10px;">${r.tgtName||''}</span></td>
+        <td style="padding:3px 8px;">${monTypeChip(r)}</td>
+        <td style="padding:3px 8px;font-family:monospace;white-space:nowrap;">${fmtDT(new Date(r.sendTime))}</td>
+        <td style="padding:3px 8px;font-family:monospace;white-space:nowrap;">${fmtDT(new Date(r.arrivalTime))}</td>
+      </tr>`;
+    }
+    return t + '</tbody></table>';
+  }
+
+  el.innerHTML = '';
+
+  // Souhrnná tabulka
+  const summaryDiv = document.createElement('div');
+  summaryDiv.style.cssText = `margin-bottom:12px;border:1px solid ${allZmesk.length?'#8b2020':'var(--border)'};border-radius:6px;overflow:hidden;`;
+  summaryDiv.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="background:#140e07;color:var(--dim);text-align:center;">
+        <th style="padding:6px 12px;font-weight:400;border-right:1px solid var(--border);">Hráčů</th>
+        <th style="padding:6px 12px;font-weight:400;border-right:1px solid var(--border);">Celkem příkazů</th>
+        <th style="padding:6px 12px;font-weight:400;border-right:1px solid var(--border);cursor:pointer;" onclick="document.getElementById('agg-pend').style.display=document.getElementById('agg-pend').style.display==='none'?'block':'none'" title="Zobrazit přehled">Bude odesláno ▾</th>
+        <th style="padding:6px 12px;font-weight:400;border-right:1px solid var(--border);">Odesláno</th>
+        <th style="padding:6px 12px;font-weight:400;cursor:pointer;" onclick="document.getElementById('agg-zmesk').style.display=document.getElementById('agg-zmesk').style.display==='none'?'block':'none'" title="Zobrazit přehled">${allZmesk.length?'⚠ Zmeškal ▾':'✓ Zmeškal'}</th>
+      </tr></thead>
+      <tbody><tr style="background:#1a1208;text-align:center;font-size:14px;font-weight:700;">
+        <td style="padding:8px 12px;border-right:1px solid var(--border);color:var(--text);">${assignments.length}</td>
+        <td style="padding:8px 12px;border-right:1px solid var(--border);color:var(--text);">${totalRows}</td>
+        <td style="padding:8px 12px;border-right:1px solid var(--border);color:var(--green);cursor:pointer;" onclick="document.getElementById('agg-pend').style.display=document.getElementById('agg-pend').style.display==='none'?'block':'none'">${allPend.length}</td>
+        <td style="padding:8px 12px;border-right:1px solid var(--border);color:#888;">${allOdesl.length}</td>
+        <td style="padding:8px 12px;color:${allZmesk.length?'#ff4040':'#4a7a4a'};cursor:${allZmesk.length?'pointer':'default'};" ${allZmesk.length?`onclick="document.getElementById('agg-zmesk').style.display=document.getElementById('agg-zmesk').style.display==='none'?'block':'none'"`:''}>${allZmesk.length||'—'}</td>
+      </tr></tbody>
+    </table>`;
+  el.appendChild(summaryDiv);
+
+  // Agregovaný detail – Bude odesláno
+  const aggPend = document.createElement('div');
+  aggPend.id = 'agg-pend';
+  aggPend.style.cssText = 'display:none;margin-bottom:12px;border:1px solid #204020;border-radius:6px;overflow:hidden;max-height:360px;overflow-y:auto;';
+  aggPend.innerHTML = `<div style="background:#0a1a0a;padding:6px 12px;font-size:11px;color:var(--green);font-weight:600;position:sticky;top:0;">⏳ Bude odesláno — všechny čekající příkazy (${allPend.length})</div>${aggTable(allPend,'Žádné čekající příkazy')}`;
+  el.appendChild(aggPend);
+
+  // Agregovaný detail – Zmeškal
+  const aggZmesk = document.createElement('div');
+  aggZmesk.id = 'agg-zmesk';
+  aggZmesk.style.cssText = 'display:none;margin-bottom:12px;border:1px solid #8b2020;border-radius:6px;overflow:hidden;max-height:360px;overflow-y:auto;';
+  aggZmesk.innerHTML = `<div style="background:#1a0404;padding:6px 12px;font-size:11px;color:#ff6060;font-weight:600;position:sticky;top:0;">⚠ Zmeškal — všechny zmeškaná příkazy (${allZmesk.length})</div>${aggTable(allZmesk,'Nikdo nic nezmeškal')}`;
+  el.appendChild(aggZmesk);
 
   for (const a of assignments) {
     const rows = a.rows_data || [];
