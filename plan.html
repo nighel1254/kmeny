@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
@@ -1590,9 +1590,13 @@ function buildManualRowHtml(r, rowIdx) {
   const complete = r.srcX && r.tgtX && r.arrivalTime;
   const delBtn = `<button onclick="removeManualRow(${rowIdx})" title="Smazat tento řádek" style="background:#3a1010;border:1px solid #ff6060;border-radius:4px;cursor:pointer;color:#ff8080;padding:3px 6px;margin-left:3px;vertical-align:middle;"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm-2 3h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"/></svg></button>`;
 
+  const _mPlayed = playedRows.has(rowKey(r));
+  const _mPast = r.sendTime && r.sendTime < Date.now();
+  const _mRowCls = _mPlayed ? 'played-row' : _mPast ? 'past-row' : '';
+
   if (r._confirmed && complete) {
     // Uložený manuální řádek – jen náhled, ne otevřená editace. Klikni ✎ pro úpravu.
-    return `<tr data-rowidx="${rowIdx}" style="background:#1e1508;border-left:2px solid var(--gold);">
+    return `<tr data-rowidx="${rowIdx}" class="${_mRowCls}" style="background:#1e1508;border-left:2px solid var(--gold);">
       <td data-label="#" style="color:var(--dim);font-size:11px;">★</td>
       <td data-label="Zdroj"><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span>${computeSrcOrderLabel(rowIdx)}</td>
       <td data-label="Typ">${typeChip(r)}</td>
@@ -1610,7 +1614,7 @@ function buildManualRowHtml(r, rowIdx) {
     </tr>`;
   }
 
-  return `<tr data-rowidx="${rowIdx}" style="background:#1e1508;border-left:2px solid var(--gold);">
+  return `<tr data-rowidx="${rowIdx}" class="${_mRowCls}" style="background:#1e1508;border-left:2px solid var(--gold);">
     <td data-label="#" style="color:var(--dim);font-size:11px;">★</td>
     <td data-label="Zdroj">${srcCell}${computeSrcOrderLabel(rowIdx)}</td>
     <td data-label="Typ"><select style="max-width:140px;" onchange="onManualTypeChange(${rowIdx},this.value)">${typeOpts}</select></td>
