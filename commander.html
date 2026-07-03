@@ -3748,7 +3748,7 @@ async function loadMonitoring() {
 
   // Načti přidělené plány včetně played_rows pro detekci Zmeškal/Odesláno
   const { data: assignments, error: aErr } = await sb.from('plan_assignments')
-    .select('id, player_email, player_name, rows_data, plan_label, updated_at, played_rows')
+    .select('id, player_email, player_name, rows_data, plan_label, played_rows')
     .eq('plan_id', _currentPlanId)
     .order('player_name');
 
@@ -3836,7 +3836,6 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
     });
     const changes = added.length + removed.length + replanned.length;
 
-    const updAt = a.updated_at ? new Date(a.updated_at) : null;
     const cardId = `mc-${a.id}`;
     const hasAlarm = zmeskal.length > 0;
 
@@ -3850,7 +3849,6 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
         <span style="font-size:11px;color:var(--dim);">Odesláno: <b style="color:#888;">${odeslano.length}</b></span>
         ${zmeskal.length ? `<span style="background:#2a0000;border:1px solid #8b2020;color:#ff6060;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;">⚠ Zmeškal: ${zmeskal.length}</span>` : (past.length ? `<span style="font-size:11px;color:#4a7a4a;">✓ vše odesláno (${odeslano.length})</span>` : '')}
         ${changes ? `<span style="background:#2a1800;border:1px solid #a06020;color:#e09040;border-radius:10px;padding:2px 8px;font-size:11px;">✎ ${changes} změn</span>` : ''}
-        ${updAt ? `<span style="font-size:10px;color:var(--dim);margin-left:auto;">Uloženo: ${fmtDT(updAt)}</span>` : ''}
       </div>
       <div id="${cardId}" style="display:${hasAlarm ? 'block' : 'none'};overflow-x:auto;">
         ${monitoringRowsTable(rows, origRows, now, playedSet)}
