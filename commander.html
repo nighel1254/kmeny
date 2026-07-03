@@ -3822,7 +3822,7 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
       t += `<tr style="border-top:1px solid #1a1a1a;">
         <td style="padding:3px 8px;color:var(--gold2);">${r._player}</td>
         <td style="padding:3px 8px;font-family:monospace;">${r.srcX}|${r.srcY}<br><span style="color:var(--dim);font-size:10px;">${r.srcName||''}</span></td>
-        <td style="padding:3px 8px;">${monMapLink(r.tgtX,r.tgtY)?`<a href="${monMapLink(r.tgtX,r.tgtY)}" target="_blank" rel="noopener" style="font-family:monospace;color:var(--blue);text-decoration:none;">${r.tgtX}|${r.tgtY}</a>`:r.tgtX+'|'+r.tgtY}<br><span style="color:var(--dim);font-size:10px;">${r.tgtName||''}</span></td>
+        <td style="padding:3px 8px;"><a href="${monMapLink(r.tgtX,r.tgtY,r.tgtId,r.srcId)}" target="_blank" rel="noopener" style="font-family:monospace;color:var(--blue);text-decoration:none;">${r.tgtX}|${r.tgtY}</a><br><span style="color:var(--dim);font-size:10px;">${r.tgtName||''}</span></td>
         <td style="padding:3px 8px;">${monTypeChip(r)}</td>
         <td style="padding:3px 8px;font-family:monospace;white-space:nowrap;">${fmtDT(new Date(r.sendTime))}</td>
         <td style="padding:3px 8px;font-family:monospace;white-space:nowrap;">${fmtDT(new Date(r.arrivalTime))}</td>
@@ -3965,9 +3965,10 @@ function monTypeChip(r) {
   return `<span style="color:var(--dim);">${r.srcCategory || r.unit || '?'}</span>`;
 }
 
-function monMapLink(x, y) {
-  const vid = (allVillages?.[0]?.id) || 0;
-  return `${API_BASE}/game.php?village=${vid}&screen=map#${x};${y}`;
+function monMapLink(x, y, tgtId, srcId) {
+  const vid = srcId || (allVillages?.[0]?.id) || 0;
+  const tid = tgtId || 0;
+  return `${API_BASE}/game.php?village=${vid}&screen=info_village&id=${tid}#${x};${y}`;
 }
 
 function monitoringRowsTable(rows, origRows, now, playedSet, assignmentId) {
@@ -4012,7 +4013,7 @@ function monitoringRowsTable(rows, origRows, now, playedSet, assignmentId) {
       status = `<span style="color:#555;">– Minulý</span>`;
     }
 
-    const tgtLink = `<a href="${monMapLink(r.tgtX, r.tgtY)}" target="_blank" rel="noopener" style="font-family:monospace;color:var(--blue);text-decoration:none;" title="Otevřít mapu">${r.tgtX}|${r.tgtY}</a>`;
+    const tgtLink = `<a href="${monMapLink(r.tgtX, r.tgtY, r.tgtId, r.srcId)}" target="_blank" rel="noopener" style="font-family:monospace;color:var(--blue);text-decoration:none;" title="Otevřít info vesnice">${r.tgtX}|${r.tgtY}</a>`;
     const changeCell = srcChanged
       ? `<span style="color:#e09040;font-size:11px;">↺ ${orig.srcX}|${orig.srcY}→${r.srcX}|${r.srcY}</span>`
       : isAdded ? `<span style="color:#60c060;font-size:11px;">+ přidáno</span>`
@@ -4046,7 +4047,7 @@ function monitoringChangesSummary(added, removed, replanned) {
       <th style="padding:3px 8px;text-align:left;">Dopad</th>
     </tr></thead><tbody>`;
     for (const r of added) {
-      const tgtLink = `<a href="${monMapLink(r.tgtX, r.tgtY)}" target="_blank" rel="noopener" style="font-family:monospace;color:var(--blue);text-decoration:none;">${r.tgtX}|${r.tgtY}</a>`;
+      const tgtLink = `<a href="${monMapLink(r.tgtX, r.tgtY, r.tgtId, r.srcId)}" target="_blank" rel="noopener" style="font-family:monospace;color:var(--blue);text-decoration:none;">${r.tgtX}|${r.tgtY}</a>`;
       html += `<tr style="border-top:1px solid #0a1a0a;">
         <td style="padding:3px 8px;font-family:monospace;">${r.srcX}|${r.srcY} <span style="color:var(--dim)">${r.srcName||''}</span></td>
         <td style="padding:3px 8px;">${tgtLink} <span style="color:var(--dim)">${r.tgtName||''}</span></td>
@@ -4059,10 +4060,10 @@ function monitoringChangesSummary(added, removed, replanned) {
   }
 
   if (removed.length) {
-    html += `<div style="color:#cc5555;margin-bottom:4px;font-weight:600;">✕ Smazáno (${removed.length}): ${removed.map(r=>`<a href="${monMapLink(r.tgtX,r.tgtY)}" target="_blank" rel="noopener" style="color:#cc5555;font-family:monospace;">${r.tgtX}|${r.tgtY}</a>`).join(', ')}</div>`;
+    html += `<div style="color:#cc5555;margin-bottom:4px;font-weight:600;">✕ Smazáno (${removed.length}): ${removed.map(r=>`<a href="${monMapLink(r.tgtX,r.tgtY,r.tgtId,r.srcId)}" target="_blank" rel="noopener" style="color:#cc5555;font-family:monospace;">${r.tgtX}|${r.tgtY}</a>`).join(', ')}</div>`;
   }
   if (replanned.length) {
-    html += `<div style="color:#e09040;font-weight:600;">↺ Přeplánováno (${replanned.length}): ${replanned.map(r=>`<a href="${monMapLink(r.tgtX,r.tgtY)}" target="_blank" rel="noopener" style="color:#e09040;font-family:monospace;">${r.tgtX}|${r.tgtY}</a>`).join(', ')}</div>`;
+    html += `<div style="color:#e09040;font-weight:600;">↺ Přeplánováno (${replanned.length}): ${replanned.map(r=>`<a href="${monMapLink(r.tgtX,r.tgtY,r.tgtId,r.srcId)}" target="_blank" rel="noopener" style="color:#e09040;font-family:monospace;">${r.tgtX}|${r.tgtY}</a>`).join(', ')}</div>`;
   }
 
   return html + `</div>`;
