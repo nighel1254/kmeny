@@ -4500,6 +4500,7 @@ function deleteRow(rowIdx) {
   }
   attackRows.splice(rowIdx, 1);
   renderResults();
+  refreshNoblelist();
   autosave();
 }
 
