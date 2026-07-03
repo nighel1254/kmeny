@@ -1592,8 +1592,11 @@ async function calculate() {
   // Priorita: 1) silnější kategorie napřed (fullka → 3/4 → 1/2 → mini), 2) odeslání ve dne
   // před nocí, 3) nejblíž cíli. Vesnice, ze které by odeslání vyšlo do minulosti, se přeskočí.
   const _calcNow = Date.now();
+  const MIN_DELAY = 10 * 60 * 1000; // nejdřív 10 minut od teď
   const SHARP_CAT_RANK = { fullka:3, triq_off:2, half_off:1, mini_off:0 };
   // Vesnice, které už podle historie reálně odeslaly ostrý útok, se znovu nenabízí.
+  const usedSendTimesGlobal = new Set(); // žádné dvě vesnice nesmí mít stejný sendTime
+  const sharpSrcTgtKeys = new Set();     // "srcX|srcY|tgtX|tgtY" – fejk nesmí kopírovat ostrý
   const usedSharpSrcs = new Set(_historyRows.filter(PRED_SHARP).map(r => `${r.srcX}|${r.srcY}`));
   for (const tgt of sharpTgts) {
     const already = sentCountAtTarget(tgt.x, tgt.y, PRED_SHARP);
@@ -1612,11 +1615,13 @@ async function calculate() {
         return distSq(a.v, tgt) - distSq(b.v, tgt);                        // blíž je líp
       });
     for (let s=0; s<need; s++) {
-      const idx = candidates.findIndex(c => c.sendTime > _calcNow + 60000);
+      const idx = candidates.findIndex(c => c.sendTime > _calcNow + MIN_DELAY && !usedSendTimesGlobal.has(c.sendTime));
       if (idx === -1) { planWarnings.push(`Cíl ${tgt.x}|${tgt.y} (${tgt.name||''}): žádná volná vesnice to už nestihne odeslat včas — chybí ${need-s} ostrých útoků.`); break; }
       const cand = candidates.splice(idx,1)[0];
       const src = cand.v;
       usedSharpSrcs.add(`${src.x}|${src.y}`);
+      usedSendTimesGlobal.add(cand.sendTime);
+      sharpSrcTgtKeys.add(`${src.x}|${src.y}|${tgt.x}|${tgt.y}`);
       attackRows.push({
         srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
         srcCategory:src._category||src.category, srcOwner:src.player_name||'',
@@ -1632,8 +1637,9 @@ async function calculate() {
   // Cílem je použít co nejvíc různých vesnic rovnoměrně, než se kterákoli vesnice opakuje.
   const FAKE_MAX_REUSE = 5;
 
-  function runFakeRoundRobin(targets, count, srcPool, kindLabel, histPred, rowBuilder) {
+  function runFakeRoundRobin(targets, count, srcPool, kindLabel, histPred, rowBuilder, usedSendPerSrc) {
     if (count<=0 || !targets.length) return;
+    if (!usedSendPerSrc) usedSendPerSrc = new Map();
 
     // Kolik už bylo na cíl reálně odesláno (podle historie) – to se odečte od potřebného počtu.
     const neededPerTgt = new Map();
@@ -1676,10 +1682,19 @@ async function calculate() {
           const key = `${src.x}|${src.y}`;
           const used = useCount.get(key)||0;
           if (used >= effectiveMax) continue;
+          if (sharpSrcTgtKeys.has(`${src.x}|${src.y}|${tgt.x}|${tgt.y}`)) continue;
           // Přeskoč vesnici, ze které by odeslání vyšlo do minulosti (nestihne to)
-          if (tgt.arrivalTime - travelMs(src.x,src.y,tgt.x,tgt.y,'ram') <= Date.now() + 60000) continue;
+          const _fkTravel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
+          const _fkSend = tgt.arrivalTime - _fkTravel;
+          if (_fkSend <= _calcNow + MIN_DELAY) continue;
+          if (usedSendTimesGlobal.has(_fkSend)) continue;
+          const _fkSrcSends = usedSendPerSrc.get(key) || new Set();
+          if (_fkSrcSends.has(_fkSend)) continue;
+          _fkSrcSends.add(_fkSend);
+          usedSendPerSrc.set(key, _fkSrcSends);
+          usedSendTimesGlobal.add(_fkSend);
           useCount.set(key, used+1);
-          rowBuilder(src, tgt);
+          rowBuilder(src, tgt, _fkSend, _fkTravel);
           needed--; assignedThisRound++;
         }
         if (assignedThisRound === 0) { shortage = true; break; }
@@ -1695,9 +1710,8 @@ async function calculate() {
       ..._fakeBase.filter(v => v.category==='deff' || v._category==='deff'),
       ..._fakeBase.filter(v => v.category!=='deff' && v._category!=='deff')
     ].filter(v => (v.units?.ram||v.ram||0)>=1 || (v.units?.catapult||v.catapult||0)>=1);
-    runFakeRoundRobin(fakeTgts, fakeCount, fakeSrc, 'fejky', PRED_FAKE, (src, tgt) => {
-      const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
-      const sendTime = tgt.arrivalTime - travel;
+    const _fakeSendPerSrc = new Map();
+    runFakeRoundRobin(fakeTgts, fakeCount, fakeSrc, 'fejky', PRED_FAKE, (src, tgt, sendTime, travel) => {
       attackRows.push({
         srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
         srcCategory:src._category||src.category||'def', srcOwner:src.player_name||'',
@@ -1705,7 +1719,7 @@ async function calculate() {
         unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
         night:isNight(sendTime), isFake:true, isNoble:false, isFakeNoble:false
       });
-    });
+    }, _fakeSendPerSrc);
   }
 
   if (fakeNobCnt>0) {
@@ -1714,9 +1728,8 @@ async function calculate() {
       ..._fakeNobBase.filter(v => v.category==='deff' || v._category==='deff'),
       ..._fakeNobBase.filter(v => v.category!=='deff' && v._category!=='deff')
     ].filter(v => (v.units?.ram||v.ram||0)>=4 || (v.units?.catapult||v.catapult||0)>=4);
-    runFakeRoundRobin(fakeNobTgts, fakeNobCnt, fakeSrc, 'fejk vlaky', PRED_FN, (src, tgt) => {
-      const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'ram');
-      const sendTime = tgt.arrivalTime - travel;
+    const _fakeNobSendPerSrc = new Map();
+    runFakeRoundRobin(fakeNobTgts, fakeNobCnt, fakeSrc, 'fejk vlaky', PRED_FN, (src, tgt, sendTime, travel) => {
       attackRows.push({
         srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
         srcCategory:src._category||src.category||'def', srcOwner:src.player_name||'',
@@ -1724,7 +1737,7 @@ async function calculate() {
         unit:'ram', sendTime, arrivalTime:tgt.arrivalTime, travel,
         night:isNight(sendTime), isFake:false, isNoble:false, isFakeNoble:true
       });
-    });
+    }, _fakeNobSendPerSrc);
   }
 
   // ── Šlechtici — nejblíže cíli mají prioritu ──
@@ -1740,7 +1753,7 @@ async function calculate() {
         // Kolik šlechticů už na tento cíl bylo reálně odesláno – train pokračuje odsud, ne od nuly.
         let placed = sentCountAtTarget(tgt.x, tgt.y, PRED_NOBLE);
         const tgtNobleRows=[];
-        const sortedPool = pool.filter(v=>v.remaining>0 && tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'noble') > _calcNow + 60000).sort(byDistTo(tgt));
+        const sortedPool = pool.filter(v=>v.remaining>0 && tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'noble') > _calcNow + MIN_DELAY).sort(byDistTo(tgt));
         for (const src of sortedPool) {
           if (placed >= noblePerTgt) break;
           const take = Math.min(src.remaining, noblePerTgt - placed);
@@ -1935,8 +1948,11 @@ function renderResults(){
       <td data-label="Cesta" style="color:var(--dim);font-size:11px;">${fmtDur(r.travel)}</td>
       <td data-label="Odpočet"><span class="countdown" data-send="${r.sendTime}"></span></td>
       <td style="white-space:nowrap;">
-        <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
-        <button onclick="replanRow(${rowIdx})" title="Přeplánovat tento příkaz (zapomněl jsem odeslat)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>
+        <a class="play-btn" href="javascript:void(0)" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
+        ${r.isNoble
+          ? `<button onclick="editNobleRowMyplan(${rowIdx})" title="Upravit šlechtický příkaz" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">✎</button><button onclick="removeNobleRowMyplan(${rowIdx})" title="Smazat šlechtický příkaz" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:2px;" onmouseover="this.style.color='#ff6060';this.style.borderColor='#ff6060'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">🗑</button>`
+          : `<button onclick="replanRow(${rowIdx})" title="Přeplánovat tento příkaz (zapomněl jsem odeslat)" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>`
+        }
       </td>
     </tr>`;
   });
@@ -1952,6 +1968,34 @@ function renderResults(){
 }
 
 // ── PŘEPLÁNOVÁNÍ JEDNOHO PŘÍKAZU ────────────────────────────
+function removeNobleRowMyplan(rowIdx){
+  if(!attackRows[rowIdx]) return;
+  attackRows.splice(rowIdx,1);
+  renderResults();
+}
+
+function editNobleRowMyplan(rowIdx){
+  const row=attackRows[rowIdx];
+  if(!row||!row.isNoble) return;
+  // Předvyplň koordináty cíle do šlechtické sekce
+  const coordsEl=document.getElementById('noble-coords');
+  if(coordsEl){ coordsEl.value=`${row.tgtX}|${row.tgtY}`; nobleCoordsInput(coordsEl); }
+  // Předvyplň čas příchodu
+  const targets=targetState.noble;
+  const existing=targets.find(t=>t.x===row.tgtX&&t.y===row.tgtY);
+  if(!existing){
+    parseTargets('noble');
+    const t=targets.find(t=>t.x===row.tgtX&&t.y===row.tgtY);
+    if(t) t.arrivalTime=row.arrivalTime;
+  }
+  // Smaž řádek a přerenderuj
+  attackRows.splice(rowIdx,1);
+  renderResults();
+  // Scroll na sekci šlechticů
+  const nobleSection=document.getElementById('noble-coords');
+  if(nobleSection) nobleSection.closest('.input-section')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function replanRow(rowIdx){
   const row=attackRows[rowIdx];
   if(!row) return;

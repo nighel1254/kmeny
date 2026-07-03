@@ -841,7 +841,10 @@ function getRowCandidates(r, rowIdx) {
 
   let pool;
   if (r.isFake) {
-    pool = playerVillages.filter(v => (v.ram||0) > 0 || (v.catapult||0) > 0);
+    const minWeap = r.isFakeNoble ? 4 : 1;
+    pool = playerVillages.filter(v =>
+      (v.ram||v.units?.ram||0) >= minWeap || (v.catapult||v.units?.catapult||0) >= minWeap
+    );
   } else if (r.isNoble) {
     const minNoble = r.nobleCount || 1; // vlak=4, ŠlechtiVlak=3, po jednom=1
     pool = playerVillages.filter(v => {
@@ -859,6 +862,19 @@ function getRowCandidates(r, rowIdx) {
       (v.x === r.srcX && v.y === r.srcY) ||
       (okCats.includes(v.category) && !(usedKeys[`${v.x}|${v.y}`] > 0))
     );
+  }
+  // Vyřaď vesnice ze kterých by útok musel odejít v minulosti nebo za méně než 60s
+  if (r.arrivalTime) {
+    const now = Date.now();
+    const msPerDist = r.travel / Math.sqrt((r.srcX-r.tgtX)**2 + (r.srcY-r.tgtY)**2) || 0;
+    if (msPerDist > 0) {
+      pool = pool.filter(v => {
+        if (v.x === r.srcX && v.y === r.srcY) return true; // aktuální vždy zobraz
+        const dist = Math.sqrt((v.x-r.tgtX)**2 + (v.y-r.tgtY)**2);
+        const travel = Math.round(dist * msPerDist / 1000) * 1000;
+        return r.arrivalTime - travel > now + 60000;
+      });
+    }
   }
   return pool;
 }
@@ -1218,6 +1234,36 @@ function addNoblePlanRows() {
   toast(`✓ Přidáno ${newRows.length} ${newRows.length===1?'příkaz':'příkazů'} šlechticů.`, 'ok');
 }
 
+function removeNobleRow(rowIdx) {
+  attackRows.splice(rowIdx, 1);
+  renderTable();
+  persistRows();
+  toast('Příkaz šlechtice smazán.', 'ok', 2000);
+}
+
+function editNobleRow(rowIdx) {
+  const r = attackRows[rowIdx];
+  if (!r) return;
+  // Předvyplň cíl a čas do noble panelu a smaž tento řádek
+  const panel = document.getElementById('noble-plan-panel');
+  if (panel) panel.style.display = 'block';
+  const tgtEl = document.getElementById('noble-plan-target');
+  const arrEl = document.getElementById('noble-plan-arrival');
+  if (tgtEl) tgtEl.value = `${r.tgtX}|${r.tgtY}`;
+  if (arrEl && r.arrivalTime) {
+    const d = new Date(r.arrivalTime - new Date().getTimezoneOffset()*60000);
+    arrEl.value = d.toISOString().slice(0,19);
+  }
+  // Nastav správný typ vlaku
+  const modeVal = r.nobleCount === 3 ? 'three' : r.nobleCount === 1 ? 'one_by_one' : 'train';
+  const radio = document.querySelector(`input[name="noble-mode-plan"][value="${modeVal}"]`);
+  if (radio) { radio.checked = true; refreshNoblePlanList(); }
+  attackRows.splice(rowIdx, 1);
+  renderTable();
+  persistRows();
+  panel?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function addManualRow() {
   attackRows.push({
     srcX:null, srcY:null, srcName:'', srcId:null, srcPlayer:'',
@@ -1368,8 +1414,10 @@ function toLocalInputValue(ms) {
 
 function buildManualRowHtml(r, rowIdx) {
   const tgtVal = r.tgtX ? `${r.tgtX}|${r.tgtY}` : '';
-  const gameLink = (r.srcId && r.tgtX)
-    ? (r.tgtId ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}` : `${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`)
+  const gameLink = r.tgtX
+    ? (r.srcId
+        ? (r.tgtId ? `${API_BASE}/game.php?village=${r.srcId}&screen=place&target=${r.tgtId}` : `${API_BASE}/game.php?village=${r.srcId}&screen=place&x=${r.tgtX}&y=${r.tgtY}`)
+        : `${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`)
     : null;
 
   const typeOpts = `<option value="">– vyber typ –</option>` + Object.entries(MANUAL_TYPE_DEFS)
@@ -1504,7 +1552,7 @@ function renderTable() {
     <th onclick="setSort('tgt')">Cíl ${sortIndicator('tgt')}</th>
     <th>Jednotka</th>
     <th onclick="setSort('send')">Čas odeslání ${sortIndicator('send')}</th>
-    <th onclick="setSort('arrive')">Čas příchodu ${sortIndicator('arrive')}</th>
+    <th onclick="setSort('arrive')">Dopady ${sortIndicator('arrive')}</th>
     <th onclick="setSort('travel')">Cesta ${sortIndicator('travel')}</th>
     <th>Odpočet</th><th>▶</th>
   </tr></thead><tbody>`;
@@ -1538,7 +1586,10 @@ function renderTable() {
       <td data-label="Odpočet"><span class="countdown" data-send="${r.sendTime}"></span></td>
       <td style="white-space:nowrap;">
         <a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>
-        <button onclick="${playerVillages.length ? `quickSwapRow(${rowIdx})` : `replanRowPlan(${rowIdx})`}" title="Vyměnit za jinou volnou vesnici stejného typu" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>
+        ${r.isNoble
+          ? `<button onclick="editNobleRow(${rowIdx})" title="Upravit šlechtice" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--gold2);font-size:13px;padding:3px 5px;margin-left:3px;">✎</button><button onclick="removeNobleRow(${rowIdx})" title="Smazat příkaz" style="background:#3a1010;border:1px solid #ff6060;border-radius:4px;cursor:pointer;color:#ff8080;padding:3px 5px;margin-left:3px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm-2 3h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"/></svg></button>`
+          : `<button onclick="${playerVillages.length ? `quickSwapRow(${rowIdx})` : `replanRowPlan(${rowIdx})`}" title="Vyměnit za jinou volnou vesnici stejného typu" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--dim);font-size:13px;padding:3px 5px;margin-left:3px;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.color='var(--dim)';this.style.borderColor='var(--border)'">↺</button>`
+        }
       </td>
     </tr>`;
   });

@@ -2492,6 +2492,7 @@ async function calculate() {
 
     // Generuj řádky – ostrý útok
     const processedSharpKeys = new Set(); // ochrana proti duplikátním vesnicím v srcVillages
+    const sharpSendTimePerSrc = new Map(); // per-source sendTime dedup
     for (const sv of srcVillages) {
       const sk = svKey(sv);
       if (processedSharpKeys.has(sk)) continue;
@@ -2499,7 +2500,12 @@ async function calculate() {
       const tgts = sharpAssign.get(sk) || [];
       for (const tgt of tgts) {
         const travel   = travelMs(sv.x, sv.y, tgt.x, tgt.y, tgt.unit);
-        const sendTime = tgt.arrivalTime - travel;
+        let sendTime   = tgt.arrivalTime - travel;
+        // Zabrání dvěma ostrým útokům ze stejné vesnice ve stejný čas
+        const srcSendSet = sharpSendTimePerSrc.get(sk) || new Set();
+        while (srcSendSet.has(sendTime)) sendTime += 1000; // posuň o 1s
+        srcSendSet.add(sendTime);
+        sharpSendTimePerSrc.set(sk, srcSendSet);
         usedSendTimesGlobal.add(sendTime);
         rows.push({
           srcId:sv.id||sv.village_id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
@@ -2529,7 +2535,10 @@ async function calculate() {
 
     // Generuj řádky – fejky s kontrolou duplicitních sendTime
     const fakeTgtArrivalMap = fakeTgtArrival; // alias
-    // Sestavíme přiřazení znovu s kontrolou sendTime
+    // Klíče ostrých útoků: src|tgt – fejk na stejnou kombinaci nedává smysl
+    const sharpSrcTgtKeys = new Set(rows.map(r => `${r.srcX}|${r.srcY}|${r.tgtX}|${r.tgtY}`));
+    // Per-source sendTime tracking: každá vesnice může odeslat jen jednou za daný čas
+    const usedSendTimePerSrc = new Map(); // key: "srcX|srcY", value: Set<sendTime>
     const usedFakeSrcs = new Set();
     for (let fi = 0; fi < coveredFakes; fi++) {
       const ft = fakeTargets[fi];
@@ -2538,12 +2547,18 @@ async function calculate() {
       for (const sv of sortedSrcForFake) {
         if (assigned >= fakeCount) break;
         if (usedFakeSrcs.has(`${sv.x}|${sv.y}`)) continue;
+        // Přeskočit pokud tato vesnice už posílá ostrý na tento cíl
+        if (sharpSrcTgtKeys.has(`${sv.x}|${sv.y}|${ft.x}|${ft.y}`)) continue;
         if (!ratioAllowed(ratioCheckEnabled, playerPoints, sv.player_name, ft.owner, ratioViolations)) continue;
         const travel = travelMs(sv.x, sv.y, ft.x, ft.y, fakeUnit);
         const sendTime = arrivalTime - travel;
         if (usedSendTimesGlobal.has(sendTime)) continue; // duplicitní čas – přeskočit
-        usedFakeSrcs.add(`${sv.x}|${sv.y}`);
+        const srcKey = `${sv.x}|${sv.y}`;
+        if (!usedSendTimePerSrc.has(srcKey)) usedSendTimePerSrc.set(srcKey, new Set());
+        if (usedSendTimePerSrc.get(srcKey).has(sendTime)) continue; // tato vesnice už v tento čas posílá
+        usedFakeSrcs.add(srcKey);
         usedSendTimesGlobal.add(sendTime);
+        usedSendTimePerSrc.get(srcKey).add(sendTime);
         rows.push({
           srcId:sv.id||sv.village_id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
           srcX:sv.x, srcY:sv.y, srcCategory:sv.category||null,
@@ -2586,6 +2601,7 @@ async function calculate() {
       }
     }
     const usedFakeNobleSrcs = new Set();
+    const fakeNobleSendTimePerSrc = new Map();
     for (let fi = 0; fi < coveredFakeNoble; fi++) {
       const ft = fakeNobleTargets[fi];
       const arrivalTime = fakeNobleTgtArrival.get(`${ft.x}|${ft.y}`) || fakeNobleArrFrom;
@@ -2593,11 +2609,17 @@ async function calculate() {
       for (const sv of sortedSrcForFakeNoble) {
         if (assigned >= fakeNobleCount) break;
         if (usedFakeNobleSrcs.has(`${sv.x}|${sv.y}`)) continue;
+        if (sharpSrcTgtKeys.has(`${sv.x}|${sv.y}|${ft.x}|${ft.y}`)) continue;
         if (!ratioAllowed(ratioCheckEnabled, playerPoints, sv.player_name, ft.owner, ratioViolations)) continue;
         const travel = travelMs(sv.x, sv.y, ft.x, ft.y, 'ram');
         const sendTime = arrivalTime - travel;
         if (usedSendTimesGlobal.has(sendTime)) continue;
-        usedFakeNobleSrcs.add(`${sv.x}|${sv.y}`);
+        const fnSrcKey = `${sv.x}|${sv.y}`;
+        const fnSendSet = fakeNobleSendTimePerSrc.get(fnSrcKey) || new Set();
+        if (fnSendSet.has(sendTime)) continue;
+        fnSendSet.add(sendTime);
+        fakeNobleSendTimePerSrc.set(fnSrcKey, fnSendSet);
+        usedFakeNobleSrcs.add(fnSrcKey);
         usedSendTimesGlobal.add(sendTime);
         rows.push({
           srcId:sv.id||sv.village_id||(allVillages.find(v=>v.x===sv.x&&v.y===sv.y)||{}).id||null, srcName:sv.name||sv.village_name, srcPlayer:sv.player_name||'',
