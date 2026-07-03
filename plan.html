@@ -771,9 +771,18 @@ function startAlarm(evt, rowIdx, link) {
   evt.preventDefault();
   const row = attackRows[rowIdx];
   if (row) {
+    // Vždy přepočítej link z aktuálních dat – zabrání stale href po změně zdrojové vesnice
+    const srcId = row.srcId || playerVillages.find(v => v.x===row.srcX && v.y===row.srcY)?.id || null;
+    if (row.tgtX) {
+      link = srcId
+        ? (row.tgtId
+            ? `${API_BASE}/game.php?village=${srcId}&screen=place&target=${row.tgtId}`
+            : `${API_BASE}/game.php?village=${srcId}&screen=place&x=${row.tgtX}&y=${row.tgtY}`)
+        : `${API_BASE}/game.php?screen=place&x=${row.tgtX}&y=${row.tgtY}`;
+      if (row.isFake) link += fakeTemplateQuery();
+    }
     const diff = row.sendTime - Date.now();
     if (diff < 300000) {
-      // Označit jako odeslané až po 10s – aby hráč stihl odeslat útok
       setTimeout(async () => {
         await markRowPlayed(row);
         renderTable();
@@ -1022,7 +1031,7 @@ function renderMyVillagesSummary() {
   const nobleVs = playerVillages.filter(v => (v.noble||0) > 0);
   if (nobleVs.length) {
     const nobleTotal = nobleVs.reduce((s,v) => s + (v.noble||0), 0);
-    const nobleUsed = attackRows.filter(r => r.isNoble).length;
+    const nobleUsed = attackRows.filter(r => r.isNoble).reduce((s,r) => s + (r.nobleCount||1), 0);
     parts.push(`<span class="stat" style="color:#ff80c0;">${NOBLE_NORM} Šlechtici: <strong>${nobleUsed}</strong>/${nobleTotal} využito</span>`);
   }
 
