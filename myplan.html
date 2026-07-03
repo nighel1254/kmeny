@@ -1330,20 +1330,54 @@ function refreshNobleSrcList() {
     if (infoEl) infoEl.textContent = `Žádná vesnice nemá ≥${minNoble} šlechticů.`;
     return;
   }
-  listEl.innerHTML = filtered.map(v => {
-    const trains = Math.floor(v._noble / trainSize);
-    const trainsLabel = trains > 1
-      ? `<span style="color:#a0d0ff;font-size:11px;margin-left:4px;">(${trains}× ${trainLabel})</span>` : '';
-    return `<div class="village-item">
-      <span style="font-size:12px;">${v.village_name||`${v.x}|${v.y}`} <span style="color:var(--gold)">👑×${v._noble}</span>${trainsLabel}</span>
-      <span class="village-coords">${v.x}|${v.y}</span>
-    </div>`;
-  }).join('');
+  // Spočítej použité šlechtice z aktuálního plánu (attackRows)
+  const usedMap = new Map();
+  for (const r of (attackRows || [])) {
+    if (!r.isNoble) continue;
+    const k = `${r.srcX}|${r.srcY}`;
+    usedMap.set(k, (usedMap.get(k) || 0) + 1);
+  }
+
+  const available = [], used = [];
+  for (const v of filtered) {
+    const usedCnt = usedMap.get(`${v.x}|${v.y}`) || 0;
+    const availCnt = Math.max(0, v._noble - usedCnt);
+    const availTrains = Math.floor(availCnt / trainSize);
+    if (availTrains > 0) available.push({...v, availCnt, availTrains, usedCnt});
+    if (usedCnt > 0)     used.push({...v, availCnt, availTrains, usedCnt});
+  }
+
+  const cardAvail = v => `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #1a1208;">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.village_name||`${v.x}|${v.y}`}</div>
+      <div style="font-size:11px;color:var(--dim);">${v.x}|${v.y}</div>
+    </div>
+    <div style="font-size:11px;color:var(--gold);white-space:nowrap;text-align:right;">👑 ${v.availCnt}/${v._noble}<br><span style="color:#a0d0ff;">${v.availTrains}× ${trainLabel}</span></div>
+  </div>`;
+
+  const cardUsed = v => `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #1a1208;opacity:.7;">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:12px;font-weight:600;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.village_name||`${v.x}|${v.y}`}</div>
+      <div style="font-size:11px;color:var(--dim);">${v.x}|${v.y}</div>
+    </div>
+    <div style="font-size:11px;color:#806040;white-space:nowrap;text-align:right;">👑 ${v.usedCnt}/${v._noble}<br><span style="color:#604020;">použito</span></div>
+  </div>`;
+
+  listEl.style.cssText = 'max-height:none;border:none;background:transparent;';
+  listEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;">
+    <div style="border-right:1px solid var(--border);">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--green);padding:4px 10px;background:#0a1408;border-bottom:1px solid #1a1208;">✓ Dostupné (${available.length})</div>
+      ${available.length ? available.map(cardAvail).join('') : '<div style="padding:8px 10px;color:var(--dim);font-size:11px;">Žádné</div>'}
+    </div>
+    <div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#806040;padding:4px 10px;background:#0d0a04;border-bottom:1px solid #1a1208;">⟳ Použité (${used.length})</div>
+      ${used.length ? used.map(cardUsed).join('') : '<div style="padding:8px 10px;color:var(--dim);font-size:11px;">Žádné</div>'}
+    </div>
+  </div>`;
   if (wrapEl) wrapEl.style.display = 'block';
   if (infoEl) infoEl.textContent = '';
-  const totalNob   = filtered.reduce((s,v) => s + v._noble, 0);
-  const totalTrain = filtered.reduce((s,v) => s + Math.floor(v._noble / trainSize), 0);
-  if (countEl) countEl.textContent = `${filtered.length} vesnic – ${totalNob} šlechticů, ${totalTrain} ${trainLabel === 'solo' ? 'šlechticů' : trainLabel === 'ŠlechtiVlak' ? 'ŠlechtiVlaků' : 'vlaků'}`;
+  const totalTrain = available.reduce((s,v) => s + v.availTrains, 0);
+  if (countEl) countEl.textContent = `${available.length} dostupných, ${used.length} použitých · ${totalTrain} volných ${trainLabel === 'solo' ? 'šlechticů' : trainLabel === 'ŠlechtiVlak' ? 'ŠlechtiVlaků' : 'vlaků'}`;
 }
 
 // Auto-format souřadnic v noble-coords textarea: 3 čísla → "|" → 3 čísla → focus na čas příchodu

@@ -299,6 +299,7 @@ function typeSearchText(r) {
 }
 
 let attackRows = [], cdInterval = null;
+let _nobleSrcVillage = null; // ručně vybraná zdrojová vesnice pro šlechtice
 let currentSort = 'send', sortAsc = true;
 let playerVillages = [], assignmentId = null, planLabel = 'Plán útoků';
 
@@ -1167,43 +1168,52 @@ function refreshNoblePlanList() {
   const usedVillages = allNoble.filter(v => usedMap.has(`${v.x}|${v.y}`))
     .sort((a, b) => (a.village_name||a.name||'').localeCompare(b.village_name||b.name||''));
 
-  const rowCard = (v, isUsed) => {
+  // Ověř že vybraná vesnice je stále dostupná
+  if (_nobleSrcVillage) {
+    const still = available.find(v => v.x === _nobleSrcVillage.x && v.y === _nobleSrcVillage.y);
+    if (!still) _nobleSrcVillage = null;
+  }
+
+  const cardAvail = v => {
     const total = v.noble || v.units?.noble || 0;
-    const entries = usedMap.get(`${v.x}|${v.y}`) || [];
-    const usedCnt = entries.reduce((s, e) => s + e.nobleCount, 0);
-    const rem  = total - usedCnt;
-    const name = v.village_name || v.name || `${v.x}|${v.y}`;
-    if (isUsed) {
-      const rowRefs = entries.map(e => `#${e.rowIdx+1}`).join(', ');
-      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid #1a1208;opacity:.75;">
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:600;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
-          <div style="font-size:11px;color:#606060;margin-top:1px;">${v.x}|${v.y}</div>
-        </div>
-        <div style="font-size:11px;color:#cc8080;white-space:nowrap;">použito ${usedCnt}/${total} 👑 · ${kindLabel} ${rowRefs}</div>
-      </div>`;
-    }
+    const used  = (usedMap.get(`${v.x}|${v.y}`) || []).reduce((s, e) => s + e.nobleCount, 0);
+    const rem   = total - used;
     const trains = Math.floor(rem / trainSize);
-    const trainsLabel = trains > 0 ? ` · <span style="color:#a0d0ff;">${trains}× ${kindLabel}</span>` : '';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid #1a1208;">
+    const name  = v.village_name || v.name || `${v.x}|${v.y}`;
+    const sel   = _nobleSrcVillage?.x === v.x && _nobleSrcVillage?.y === v.y;
+    return `<div onclick="selectNobleSrcVillage(${v.x},${v.y})" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #1a1208;cursor:pointer;background:${sel?'#2e1f00':'transparent'};" onmouseover="this.style.background='${sel?'#3a2800':'#1e1608'}'" onmouseout="this.style.background='${sel?'#2e1f00':'transparent'}'">
       <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
-        <div style="font-size:11px;color:var(--dim);margin-top:1px;">${v.x}|${v.y}</div>
+        <div style="font-size:12px;font-weight:600;color:${sel?'var(--gold)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${sel?'✓ ':''}${name}</div>
+        <div style="font-size:11px;color:var(--dim);">${v.x}|${v.y}</div>
       </div>
-      <div style="font-size:12px;color:var(--gold);white-space:nowrap;">👑 ${rem}/${total}${trainsLabel}</div>
+      <div style="font-size:11px;color:var(--gold);white-space:nowrap;text-align:right;">👑 ${rem}/${total}<br><span style="color:#a0d0ff;">${trains}× ${kindLabel}</span></div>
     </div>`;
   };
 
-  let html = '';
-  if (available.length) {
-    html += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim);padding:5px 10px 3px;background:#0d0a04;border-bottom:1px solid #1a1208;">Dostupné</div>`;
-    html += available.map(v => rowCard(v, false)).join('');
-  }
-  if (usedVillages.length) {
-    html += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#806040;padding:5px 10px 3px;background:#0d0a04;border-bottom:1px solid #1a1208;${available.length?'border-top:1px solid #2a1808;':''}">Použité šlechtice</div>`;
-    html += usedVillages.map(v => rowCard(v, true)).join('');
-  }
-  if (innerEl) innerEl.innerHTML = html || '<div style="padding:8px 10px;color:var(--dim);font-size:12px;">Žádné vesnice se šlechtici.</div>';
+  const cardUsed = v => {
+    const total = v.noble || v.units?.noble || 0;
+    const entries = usedMap.get(`${v.x}|${v.y}`) || [];
+    const usedCnt = entries.reduce((s, e) => s + e.nobleCount, 0);
+    const name = v.village_name || v.name || `${v.x}|${v.y}`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #1a1208;opacity:.7;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+        <div style="font-size:11px;color:var(--dim);">${v.x}|${v.y}</div>
+      </div>
+      <div style="font-size:11px;color:#806040;white-space:nowrap;text-align:right;">👑 ${usedCnt}/${total}<br><span style="color:#604020;">použito</span></div>
+    </div>`;
+  };
+
+  if (innerEl) innerEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;">
+    <div style="border-right:1px solid var(--border);">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--green);padding:4px 10px;background:#0a1408;border-bottom:1px solid #1a1208;">✓ Dostupné (${available.length})</div>
+      ${available.length ? available.map(cardAvail).join('') : '<div style="padding:8px 10px;color:var(--dim);font-size:11px;">Žádné</div>'}
+    </div>
+    <div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#806040;padding:4px 10px;background:#0d0a04;border-bottom:1px solid #1a1208;">⟳ Použité (${usedVillages.length})</div>
+      ${usedVillages.length ? usedVillages.map(cardUsed).join('') : '<div style="padding:8px 10px;color:var(--dim);font-size:11px;">Žádné</div>'}
+    </div>
+  </div>`;
   wrapEl.style.display = 'block';
 
   const totalTrains = available.reduce((s, v) => {
@@ -1211,7 +1221,8 @@ function refreshNoblePlanList() {
     const used  = (usedMap.get(`${v.x}|${v.y}`) || []).reduce((s2, e) => s2 + e.nobleCount, 0);
     return s + Math.floor((total - used) / trainSize);
   }, 0);
-  if (countEl) countEl.textContent = `${available.length} dostupných, ${usedVillages.length} použitých · celkem ${totalTrains} ${kindLabel}`;
+  const selTxt = _nobleSrcVillage ? ` · Vybrána: ${_nobleSrcVillage.name||_nobleSrcVillage.x+'|'+_nobleSrcVillage.y}` : '';
+  if (countEl) countEl.textContent = `${available.length} dostupných, ${usedVillages.length} použitých · celkem ${totalTrains} ${kindLabel}${selTxt}`;
   // obarvi aktivní segment
   document.querySelectorAll('input[name="noble-mode-plan"]').forEach(r => {
     const lbl = r.closest('label');
@@ -1219,6 +1230,17 @@ function refreshNoblePlanList() {
     lbl.style.background = r.checked ? '#2e1f00' : '#1a1208';
     lbl.style.color = r.checked ? 'var(--gold)' : 'var(--dim)';
   });
+}
+
+function selectNobleSrcVillage(x, y) {
+  const v = playerVillages.find(v => v.x === x && v.y === y);
+  if (!v) return;
+  if (_nobleSrcVillage?.x === x && _nobleSrcVillage?.y === y) {
+    _nobleSrcVillage = null; // druhý klik odebere výběr
+  } else {
+    _nobleSrcVillage = v;
+  }
+  refreshNoblePlanList();
 }
 
 function addNoblePlanRows() {
@@ -1283,17 +1305,27 @@ function addNoblePlanRows() {
         night:isNight(sendTime), isFake:false, isNoble:true, isFakeNoble:false, isPast:false });
     }
   } else {
-    // Vlak nebo ŠlechtiVlak: nejbližší vesnice s dostatkem šlechticů
-    const candidates = playerVillages
-      .filter(v => {
-        const total = v.noble || v.units?.noble || 0;
-        const used = usedNobles.get(`${v.x}|${v.y}`) || 0;
-        return total - used >= noblePerTarget;
-      })
-      .sort((a, b) => Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2) - Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2));
-
-    if (!candidates.length) { toast('Žádná vesnice nemá dostatek šlechticů!', 'err'); return; }
-    const sv = candidates[0];
+    // Vlak nebo ŠlechtiVlak: použij ručně vybranou vesnici, nebo nejbližší s dostatkem šlechticů
+    let sv;
+    if (_nobleSrcVillage) {
+      const total = (_nobleSrcVillage.noble || _nobleSrcVillage.units?.noble || 0);
+      const used = usedNobles.get(`${_nobleSrcVillage.x}|${_nobleSrcVillage.y}`) || 0;
+      if (total - used < noblePerTarget) {
+        toast(`Vybraná vesnice nemá dostatek šlechticů (potřeba ${noblePerTarget}, zbývá ${total - used})!`, 'err');
+        return;
+      }
+      sv = _nobleSrcVillage;
+    } else {
+      const candidates = playerVillages
+        .filter(v => {
+          const total = v.noble || v.units?.noble || 0;
+          const used = usedNobles.get(`${v.x}|${v.y}`) || 0;
+          return total - used >= noblePerTarget;
+        })
+        .sort((a, b) => Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2) - Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2));
+      if (!candidates.length) { toast('Žádná vesnice nemá dostatek šlechticů!', 'err'); return; }
+      sv = candidates[0];
+    }
     const dist = Math.sqrt((sv.x-tgtX)**2+(sv.y-tgtY)**2);
     const travel = Math.round(dist * msPerDist / 1000) * 1000;
     let sendTime = arrivalTime - travel;

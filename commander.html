@@ -1417,29 +1417,26 @@ function refreshNoblelist() {
     if (usedTrains > 0) used.push({...v, cnt, trains, usedTrains, availTrains});
   }
 
-  const renderVillage = (v, count) => `<div class="village-item">
-    <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${v.cnt}</span> <span style="color:#a0d0ff;font-size:11px;">${count}× ${trainLabel}</span> <span style="color:var(--dim);font-size:11px;">${v.player_name||''}</span></span>
-    <span class="village-coords">${v.x}|${v.y}</span>
-  </div>`;
-
   const listEl = document.getElementById('noble-village-list');
-  // Zruš omezení z .village-list CSS třídy (max-height, background, border)
-  listEl.style.cssText = 'margin-top:6px;';
-  listEl.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <div style="border:1px solid #1a3a1a;border-radius:4px;overflow:hidden;">
-        <div style="font-size:11px;color:var(--green);font-weight:600;padding:4px 8px;background:#0a1a0a;position:sticky;top:0;">✓ Dostupné (${available.length})</div>
-        <div style="max-height:160px;overflow-y:auto;">${available.length ? available.map(v=>renderVillage(v,v.availTrains)).join('') : '<div style="padding:8px;color:var(--dim);font-size:11px;">Žádné dostupné</div>'}</div>
-      </div>
-      <div style="border:1px solid #3a2a0a;border-radius:4px;overflow:hidden;">
-        <div style="font-size:11px;color:#e09040;font-weight:600;padding:4px 8px;background:#1a1000;position:sticky;top:0;">⟳ Použité (${used.length})</div>
-        <div style="max-height:160px;overflow-y:auto;">${used.length ? used.map(v=>renderVillage(v,v.usedTrains)).join('') : '<div style="padding:8px;color:var(--dim);font-size:11px;">Žádné použité</div>'}</div>
-      </div>
+  listEl.style.cssText = '';
+  listEl.innerHTML = nobleVillages.map(v => {
+    const cnt = v.noble || (v.units && v.units.noble) || 0;
+    const key = `${v.x}|${v.y}`;
+    const usedTrains = usedByVillage.get(key) || 0;
+    const trains = Math.floor(cnt / trainSize);
+    const availTrains = Math.max(0, trains - usedTrains);
+    const trainsLabel = `<span style="color:#a0d0ff;font-size:11px;margin-left:4px;">${availTrains}/${trains}× ${trainLabel}</span>`;
+    return `<div class="village-item">
+      <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${cnt}</span>${trainsLabel} <span style="color:var(--dim);font-size:11px;">${v.player_name||''}</span></span>
+      <span class="village-coords">${v.x}|${v.y}</span>
     </div>`;
+  }).join('');
 
-  const totalAvail = available.reduce((s,v) => s+v.availTrains, 0);
-  const totalUsed  = used.reduce((s,v) => s+v.usedTrains, 0);
-  document.getElementById('noble-count').textContent = `Dostupné: ${totalAvail} ${trainLabel === 'solo' ? 'šlechticů' : 'vlaků'} | Použité: ${totalUsed}`;
+  const totalTrains = nobleVillages.reduce((s,v) => {
+    const cnt = v.noble||(v.units&&v.units.noble)||0;
+    return s + Math.floor(cnt/trainSize);
+  }, 0);
+  document.getElementById('noble-count').textContent = `${nobleVillages.length} vesnic – celkem ${totalTrains} ${trainLabel === 'solo' ? 'šlechticů' : trainLabel}`;
 }
 
 function updateNobleTargetCount() {
