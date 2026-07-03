@@ -1080,8 +1080,13 @@ function renderCapacitySummary() {
   const fullka = mk('fullka'), triq = mk('triq_off'), half = mk('half_off');
   const giga = byCat(totalPool, 'gigafullka');
 
-  const sumNobles = pool => pool.reduce((s,v) => s + (v.noble || (v.units && v.units.noble) || 0), 0);
-  const nobleTotal = sumNobles(totalPool), nobleRem = sumNobles(remPool);
+  // Šlechtici — počítej vlaky z celého importu (ne jen vybraní hráči) a použité z attackRows
+  const nobleMode = document.querySelector('input[name="noble-mode"]:checked')?.value || 'train';
+  const trainSize = nobleMode === 'three' ? 3 : nobleMode === 'one_by_one' ? 1 : 4;
+  const allNobleVillages = importedJsonVillages.filter(v => (v.noble || (v.units && v.units.noble) || 0) >= trainSize);
+  const nobleTotalTrains = allNobleVillages.reduce((s,v) => s + Math.floor((v.noble||(v.units&&v.units.noble)||0)/trainSize), 0);
+  const nobleUsedTrains = (attackRows||[]).filter(r => r.unit==='snob'||r.unit==='noble').length;
+  const nobleRemTrains = Math.max(0, nobleTotalTrains - nobleUsedTrains);
 
   const cell = (icon, c) => `<span>${icon}<b>${c.rem}</b><span style="color:var(--dim);font-size:11px;"> / ${c.total}${c.used ? ` (využito ${c.used})` : ''}</span></span>`;
 
@@ -1091,7 +1096,7 @@ function renderCapacitySummary() {
     cell(AXE_RED, fullka) +
     cell(AXE_BRN, triq) +
     cell(AXE_YEL, half) +
-    `<span style="color:var(--gold);">${NOBLE_NORM}<b>${nobleRem}</b><span style="color:var(--dim);font-size:11px;"> / ${nobleTotal}${nobleTotal-nobleRem ? ` (využito ${nobleTotal-nobleRem})` : ''}</span></span>` +
+    `<span style="color:var(--gold);">${NOBLE_NORM}<b>${nobleRemTrains}</b><span style="color:var(--dim);font-size:11px;"> / ${nobleTotalTrains}${nobleUsedTrains ? ` (využito ${nobleUsedTrains})` : ''}</span></span>` +
     (giga ? `<span title="GigaFullky (off pop. 22000+) – nikdy se nezařazují automaticky do plánu, hráč si je přiřazuje sám" style="color:#ff6060;">${AXE_RED}${AXE_RED}<b>${giga}</b><span style="color:var(--dim);font-size:11px;"> GigaFullek (nepřiřazuje se)</span></span>` : '');
 
   document.getElementById('player-units-toggle-bar').style.display = 'block';
@@ -1412,16 +1417,19 @@ function refreshNoblelist() {
   </div>`;
 
   const listEl = document.getElementById('noble-village-list');
-  listEl.innerHTML = `<div style="display:flex;gap:8px;margin-top:4px;">
-    <div style="flex:1;min-width:0;border:1px solid #1a3a1a;border-radius:4px;overflow:hidden;">
-      <div style="font-size:11px;color:var(--green);font-weight:600;padding:4px 8px;background:#0a1a0a;">✓ Dostupné (${available.length} vesnic)</div>
-      <div style="max-height:180px;overflow-y:auto;">${available.length ? available.map(v=>renderVillage(v,v.availTrains)).join('') : '<div style="padding:8px;color:var(--dim);font-size:11px;">Žádné dostupné</div>'}</div>
-    </div>
-    <div style="flex:1;min-width:0;border:1px solid #3a2a0a;border-radius:4px;overflow:hidden;">
-      <div style="font-size:11px;color:#e09040;font-weight:600;padding:4px 8px;background:#1a1000;">⟳ Použité v plánu (${used.length} vesnic)</div>
-      <div style="max-height:180px;overflow-y:auto;">${used.length ? used.map(v=>renderVillage(v,v.usedTrains)).join('') : '<div style="padding:8px;color:var(--dim);font-size:11px;">Žádné použité</div>'}</div>
-    </div>
-  </div>`;
+  // Zruš omezení z .village-list CSS třídy (max-height, background, border)
+  listEl.style.cssText = 'margin-top:6px;';
+  listEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div style="border:1px solid #1a3a1a;border-radius:4px;overflow:hidden;">
+        <div style="font-size:11px;color:var(--green);font-weight:600;padding:4px 8px;background:#0a1a0a;position:sticky;top:0;">✓ Dostupné (${available.length})</div>
+        <div style="max-height:160px;overflow-y:auto;">${available.length ? available.map(v=>renderVillage(v,v.availTrains)).join('') : '<div style="padding:8px;color:var(--dim);font-size:11px;">Žádné dostupné</div>'}</div>
+      </div>
+      <div style="border:1px solid #3a2a0a;border-radius:4px;overflow:hidden;">
+        <div style="font-size:11px;color:#e09040;font-weight:600;padding:4px 8px;background:#1a1000;position:sticky;top:0;">⟳ Použité (${used.length})</div>
+        <div style="max-height:160px;overflow-y:auto;">${used.length ? used.map(v=>renderVillage(v,v.usedTrains)).join('') : '<div style="padding:8px;color:var(--dim);font-size:11px;">Žádné použité</div>'}</div>
+      </div>
+    </div>`;
 
   const totalAvail = available.reduce((s,v) => s+v.availTrains, 0);
   const totalUsed  = used.reduce((s,v) => s+v.usedTrains, 0);
