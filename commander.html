@@ -3746,9 +3746,9 @@ async function loadMonitoring() {
   const el = document.getElementById('monitoring-content');
   el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--dim);">⏳ Načítám data…</div>`;
 
-  // Načti přidělené plány
+  // Načti přidělené plány včetně played_rows pro detekci Zmeškal/Odesláno
   const { data: assignments, error: aErr } = await sb.from('plan_assignments')
-    .select('id, player_email, player_name, rows_data, plan_label, updated_at')
+    .select('id, player_email, player_name, rows_data, plan_label, updated_at, played_rows')
     .eq('plan_id', _currentPlanId)
     .order('player_name');
 
@@ -3792,14 +3792,23 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
   const now = Date.now();
 
   // Souhrnný řádek nahoře
-  const totalRows = assignments.reduce((s,a) => s+(a.rows_data||[]).length, 0);
-  const totalPast = assignments.reduce((s,a) => s+(a.rows_data||[]).filter(r=>r.sendTime<now).length, 0);
-  const totalPend = totalRows - totalPast;
-  el.innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;padding:8px 12px;background:#140e07;border:1px solid var(--border);border-radius:6px;">
+  const rk = r => `${r.srcX}|${r.srcY}|${r.sendTime}`;
+  const totalRows  = assignments.reduce((s,a) => s+(a.rows_data||[]).length, 0);
+  const totalPend  = assignments.reduce((s,a) => s+(a.rows_data||[]).filter(r=>r.sendTime>=now).length, 0);
+  const totalOdesl = assignments.reduce((s,a) => {
+    const ps = new Set(Array.isArray(a.played_rows)?a.played_rows:[]);
+    return s+(a.rows_data||[]).filter(r=>r.sendTime<now&&ps.has(rk(r))).length;
+  }, 0);
+  const totalZmesk = assignments.reduce((s,a) => {
+    const ps = new Set(Array.isArray(a.played_rows)?a.played_rows:[]);
+    return s+(a.rows_data||[]).filter(r=>r.sendTime<now&&!ps.has(rk(r))).length;
+  }, 0);
+  el.innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;padding:8px 12px;background:#140e07;border:1px solid ${totalZmesk?'#8b2020':'var(--border)'};border-radius:6px;">
     <span style="color:var(--dim);">Hráčů: <b style="color:var(--text);">${assignments.length}</b></span>
     <span style="color:var(--dim);">Celkem příkazů: <b style="color:var(--text);">${totalRows}</b></span>
-    <span style="color:var(--dim);">Minulé: <b style="color:#888;">${totalPast}</b></span>
     <span style="color:var(--dim);">Čeká: <b style="color:var(--green);">${totalPend}</b></span>
+    <span style="color:var(--dim);">Odesláno: <b style="color:#60c060;">${totalOdesl}</b></span>
+    ${totalZmesk ? `<span style="color:#ff4040;font-weight:700;">⚠ Zmeškal celkem: <b>${totalZmesk}</b></span>` : `<span style="color:#4a7a4a;">✓ nic nezmeškal</span>`}
   </div>`;
 
   for (const a of assignments) {
@@ -3808,8 +3817,13 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
     const pkey = (a.player_name || '').toLowerCase();
     const origRows = origByPlayer.get(pkey) || [];
 
+    const playedSet = new Set(Array.isArray(a.played_rows) ? a.played_rows : []);
+    const rowKey = r => `${r.srcX}|${r.srcY}|${r.sendTime}`;
+
     const past    = rows.filter(r => r.sendTime < now);
     const pending = rows.filter(r => r.sendTime >= now);
+    const odeslano = past.filter(r => playedSet.has(rowKey(r)));
+    const zmeskal  = past.filter(r => !playedSet.has(rowKey(r)));
 
     // Detekce změn — porovnání na základě tgtX|tgtY|unit
     const origKeySet = new Set(origRows.map(r => `${r.tgtX}|${r.tgtY}|${r.unit}`));
@@ -3824,30 +3838,34 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
 
     const updAt = a.updated_at ? new Date(a.updated_at) : null;
     const cardId = `mc-${a.id}`;
+    const hasAlarm = zmeskal.length > 0;
 
     const card = document.createElement('div');
-    card.style.cssText = 'background:#1a1208;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;overflow:hidden;';
+    card.style.cssText = `background:#1a1208;border:1px solid ${hasAlarm ? '#8b2020' : 'var(--border)'};border-radius:6px;margin-bottom:10px;overflow:hidden;`;
     card.innerHTML = `
-      <div style="background:#201808;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer;user-select:none;" onclick="document.getElementById('${cardId}').style.display=document.getElementById('${cardId}').style.display==='none'?'block':'none'">
-        <span style="font-weight:700;color:var(--gold2);min-width:130px;">${a.player_name || a.player_email}</span>
+      <div style="background:${hasAlarm ? '#2a0808' : '#201808'};padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;cursor:pointer;user-select:none;" onclick="document.getElementById('${cardId}').style.display=document.getElementById('${cardId}').style.display==='none'?'block':'none'">
+        <span style="font-weight:700;color:${hasAlarm ? '#ff6060' : 'var(--gold2)'};min-width:130px;">${hasAlarm ? '⚠ ' : ''}${a.player_name || a.player_email}</span>
         ${subs.length ? `<span style="background:#1a0a2a;border:1px solid #602060;color:#c080ff;border-radius:10px;padding:2px 8px;font-size:11px;">🌴 Zástup: ${subs.join(', ')}</span>` : ''}
-        <span style="font-size:11px;color:var(--dim);">Celkem: <b style="color:var(--text);">${rows.length}</b></span>
-        <span style="font-size:11px;color:var(--dim);">Minulé: <b style="color:#888;">${past.length}</b></span>
         <span style="font-size:11px;color:var(--dim);">Čeká: <b style="color:var(--green);">${pending.length}</b></span>
-        ${changes ? `<span style="background:#2a1800;border:1px solid #a06020;color:#e09040;border-radius:10px;padding:2px 8px;font-size:11px;">✎ ${changes} změn</span>` : '<span style="font-size:11px;color:#4a7a4a;">✓ beze změn</span>'}
+        <span style="font-size:11px;color:var(--dim);">Odesláno: <b style="color:#888;">${odeslano.length}</b></span>
+        ${zmeskal.length ? `<span style="background:#2a0000;border:1px solid #8b2020;color:#ff6060;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;">⚠ Zmeškal: ${zmeskal.length}</span>` : (past.length ? `<span style="font-size:11px;color:#4a7a4a;">✓ vše odesláno (${odeslano.length})</span>` : '')}
+        ${changes ? `<span style="background:#2a1800;border:1px solid #a06020;color:#e09040;border-radius:10px;padding:2px 8px;font-size:11px;">✎ ${changes} změn</span>` : ''}
         ${updAt ? `<span style="font-size:10px;color:var(--dim);margin-left:auto;">Uloženo: ${fmtDT(updAt)}</span>` : ''}
       </div>
-      <div id="${cardId}" style="display:none;overflow-x:auto;">
-        ${monitoringRowsTable(rows, origRows, now)}
+      <div id="${cardId}" style="display:${hasAlarm ? 'block' : 'none'};overflow-x:auto;">
+        ${monitoringRowsTable(rows, origRows, now, playedSet)}
         ${monitoringChangesSummary(added, removed, replanned)}
       </div>`;
     el.appendChild(card);
   }
 }
 
-function monitoringRowsTable(rows, origRows, now) {
+function monitoringRowsTable(rows, origRows, now, playedSet) {
   if (!rows.length) return `<div style="padding:10px 14px;color:var(--dim);font-size:12px;">Žádné příkazy</div>`;
+  playedSet = playedSet || new Set();
+  const rk = r => `${r.srcX}|${r.srcY}|${r.sendTime}`;
   const sorted = [...rows].sort((a,b) => a.sendTime - b.sendTime);
+
   let t = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
     <thead><tr style="background:#140e04;color:var(--dim);font-size:11px;">
       <th style="padding:5px 8px;text-align:left;">Stav</th>
@@ -3861,21 +3879,33 @@ function monitoringRowsTable(rows, origRows, now) {
 
   for (const r of sorted) {
     const past = r.sendTime < now;
+    const played = past && playedSet.has(rk(r));
+    const missed = past && !played;
     const orig = origRows.find(o => o.tgtX===r.tgtX && o.tgtY===r.tgtY && o.unit===r.unit);
     const srcChanged = orig && (orig.srcX!==r.srcX || orig.srcY!==r.srcY);
     const isAdded = !orig;
     const type = r.isFake && r.isFakeNoble ? 'fejk vlak' : r.isFake ? 'fejk' : r.isNoble ? 'šlechtic' : r.srcCategory || r.unit || '';
-    const status = past
-      ? `<span style="color:#666;">✓ Minulý</span>`
-      : r.sendTime - now < 10*60*1000
-        ? `<span style="color:var(--urgent);font-weight:700;">⚡ Brzy!</span>`
-        : `<span style="color:var(--green);">⏳ Čeká</span>`;
+
+    let status, rowBg = '';
+    if (missed) {
+      status = `<span style="color:#ff4040;font-weight:700;">⚠ Zmeškal</span>`;
+      rowBg = 'background:#1a0404;';
+    } else if (played) {
+      status = `<span style="color:#60c060;">✓ Odesláno</span>`;
+    } else if (!past && r.sendTime - now < 10*60*1000) {
+      status = `<span style="color:var(--urgent);font-weight:700;">⚡ Brzy!</span>`;
+    } else if (!past) {
+      status = `<span style="color:var(--green);">⏳ Čeká</span>`;
+    } else {
+      status = `<span style="color:#555;">– Minulý</span>`;
+    }
+
     const changeCell = srcChanged
-      ? `<span style="color:#e09040;font-size:11px;" title="Původní: ${orig.srcX}|${orig.srcY}">↺ ${orig.srcX}|${orig.srcY} → ${r.srcX}|${r.srcY}</span>`
+      ? `<span style="color:#e09040;font-size:11px;">↺ ${orig.srcX}|${orig.srcY}→${r.srcX}|${r.srcY}</span>`
       : isAdded ? `<span style="color:#60c060;font-size:11px;">+ přidáno</span>`
       : '';
 
-    t += `<tr style="border-top:1px solid #1a1208;${past?'opacity:.5':''}">
+    t += `<tr style="border-top:1px solid #1a1208;${rowBg}${played?'opacity:.55':''}">
       <td style="padding:5px 8px;white-space:nowrap;">${status}</td>
       <td style="padding:5px 8px;font-family:monospace;white-space:nowrap;">${r.srcX}|${r.srcY}<br><span style="color:var(--dim);font-size:10px;">${r.srcName||''}</span></td>
       <td style="padding:5px 8px;font-family:monospace;white-space:nowrap;">${r.tgtX}|${r.tgtY}<br><span style="color:var(--dim);font-size:10px;">${r.tgtName||''}</span></td>

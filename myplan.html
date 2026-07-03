@@ -298,6 +298,7 @@
         <div class="btn-row" style="align-items:center;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary btn-sm" onclick="importJson()">▶ Načíst JSON</button>
           <button class="btn btn-sm" style="background:#2a1e0e;border:1px solid var(--border);color:var(--dim);" onclick="clearJson()">✕ Smazat</button>
+          <button class="btn btn-sm" id="army-update-btn" style="display:none;background:#0a1a2a;border:1px solid #204060;color:#60a0e0;" onclick="openArmyUpdateDialogMyplan()" title="Obnov počty jednotek bez smazání naplánovaných příkazů">⚔️ Aktualizovat armádu</button>
           <select id="json-history-select" style="max-width:200px;font-size:12px;" onchange="loadJsonSnapshotIntoTextarea(this.value)">
             <option value="">📂 Uložené importy…</option>
           </select>
@@ -1148,6 +1149,7 @@ function importJson() {
 
     setStatus('json-status','ok',`✓ Načteno ${jsonVillages.length} vesnic${data.player_name?' hráče '+data.player_name:''}`);
     document.getElementById('src-overview').style.display='block';
+    document.getElementById('army-update-btn').style.display='inline-flex';
     updateSrcCounts();
     applyFilter();
     refreshNobleSrcList();
@@ -1183,8 +1185,71 @@ function clearJson() {
   document.getElementById('json-paste').value='';
   jsonVillages=[];importedJsonVillages=[];offVillages=[];nobleVillages=[];
   document.getElementById('src-overview').style.display='none';
+  document.getElementById('army-update-btn').style.display='none';
   setStatus('json-status','info','');
   document.getElementById('json-status').style.display='none';
+}
+
+function openArmyUpdateDialogMyplan() {
+  document.getElementById('army-update-modal-myplan')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'army-update-modal-myplan';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:linear-gradient(180deg,#2e2210,#261a09);border:1px solid var(--gold);border-radius:8px;padding:24px;width:100%;max-width:500px;">
+      <h3 style="color:var(--gold2);margin-bottom:8px;">⚔️ Aktualizovat stav armády</h3>
+      <p style="font-size:12px;color:var(--dim);margin-bottom:4px;">Vlož aktuální JSON ze hry. Naplánované příkazy se <strong style="color:var(--text)">nezmění</strong>.</p>
+      <p style="font-size:11px;color:#e09040;margin-bottom:12px;">⚠ Vesnice z tohoto JSON budou dostupné pro plánování nových útoků – i ty, které jsou již v plánu jako zdroj.</p>
+      <textarea id="army-update-json-myplan" rows="6" placeholder='{"villages":[]}'
+        style="width:100%;background:#140e04;border:1px solid var(--border);color:var(--text);padding:8px;border-radius:4px;font-size:11px;font-family:monospace;resize:vertical;margin-bottom:12px;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="doArmyUpdateMyplan()" style="background:var(--gold);color:#1a0e00;border:none;border-radius:4px;padding:8px 20px;font-weight:700;cursor:pointer;font-size:13px;">⚔️ Aktualizovat</button>
+        <button onclick="document.getElementById('army-update-modal-myplan')?.remove()" style="background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;">Zrušit</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('army-update-json-myplan').focus();
+}
+
+function doArmyUpdateMyplan() {
+  const raw = document.getElementById('army-update-json-myplan')?.value?.trim();
+  if (!raw) { toast('Vlož JSON.', 'err'); return; }
+  try {
+    const data = JSON.parse(raw);
+    const newVillages = data.villages || [];
+    if (!newVillages.length) throw new Error('Žádné vesnice v JSON');
+
+    // Compat fix stejně jako v importJson()
+    newVillages.forEach(v => {
+      if (!v.available) v.available = v.units || {};
+      if (!v.traveling) v.traveling = {};
+      if (!v.category_total) v.category_total = v.category;
+      if (v.noble_total === undefined) v.noble_total = v.noble || 0;
+    });
+
+    // Slouč do importedJsonVillages
+    const byKey = new Map(importedJsonVillages.map(v => [`${v.x}|${v.y}`, {...v}]));
+    let updated = 0, added = 0;
+    for (const nv of newVillages) {
+      const key = `${nv.x}|${nv.y}`;
+      if (byKey.has(key)) { byKey.set(key, {...byKey.get(key), ...nv}); updated++; }
+      else { byKey.set(key, nv); added++; }
+    }
+    importedJsonVillages = [...byKey.values()];
+    // Přebuduj jsonVillages = celý čerstvý import (hráč si sám hlídá, co plánuje)
+    jsonVillages = [...importedJsonVillages];
+
+    document.getElementById('army-update-modal-myplan')?.remove();
+    applyMode();
+    document.getElementById('src-overview').style.display='block';
+    updateSrcCounts();
+    applyFilter();
+    refreshNobleSrcList();
+    toast(`✓ Armáda aktualizována: ${updated} vesnic obnoveno${added ? `, ${added} nových` : ''}.`, 'ok', 5000);
+  } catch(e) {
+    toast('Chyba parsování JSON: ' + e.message, 'err', 5000);
+  }
 }
 
 function applyFilter() {

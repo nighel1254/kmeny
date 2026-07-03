@@ -1788,6 +1788,77 @@ function cancelReplanProposal(rowIdx) {
 // Manuálně přidané řádky a stav se ukládají na server, ale stránka je po otevření
 // nestahuje znovu automaticky – pokud něco přidáš/upravíš na jiném zařízení (např. mobilu),
 // na tomhle zařízení to uvidíš až po kliknutí na 🔄 Obnovit (nebo po znovuotevření odkazu).
+function openArmyUpdateDialog() {
+  document.getElementById('army-update-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'army-update-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div style="background:linear-gradient(180deg,#2e2210,#261a09);border:1px solid var(--gold);border-radius:8px;padding:24px;width:100%;max-width:500px;">
+      <h3 style="color:var(--gold2);margin-bottom:8px;">⚔️ Aktualizovat stav armády</h3>
+      <p style="font-size:12px;color:var(--dim);margin-bottom:12px;">Vlož aktuální JSON ze hry. Naplánované příkazy se <strong style="color:var(--text)">nezmění</strong> – aktualizují se jen počty dostupných jednotek a šlechticů v "Moje vesnice".</p>
+      <textarea id="army-update-json" rows="6" placeholder='{"villages":[...]}'
+        style="width:100%;background:#140e04;border:1px solid var(--border);color:var(--text);padding:8px;border-radius:4px;font-size:11px;font-family:monospace;resize:vertical;margin-bottom:12px;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="doArmyUpdate()" style="background:var(--gold);color:#1a0e00;border:none;border-radius:4px;padding:8px 20px;font-weight:700;cursor:pointer;font-size:13px;">⚔️ Aktualizovat</button>
+        <button onclick="document.getElementById('army-update-modal')?.remove()" style="background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;">Zrušit</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('army-update-json').focus();
+}
+
+function doArmyUpdate() {
+  const raw = document.getElementById('army-update-json')?.value?.trim();
+  if (!raw) { toast('Vlož JSON.', 'err'); return; }
+  try {
+    const data = JSON.parse(raw);
+    const newVillages = data.villages || [];
+    if (!newVillages.length) throw new Error('Žádné vesnice v JSON');
+
+    // Slouč nová data do playerVillages podle souřadnic
+    const byKey = new Map(playerVillages.map(v => [`${v.x}|${v.y}`, {...v}]));
+    let updated = 0, added = 0;
+    for (const nv of newVillages) {
+      const key = `${nv.x}|${nv.y}`;
+      if (byKey.has(key)) {
+        const ev = byKey.get(key);
+        // Aktualizuj jednotky a kategorii, zbytek nech
+        if (nv.available) ev.available = nv.available;
+        if (nv.units) ev.units = nv.units;
+        if (nv.noble !== undefined) ev.noble = nv.noble;
+        if (nv.category) ev.category = nv.category;
+        if (nv.off_pop !== undefined) ev.off_pop = nv.off_pop;
+        if (nv.ram !== undefined) ev.ram = nv.ram;
+        if (nv.catapult !== undefined) ev.catapult = nv.catapult;
+        byKey.set(key, ev);
+        updated++;
+      } else {
+        byKey.set(key, nv);
+        added++;
+      }
+    }
+    playerVillages = [...byKey.values()];
+
+    document.getElementById('army-update-modal')?.remove();
+    renderMyVillagesSummary();
+
+    // Ulož aktualizované vesnice na server (plan_input)
+    if (assignmentId) {
+      sbP.from('plan_assignments')
+        .update({ plan_input: { villages: playerVillages, updatedAt: new Date().toISOString() } })
+        .eq('id', assignmentId)
+        .then(({ error }) => {
+          if (error) toast('⚠ Armáda uložena jen lokálně (chyba serveru): ' + error.message, 'err', 5000);
+        });
+    }
+    toast(`✓ Armáda aktualizována: ${updated} vesnic obnoveno${added ? `, ${added} nových` : ''}.`, 'ok', 5000);
+  } catch(e) {
+    toast('Chyba parsování JSON: ' + e.message, 'err', 5000);
+  }
+}
+
 async function reloadFromServer() {
   if (!assignmentId) { toast('Tento plán nemá uložené ID na serveru, nelze obnovit.', 'err'); return; }
   try {
@@ -1822,6 +1893,7 @@ function render(data) {
           <input type="number" id="push-lead-input" min="1" max="60" value="2" style="width:38px;padding:2px 4px;font-size:11px;" onchange="setPushLeadMin(this.value)"> min
         </label>
         <button id="notif-btn" onclick="enableNotifications()" class="nav-btn" ${assignmentId ? '' : 'disabled style="opacity:.4;cursor:not-allowed;"'} title="${assignmentId ? 'Zapnout/vypnout notifikace pro tento plán' : 'Tento plán nemá uložené ID, notifikace nelze zapnout'}">🔔 Notifikace</button>
+        <button onclick="openArmyUpdateDialog()" class="nav-btn" title="Aktualizuj počty jednotek z aktuálního JSON hry – naplánované příkazy zůstanou beze změny">⚔️ Aktualizovat armádu</button>
         <button onclick="planLogout()" class="nav-btn">Odhlásit</button>
       </div>
     </div>
