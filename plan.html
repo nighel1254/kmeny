@@ -1108,6 +1108,12 @@ function msPerDistForUnit(unit) {
   return k * (UNIT_BASE_SPEED_S[unit] || UNIT_BASE_SPEED_S.ram);
 }
 
+function travelMs(x1, y1, x2, y2, unit) {
+  const dist = Math.sqrt((x1-x2)**2 + (y1-y2)**2);
+  const ms = msPerDistForUnit(unit) || (UNIT_BASE_SPEED_S[unit] || UNIT_BASE_SPEED_S.ram) * 1000;
+  return Math.round(dist * ms / 1000) * 1000;
+}
+
 // Vesnice, které hráči ještě "zbývají" pro daný typ útoku (nepoužité, případně s volnou kapacitou šlechticů).
 function getManualCandidates(typeKey, rowIdx, tgtX, tgtY, arrivalTime) {
   const def = MANUAL_TYPE_DEFS[typeKey];
