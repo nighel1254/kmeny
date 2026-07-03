@@ -66,8 +66,8 @@
   tr:hover td{background:#1e1a0e}
   .past-row td{opacity:.3;text-decoration:line-through;text-decoration-color:rgba(255,255,255,.15);}
   .past-row{background:#070503!important;border-left:3px solid #333!important;}
-  .played-row td{opacity:.4;text-decoration:line-through;text-decoration-color:rgba(80,200,80,.3);}
-  .played-row{background:#040a04!important;border-left:3px solid #4a9a4a!important;}
+  .played-row td{opacity:.75;color:#70b870;}
+  .played-row{background:#061006!important;border-left:3px solid #4a9a4a!important;}
   .night-row td{background:var(--night)!important}
   .coords{font-family:monospace;color:var(--gold2);font-weight:bold}
   .chip{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600;white-space:nowrap;gap:3px;}
@@ -812,6 +812,8 @@ function updateCountdowns() {
         el.title = 'Klikni pro označení jako Odešlo';
         el.style.cursor = 'pointer';
         el.onclick = () => markRowPlayedFromEl(el);
+        // Přidej past-row třídu živě při přechodu (bez re-renderu celé tabulky)
+        if (tr && !tr.classList.contains('past-row')) tr.classList.add('past-row');
       }
       return;
     }
@@ -1159,10 +1161,26 @@ function refreshNoblePlanList() {
   const allNoble = (playerVillages || []).filter(v => (v.noble || v.units?.noble || 0) >= 1);
   if (!allNoble.length) { wrapEl.style.display = 'none'; return; }
 
+  // Filtr dle času – zobraz jen vesnice, ze kterých to stihne dorazit
+  const tgtRaw = (document.getElementById('noble-plan-target')?.value || '').trim();
+  const tgtM = tgtRaw.match(/^(\d+)\|(\d+)/);
+  const tgtX = tgtM ? +tgtM[1] : null, tgtY = tgtM ? +tgtM[2] : null;
+  const arrStr = document.getElementById('noble-plan-arrival')?.value;
+  const arrivalTime = arrStr ? new Date(arrStr).getTime() : null;
+  const msPerDist = msPerDistForUnit('noble') || (UNIT_BASE_SPEED_S.noble * 1000);
+  const now2 = Date.now();
+
   const available = allNoble.filter(v => {
     const total = v.noble || v.units?.noble || 0;
     const used  = (usedMap.get(`${v.x}|${v.y}`) || []).reduce((s, e) => s + e.nobleCount, 0);
-    return total - used >= minNoble;
+    if (total - used < minNoble) return false;
+    // časový filtr jen pokud jsou vyplněny cíl i čas
+    if (tgtX && tgtY && arrivalTime) {
+      const dist = Math.sqrt((v.x-tgtX)**2+(v.y-tgtY)**2);
+      const travel = Math.round(dist * msPerDist / 1000) * 1000;
+      if (arrivalTime - travel < now2 + 60000) return false;
+    }
+    return true;
   }).sort((a, b) => (b.noble||b.units?.noble||0) - (a.noble||a.units?.noble||0));
 
   const usedVillages = allNoble.filter(v => usedMap.has(`${v.x}|${v.y}`))

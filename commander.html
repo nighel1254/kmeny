@@ -3338,7 +3338,7 @@ function refreshSavedActionsBar() {
     const minT   = times.length ? new Date(Math.min(...times)) : null;
     const arrStr = minT ? `Příchod: ${minT.getDate()}.${minT.getMonth()+1}. ${String(minT.getHours()).padStart(2,'0')}:${String(minT.getMinutes()).padStart(2,'0')}` : '';
     return `<div style="display:inline-flex;align-items:center;gap:6px;background:#0a1a0a;border:1px solid #305030;border-radius:5px;padding:4px 10px;margin-right:6px;margin-bottom:4px;">
-      <span style="color:#80d080;font-weight:600;">Akce ${i+1}</span>
+      <span style="color:#80d080;font-weight:600;">${a.label || `Akce ${i+1}`}</span>
       <span style="color:var(--dim);font-size:11px;">${arrStr}</span>
       <span style="color:var(--dim);font-size:11px;">⚔️${sharp} 💨${fakes} 👑${nobles}</span>
       <button onclick="editAction(${i})" style="background:#2a1a00;border:1px solid #604020;border-radius:3px;padding:2px 8px;color:#d4a84b;cursor:pointer;font-size:11px;">✏️</button>
