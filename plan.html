@@ -1091,23 +1091,34 @@ function msPerDistForUnit(unit) {
 }
 
 // Vesnice, které hráči ještě "zbývají" pro daný typ útoku (nepoužité, případně s volnou kapacitou šlechticů).
-function getManualCandidates(typeKey, rowIdx) {
+function getManualCandidates(typeKey, rowIdx, tgtX, tgtY, arrivalTime) {
   const def = MANUAL_TYPE_DEFS[typeKey];
   if (!def || !playerVillages.length) return [];
+  let pool;
   if (def.isFake) {
-    return playerVillages.filter(v => (v.ram||0) > 0 || (v.catapult||0) > 0);
-  }
-  if (def.isNoble) {
-    return playerVillages.filter(v => {
+    pool = playerVillages.filter(v => (v.ram||0) > 0 || (v.catapult||0) > 0);
+  } else if (def.isNoble) {
+    pool = playerVillages.filter(v => {
       if (!(v.noble > 0)) return false;
       const usedNobles = attackRows.filter((r,i) => i!==rowIdx && r.isNoble && r.srcX===v.x && r.srcY===v.y).length;
       return usedNobles < v.noble;
     });
+  } else {
+    // Ostrý útok – kompatibilní kategorie, vesnice ještě nepoužitá.
+    const usedKeys = new Set(attackRows.filter((r,i) => i!==rowIdx && !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
+    const okCats = compatibleCategories(typeKey);
+    pool = playerVillages.filter(v => okCats.includes(v.category) && !usedKeys.has(`${v.x}|${v.y}`));
   }
-  // Ostrý útok – kompatibilní kategorie (gigafullka nabízíme i pro fullka řádky), vesnice ještě nepoužitá.
-  const usedKeys = new Set(attackRows.filter((r,i) => i!==rowIdx && !r.isFake).map(r => `${r.srcX}|${r.srcY}`));
-  const okCats = compatibleCategories(typeKey);
-  return playerVillages.filter(v => okCats.includes(v.category) && !usedKeys.has(`${v.x}|${v.y}`));
+  // Filtr dle času – zobraz jen vesnice, ze kterých útok stihne dorazit
+  if (tgtX && tgtY && arrivalTime) {
+    const now = Date.now();
+    const unit = def.unit || 'ram';
+    pool = pool.filter(v => {
+      const travel = travelMs(v.x, v.y, tgtX, tgtY, unit);
+      return arrivalTime - travel > now + 60000;
+    });
+  }
+  return pool;
 }
 
 function refreshNoblePlanList() {
@@ -1426,10 +1437,12 @@ function buildManualRowHtml(r, rowIdx) {
   let srcCell;
   if (!r.manualType) {
     srcCell = `<span style="color:var(--dim);font-size:11px;">nejdřív vyber typ</span>`;
+  } else if (!r.tgtX || !r.arrivalTime) {
+    srcCell = `<span style="color:var(--dim);font-size:11px;">zadej cíl a čas dopadu</span>`;
   } else {
-    const candidates = getManualCandidates(r.manualType, rowIdx);
+    const candidates = getManualCandidates(r.manualType, rowIdx, r.tgtX, r.tgtY, r.arrivalTime);
     if (!candidates.length) {
-      srcCell = `<span style="color:#ff8080;font-size:11px;">žádná volná vesnice tohoto typu</span>`;
+      srcCell = `<span style="color:#ff8080;font-size:11px;">žádná vesnice to nestihne</span>`;
     } else {
       const srcOpts = `<option value="">– vyber vesnici –</option>` + candidates.map(v => {
         const sel = (v.x===r.srcX && v.y===r.srcY) ? 'selected' : '';
@@ -1468,7 +1481,7 @@ function buildManualRowHtml(r, rowIdx) {
     <td data-label="Zdroj">${srcCell}${computeSrcOrderLabel(rowIdx)}</td>
     <td data-label="Typ"><select style="max-width:140px;" onchange="onManualTypeChange(${rowIdx},this.value)">${typeOpts}</select></td>
     <td data-label="Cíl">
-      <input type="text" id="manual-tgt-${rowIdx}" value="${tgtVal}" placeholder="X|Y" style="width:90px;" oninput="formatCoordInput(this,'manual-tgt-owner-${rowIdx}')" onchange="onManualTgtChange(${rowIdx},this.value)">
+      <input type="text" id="manual-tgt-${rowIdx}" value="${tgtVal}" placeholder="X|Y" style="width:90px;" oninput="formatCoordInput(this,'manual-arrival-${rowIdx}')" onchange="onManualTgtChange(${rowIdx},this.value)">
       <input type="text" id="manual-tgt-owner-${rowIdx}" value="${r.tgtOwner||''}" placeholder="hráč (cíl)" style="width:90px;margin-top:3px;display:block;font-size:11px;" onchange="onManualTgtOwnerChange(${rowIdx},this.value)">
     </td>
     <td data-label="Jednotka"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
@@ -1807,6 +1820,7 @@ function render(data) {
           <div style="flex:0 0 auto;">
             <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">Cílová vesnice</div>
             <input type="text" id="noble-plan-target" placeholder="567|503"
+              oninput="formatCoordInput(this,'noble-plan-arrival')"
               style="width:120px;padding:8px 10px;border-radius:5px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:14px;font-family:monospace;">
           </div>
           <div style="flex:1;min-width:180px;">

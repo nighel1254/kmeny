@@ -1974,26 +1974,27 @@ function removeNobleRowMyplan(rowIdx){
   renderResults();
 }
 
-function editNobleRowMyplan(rowIdx){
+async function editNobleRowMyplan(rowIdx){
   const row=attackRows[rowIdx];
   if(!row||!row.isNoble) return;
-  // Předvyplň koordináty cíle do šlechtické sekce
-  const coordsEl=document.getElementById('noble-coords');
-  if(coordsEl){ coordsEl.value=`${row.tgtX}|${row.tgtY}`; nobleCoordsInput(coordsEl); }
-  // Předvyplň čas příchodu
-  const targets=targetState.noble;
-  const existing=targets.find(t=>t.x===row.tgtX&&t.y===row.tgtY);
-  if(!existing){
-    parseTargets('noble');
-    const t=targets.find(t=>t.x===row.tgtX&&t.y===row.tgtY);
-    if(t) t.arrivalTime=row.arrivalTime;
-  }
-  // Smaž řádek a přerenderuj
+  // Smaž řádek před přeplánováním
   attackRows.splice(rowIdx,1);
   renderResults();
+  // Předvyplň koordináty do textarea
+  const coordsEl=document.getElementById('noble-coords');
+  if(coordsEl){
+    const existing=coordsEl.value.trim();
+    const coord=`${row.tgtX}|${row.tgtY}`;
+    if(!existing.includes(coord)) coordsEl.value=(existing?existing+'\n':'')+coord;
+    await parseTargets('noble');
+    // Nastav čas příchodu na nově přidaný cíl
+    const t=targetState.noble.find(c=>c.x===row.tgtX&&c.y===row.tgtY);
+    if(t){ t.arrivalTime=row.arrivalTime; renderTargetList('noble'); }
+  }
   // Scroll na sekci šlechticů
-  const nobleSection=document.getElementById('noble-coords');
-  if(nobleSection) nobleSection.closest('.input-section')?.scrollIntoView({behavior:'smooth',block:'start'});
+  const wrap=document.getElementById('noble-tgt-wrap');
+  if(wrap) wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
+  else coordsEl?.closest('section,div.input-section,[class*="section"]')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function replanRow(rowIdx){
