@@ -112,10 +112,6 @@
   .countdown.ok{color:var(--green)}
   .countdown.past{color:var(--dim)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-  .play-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(180deg,#2a8a2a,#185018);border:1px solid #4aaa4a;cursor:pointer;color:#d0ffd0;text-decoration:none;transition:all .15s}
-  .play-btn:hover{background:linear-gradient(180deg,#3aaa3a,#287028);transform:scale(1.1)}
-  .play-btn.alarm-active{background:linear-gradient(180deg,#c44a00,#8b2200);border-color:var(--urgent);animation:pulse 1s infinite}
-  .play-btn svg{width:12px;height:12px;fill:currentColor}
   .chip{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold}
   .chip-ram  {background:#1a001a;color:#c060c0;border:1px solid #602060}
   .chip-noble{background:#2a0020;color:#ff80c0;border:1px solid #802060}
@@ -2906,10 +2902,6 @@ function renderResults(nightWarnings) {
       <td style="color:var(--dim);font-size:11px;">${fmtDur(row.travel)}</td>
       <td><span class="countdown" id="cd-${i}" data-send="${row.sendTime}"></span></td>
       <td>
-        <a class="play-btn" id="play-${i}" href="#" title="Spustit odpočet"
-           onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')">
-          <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
-        </a>
         ${row.isFake || row.isFakeNoble ? `<button onclick="refreshRow(${rowIdx})" title="Najít jiný zdroj (ne v noci)" style="background:none;border:none;cursor:pointer;color:var(--dim);font-size:13px;padding:2px 4px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>` : ''}
         <button onclick="deleteRow(${rowIdx})" title="Smazat příkaz a vrátit cíl do nepřiřazených" style="background:none;border:1px solid #a04040;border-radius:4px;cursor:pointer;color:#cc5555;padding:3px 6px;opacity:.8;line-height:1;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.8"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm-2 3h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z"/></svg></button>
         <input type="checkbox" class="replan-cb" data-rowidx="${rowIdx}"
@@ -3662,29 +3654,6 @@ async function syncPlayedRows() {
   } catch(e) {}
 }
 
-function startAlarm(evt, rowIdx, link) {
-  evt.preventDefault();
-  const row = attackRows[rowIdx];
-  if (row) {
-    // Vždy přepočítej link z aktuálních dat – zabrání stale href po změně zdroje
-    const srcId = row.srcId || allVillages.find(v => v.x===row.srcX && v.y===row.srcY)?.id || null;
-    if (row.tgtX) {
-      link = srcId
-        ? (row.tgtId
-            ? `${API_BASE}/game.php?village=${srcId}&screen=place&target=${row.tgtId}`
-            : `${API_BASE}/game.php?village=${srcId}&screen=place&x=${row.tgtX}&y=${row.tgtY}`)
-        : `${API_BASE}/game.php?screen=place&x=${row.tgtX}&y=${row.tgtY}`;
-      if (row.isFake || row.isFakeNoble) link += fakeTemplateQuery();
-    }
-    const diff = row.sendTime - Date.now();
-    if (diff < 300000) {
-      markRowPlayed(row);
-      const tr = document.querySelector(`table.attacks tbody tr[data-rowidx="${rowIdx}"]`);
-      if (tr) tr.classList.add('played-row');
-    }
-  }
-  window.open(link, 'tw_' + Date.now());
-}
 
 let _publishPlan = null;
 let _currentPlanLabel = '';
