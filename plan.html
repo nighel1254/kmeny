@@ -1170,8 +1170,8 @@ function refreshNoblePlanList() {
   const tgtRaw = (document.getElementById('noble-plan-target')?.value || '').trim();
   const tgtM = tgtRaw.match(/^(\d+)\|(\d+)/);
   const tgtX = tgtM ? +tgtM[1] : null, tgtY = tgtM ? +tgtM[2] : null;
-  const sendStr = document.getElementById('noble-plan-sendtime')?.value;
-  const sendTimeFilter = sendStr ? new Date(sendStr).getTime() : null;
+  const arrStr0 = document.getElementById('noble-plan-arrival')?.value;
+  const arrivalTimeFilter = arrStr0 ? new Date(arrStr0).getTime() : null;
   const msPerDist = msPerDistForUnit('noble') || (UNIT_BASE_SPEED_S.noble * 1000);
   const now2 = Date.now();
 
@@ -1179,8 +1179,12 @@ function refreshNoblePlanList() {
     const total = v.noble || v.units?.noble || 0;
     const used  = (usedMap.get(`${v.x}|${v.y}`) || []).reduce((s, e) => s + e.nobleCount, 0);
     if (total - used < minNoble) return false;
-    // zobraz jen pokud čas odeslání ještě nenastal (nebo není zadán)
-    if (sendTimeFilter && sendTimeFilter < now2 + 60000) return false;
+    // filtr: zobraz jen vesnice ktere stihnou dorazit vcas
+    if (tgtX && tgtY && arrivalTimeFilter) {
+      const dist2f = Math.sqrt((v.x-tgtX)**2+(v.y-tgtY)**2);
+      const trav2f = Math.round(dist2f * msPerDist / 1000) * 1000;
+      if (arrivalTimeFilter - trav2f < now2 + 60000) return false;
+    }
     return true;
   }).sort((a, b) => {
     // pokud je vyplněný cíl, řaď podle vzdálenosti
@@ -1205,10 +1209,10 @@ function refreshNoblePlanList() {
     const name  = v.village_name || v.name || `${v.x}|${v.y}`;
     const sel   = _nobleSrcVillage?.x === v.x && _nobleSrcVillage?.y === v.y;
     let arrivalInfo = '';
-    if (tgtX && tgtY && sendTimeFilter) {
+    if (tgtX && tgtY && arrivalTimeFilter) {
       const dist = Math.sqrt((v.x-tgtX)**2+(v.y-tgtY)**2);
       const travel = Math.round(dist * msPerDist / 1000) * 1000;
-      const arr = new Date(sendTimeFilter + travel);
+      const arr = new Date(arrivalTimeFilter - travel);
       const hms = arr.toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
       arrivalInfo = `<span style="color:#80c0ff;font-size:10px;">→ ${hms}</span>`;
     }
@@ -1283,10 +1287,10 @@ function addNoblePlanRows() {
   if (!m) { toast('Zadej platné souřadnice cíle (X|Y)!', 'err'); return; }
   const tgtX = +m[1], tgtY = +m[2];
 
-  const sendStr = document.getElementById('noble-plan-sendtime')?.value;
-  if (!sendStr) { toast('Nastav čas odeslání!', 'err'); return; }
-  const sendTime = new Date(sendStr).getTime();
-  if (sendTime < Date.now() + 60000) { toast('Čas odeslání je v minulosti!', 'err'); return; }
+  const arrStr = document.getElementById('noble-plan-arrival')?.value;
+  if (!arrStr) { toast('Nastav čas příchodu!', 'err'); return; }
+  const arrivalTime = new Date(arrStr).getTime();
+  if (arrivalTime < Date.now() + 120000) { toast('Čas příchodu je příliš blízko!', 'err'); return; }
 
   const msPerDist = msPerDistForUnit('noble') || (UNIT_BASE_SPEED_S.noble * 1000);
 
@@ -1324,7 +1328,8 @@ function addNoblePlanRows() {
       const sv = candidates[i];
       const dist = Math.sqrt((sv.x-tgtX)**2+(sv.y-tgtY)**2);
       const travel = Math.round(dist * msPerDist / 1000) * 1000;
-      const arrivalTime = sendTime + travel;
+      const sendTime = arrivalTime - travel;
+      if (sendTime < Date.now() + 60000) { toast(${sv.x}|: cas odeslani v minulosti., 'err'); continue; }
       let st = sendTime;
       while (usedSendTimes.has(st)) st += 1000;
       usedSendTimes.add(st);
@@ -1358,7 +1363,8 @@ function addNoblePlanRows() {
     }
     const dist = Math.sqrt((sv.x-tgtX)**2+(sv.y-tgtY)**2);
     const travel = Math.round(dist * msPerDist / 1000) * 1000;
-    const arrivalTime = sendTime + travel;
+    const sendTime = arrivalTime - travel;
+    if (sendTime < Date.now() + 60000) { toast('Cas odeslani v minulosti!', 'err'); return; }
     let st = sendTime;
     while (usedSendTimes.has(st)) st += 1000;
     usedSendTimes.add(st);
@@ -1393,11 +1399,11 @@ function editNobleRow(rowIdx) {
   const panel = document.getElementById('noble-plan-panel');
   if (panel) panel.style.display = 'block';
   const tgtEl = document.getElementById('noble-plan-target');
-  const sendEl = document.getElementById('noble-plan-sendtime');
+  const arrEl = document.getElementById('noble-plan-arrival');
   if (tgtEl) tgtEl.value = `${r.tgtX}|${r.tgtY}`;
-  if (sendEl && r.sendTime) {
-    const d = new Date(r.sendTime - new Date().getTimezoneOffset()*60000);
-    sendEl.value = d.toISOString().slice(0,19);
+  if (arrEl && r.arrivalTime) {
+    const d = new Date(r.arrivalTime - new Date().getTimezoneOffset()*60000);
+    arrEl.value = d.toISOString().slice(0,19);
   }
   // Nastav správný typ vlaku
   const modeVal = r.nobleCount === 3 ? 'three' : r.nobleCount === 1 ? 'one_by_one' : 'train';
@@ -2031,12 +2037,12 @@ function render(data) {
           <div style="flex:0 0 auto;">
             <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">Cílová vesnice</div>
             <input type="text" id="noble-plan-target" placeholder="567|503"
-              oninput="formatCoordInput(this,'noble-plan-sendtime');refreshNoblePlanList();"
+              oninput="formatCoordInput(this,'noble-plan-arrival');refreshNoblePlanList();"
               style="width:120px;padding:8px 10px;border-radius:5px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:14px;font-family:monospace;">
           </div>
           <div style="flex:1;min-width:180px;">
-            <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">📤 Čas odeslání</div>
-            <input type="datetime-local" id="noble-plan-sendtime" step="1"
+            <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">⏰ Čas příchodu</div>
+            <input type="datetime-local" id="noble-plan-arrival" step="1"
               oninput="refreshNoblePlanList();"
               style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:5px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
           </div>
