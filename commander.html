@@ -609,12 +609,16 @@
         <!-- Výběr zdroje šlechticů -->
         <div id="noble-empty" style="font-size:12px;color:var(--dim);padding:4px 0 8px;">Načti JSON v záložce 📦 Import kmene.</div>
         <div id="noble-content" style="display:none;">
-          <div style="font-size:12px;color:var(--gold);margin-bottom:4px;">Zdroj šlechticů (nezaškrtni nikoho = celý kmen, nebo vyber jednoho/víc hráčů):</div>
+          <div style="margin-bottom:8px;">
+            <label style="font-size:12px;color:var(--gold);display:block;margin-bottom:4px;">Hráč (filtruj zdroj šlechticů):</label>
+            <input type="text" id="noble-player-filter" placeholder="Jméno hráče..." style="width:100%;padding:5px 8px;font-size:12px;border-radius:4px;border:1px solid var(--border);background:var(--panel);color:var(--text);" oninput="refreshNoblelist()">
+          </div>
+          <div style="font-size:12px;color:var(--dim);margin-bottom:4px;">nebo vyber ze seznamu:</div>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px;">
             <a href="#" onclick="setAllNoblePlayerChecks(true);return false;" style="color:var(--gold);">☑ Vše</a>
             <a href="#" onclick="setAllNoblePlayerChecks(false);return false;" style="color:var(--dim);">☐ Nic (celý kmen)</a>
           </div>
-          <div id="noble-player-checklist" style="max-height:140px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:6px 8px;background:var(--panel);margin-bottom:8px;"></div>
+          <div id="noble-player-checklist" style="max-height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:6px 8px;background:var(--panel);margin-bottom:8px;"></div>
           <div class="village-list" id="noble-village-list"></div>
           <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="noble-count"></div>
         </div>
@@ -1387,9 +1391,11 @@ function refreshNoblelist() {
   const trainSize = nobleMode === 'three' ? 3 : nobleMode === 'one_by_one' ? 1 : 4;
   const trainLabel = nobleMode === 'one_by_one' ? 'solo' : nobleMode === 'three' ? 'ŠV' : 'vlak';
 
+  const playerFilterRaw = (document.getElementById('noble-player-filter')?.value || '').trim().toLowerCase();
   const nobleVillages = jsonVillages
     .filter(v => (v.noble || (v.units && v.units.noble) || 0) >= minNoble)
-    .filter(v => !checkedPlayers.length || checkedPlayers.includes(v.player_name));
+    .filter(v => !checkedPlayers.length || checkedPlayers.includes(v.player_name))
+    .filter(v => !playerFilterRaw || (v.player_name||'').toLowerCase().includes(playerFilterRaw));
 
   // Spočítej použité vlaky z aktuálního plánu
   const usedByVillage = new Map();
