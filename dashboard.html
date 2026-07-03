@@ -471,7 +471,7 @@ function buildSubstituteCard(a, ownerEmail, ownerNameByEmail) {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
         ${!a.plan_id ? `<button class="btn-open" style="border-color:var(--gold2);color:var(--gold2);" onclick="editPlan('${a.id}')">✎ Upravit</button>` : ''}
-        <button class="btn-open" onclick="openPlan('${a.id}')">▶ Otevřít</button>
+        <button class="btn-open" onclick="openSubstitutePlan('${a.id}','${ownerName.replace(/'/g,"\\'")}')">▶ Otevřít</button>
       </div>
     </div>
     <div class="plan-stats">
@@ -564,6 +564,19 @@ async function notifyUser(email, title, body) {
 async function removeShare(shareId) {
   await sb.from('plan_shares').delete().eq('id', shareId);
   loadExistingShares(_shareAssignmentId);
+}
+
+async function openSubstitutePlan(assignmentId, ownerName) {
+  const ok = confirm(
+    `⚠️ Zástup – odesílání útoků\n\n` +
+    `Tento plán patří hráči ${ownerName}.\n\n` +
+    `Aby play tlačítko v plánu odesílalo útok ze SPRÁVNÉ vesnice (hráče ${ownerName}), ` +
+    `musíš mít v prohlížeči otevřenou hru přepnutou na účet ${ownerName} jako zástup.\n\n` +
+    `Pokud jsi v hráčské hře přihlášen jako TY (ne jako ${ownerName}), útok se odešle z tvé vesnice!\n\n` +
+    `Pokračovat?`
+  );
+  if (!ok) return;
+  return openPlan(assignmentId);
 }
 
 async function openPlan(assignmentId) {
