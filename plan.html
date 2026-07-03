@@ -1329,7 +1329,7 @@ function addNoblePlanRows() {
       const dist = Math.sqrt((sv.x-tgtX)**2+(sv.y-tgtY)**2);
       const travel = Math.round(dist * msPerDist / 1000) * 1000;
       const sendTime = arrivalTime - travel;
-      if (sendTime < Date.now() + 60000) { toast(${sv.x}|: cas odeslani v minulosti., 'err'); continue; }
+      if (sendTime < Date.now() + 60000) { toast(`${sv.x}|${sv.y}: cas odeslani v minulosti.`, 'err'); continue; }
       let st = sendTime;
       while (usedSendTimes.has(st)) st += 1000;
       usedSendTimes.add(st);
