@@ -1380,23 +1380,52 @@ function refreshNoblelist() {
   const nobleMode = document.querySelector('input[name="noble-mode"]:checked')?.value || 'train';
   const minNoble = nobleMode === 'train' ? 4 : nobleMode === 'three' ? 3 : 1;
   const trainSize = nobleMode === 'three' ? 3 : nobleMode === 'one_by_one' ? 1 : 4;
+  const trainLabel = nobleMode === 'one_by_one' ? 'solo' : nobleMode === 'three' ? 'ŠV' : 'vlak';
 
   const nobleVillages = jsonVillages
     .filter(v => (v.noble || (v.units && v.units.noble) || 0) >= minNoble)
     .filter(v => !checkedPlayers.length || checkedPlayers.includes(v.player_name));
 
-  const listEl = document.getElementById('noble-village-list');
-  listEl.innerHTML = nobleVillages.map(v => {
+  // Spočítej použité vlaky z aktuálního plánu
+  const usedByVillage = new Map();
+  for (const r of (attackRows || [])) {
+    if (r.unit === 'snob' || r.unit === 'noble') {
+      const key = `${r.srcX}|${r.srcY}`;
+      usedByVillage.set(key, (usedByVillage.get(key) || 0) + 1);
+    }
+  }
+
+  const available = [], used = [];
+  for (const v of nobleVillages) {
     const cnt = v.noble || (v.units && v.units.noble) || 0;
     const trains = Math.floor(cnt / trainSize);
-    const trainsLabel = trains > 1 ? `<span style="color:#a0d0ff;font-size:11px;margin-left:4px;">(${trains}× ${nobleMode === 'one_by_one' ? 'solo' : nobleMode === 'three' ? 'ŠlechtiVlak' : 'vlak'})</span>` : '';
-    return `<div class="village-item">
-      <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${cnt}</span>${trainsLabel} <span style="color:var(--dim);font-size:11px;">${v.player_name||''}</span></span>
-      <span class="village-coords">${v.x}|${v.y}</span>
-    </div>`;
-  }).join('');
-  const totalTrains = nobleVillages.reduce((s,v) => s + Math.floor((v.noble||(v.units&&v.units.noble)||0) / trainSize), 0);
-  document.getElementById('noble-count').textContent = `${nobleVillages.length} vesnic – celkem ${totalTrains} ${nobleMode === 'one_by_one' ? 'šlechticů' : nobleMode === 'three' ? 'ŠlechtiVlaků' : 'vlaků'}`;
+    const key = `${v.x}|${v.y}`;
+    const usedTrains = usedByVillage.get(key) || 0;
+    const availTrains = Math.max(0, trains - usedTrains);
+    if (availTrains > 0) available.push({...v, cnt, trains, usedTrains, availTrains});
+    if (usedTrains > 0) used.push({...v, cnt, trains, usedTrains, availTrains});
+  }
+
+  const renderVillage = (v, count) => `<div class="village-item">
+    <span style="font-size:12px">${v.village_name||v.name||''} <span style="color:var(--gold)">👑×${v.cnt}</span> <span style="color:#a0d0ff;font-size:11px;">${count}× ${trainLabel}</span> <span style="color:var(--dim);font-size:11px;">${v.player_name||''}</span></span>
+    <span class="village-coords">${v.x}|${v.y}</span>
+  </div>`;
+
+  const listEl = document.getElementById('noble-village-list');
+  listEl.innerHTML = `<div style="display:flex;gap:8px;margin-top:4px;">
+    <div style="flex:1;min-width:0;border:1px solid #1a3a1a;border-radius:4px;overflow:hidden;">
+      <div style="font-size:11px;color:var(--green);font-weight:600;padding:4px 8px;background:#0a1a0a;">✓ Dostupné (${available.length} vesnic)</div>
+      <div style="max-height:180px;overflow-y:auto;">${available.length ? available.map(v=>renderVillage(v,v.availTrains)).join('') : '<div style="padding:8px;color:var(--dim);font-size:11px;">Žádné dostupné</div>'}</div>
+    </div>
+    <div style="flex:1;min-width:0;border:1px solid #3a2a0a;border-radius:4px;overflow:hidden;">
+      <div style="font-size:11px;color:#e09040;font-weight:600;padding:4px 8px;background:#1a1000;">⟳ Použité v plánu (${used.length} vesnic)</div>
+      <div style="max-height:180px;overflow-y:auto;">${used.length ? used.map(v=>renderVillage(v,v.usedTrains)).join('') : '<div style="padding:8px;color:var(--dim);font-size:11px;">Žádné použité</div>'}</div>
+    </div>
+  </div>`;
+
+  const totalAvail = available.reduce((s,v) => s+v.availTrains, 0);
+  const totalUsed  = used.reduce((s,v) => s+v.usedTrains, 0);
+  document.getElementById('noble-count').textContent = `Dostupné: ${totalAvail} ${trainLabel === 'solo' ? 'šlechticů' : 'vlaků'} | Použité: ${totalUsed}`;
 }
 
 function updateNobleTargetCount() {
