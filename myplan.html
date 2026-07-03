@@ -399,8 +399,14 @@
           </div>
           <input type="hidden" id="noble-per-target" value="4">
         </div>
-        <!-- Seznam vesnic -->
+        <!-- Send time filtr + seznam vesnic -->
         <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;">📤 Čas odeslání</span>
+            <input type="datetime-local" id="noble-src-sendtime" step="1"
+              oninput="refreshNobleSrcList();"
+              style="flex:1;padding:5px 8px;border-radius:5px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:12px;">
+          </div>
           <div id="noble-src-info" style="font-size:12px;color:var(--dim);">Načti JSON pro zobrazení šlechticů.</div>
           <div style="display:none;border:1px solid var(--border);border-radius:6px;overflow:hidden;" id="noble-village-wrap">
             <div class="village-list" id="noble-village-list" style="max-height:160px;overflow-y:auto;"></div>
@@ -613,6 +619,7 @@ let jsonVillages  = [];   // pracovní/zbývající pool (zmenšuje se s "Přida
 let importedJsonVillages = []; // CELÝ neměnný import z bookmarkletu – při editaci uloženého plánu z něj obnovujeme plný pool
 let offVillages   = [];   // filtrovane offky [{x,y,name,id,category}]
 let nobleVillages = [];   // vesnice se šlechtici [{x,y,name,id,noble}]
+let _nobleSrcVillage = null; // ručně vybraná zdrojová vesnice pro šlechtice
 let allVillagesMap = {};  // {x|y: {name,id}}
 let allVillagesFetched = false;
 
@@ -1322,6 +1329,12 @@ function refreshNobleSrcList() {
   const minNoble  = mode === 'train' ? 4 : mode === 'three' ? 3 : 1;
   const trainSize = mode === 'one_by_one' ? 1 : mode === 'three' ? 3 : 4;
   const trainLabel = mode === 'one_by_one' ? 'solo' : mode === 'three' ? 'ŠlechtiVlak' : 'vlak';
+
+  const sendStr = document.getElementById('noble-src-sendtime')?.value;
+  const sendTimeFilter = sendStr ? new Date(sendStr).getTime() : null;
+  const now2 = Date.now();
+  const sendExpired = sendTimeFilter && sendTimeFilter < now2 + 60000;
+
   const filtered = [...nobleVillages]
     .filter(v => v._noble >= minNoble)
     .sort((a,b) => b._noble - a._noble);
@@ -1343,17 +1356,26 @@ function refreshNobleSrcList() {
     const usedCnt = usedMap.get(`${v.x}|${v.y}`) || 0;
     const availCnt = Math.max(0, v._noble - usedCnt);
     const availTrains = Math.floor(availCnt / trainSize);
-    if (availTrains > 0) available.push({...v, availCnt, availTrains, usedCnt});
-    if (usedCnt > 0)     used.push({...v, availCnt, availTrains, usedCnt});
+    if (availTrains > 0 && !sendExpired) available.push({...v, availCnt, availTrains, usedCnt});
+    if (usedCnt > 0) used.push({...v, availCnt, availTrains, usedCnt});
   }
 
-  const cardAvail = v => `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #1a1208;">
-    <div style="flex:1;min-width:0;">
-      <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.village_name||`${v.x}|${v.y}`}</div>
-      <div style="font-size:11px;color:var(--dim);">${v.x}|${v.y}</div>
-    </div>
-    <div style="font-size:11px;color:var(--gold);white-space:nowrap;text-align:right;">👑 ${v.availCnt}/${v._noble}<br><span style="color:#a0d0ff;">${v.availTrains}× ${trainLabel}</span></div>
-  </div>`;
+  // Ověř že vybraná vesnice je stále dostupná
+  if (_nobleSrcVillage) {
+    const still = available.find(v => v.x === _nobleSrcVillage.x && v.y === _nobleSrcVillage.y);
+    if (!still) _nobleSrcVillage = null;
+  }
+
+  const cardAvail = v => {
+    const sel = _nobleSrcVillage?.x === v.x && _nobleSrcVillage?.y === v.y;
+    return `<div onclick="selectNobleSrcVillage(${v.x},${v.y})" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #1a1208;cursor:pointer;background:${sel?'#2e1f00':'transparent'};" onmouseover="this.style.background='${sel?'#3a2800':'#1e1608'}'" onmouseout="this.style.background='${sel?'#2e1f00':'transparent'}'">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;color:${sel?'var(--gold)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${sel?'✓ ':''}${v.village_name||`${v.x}|${v.y}`}</div>
+        <div style="font-size:11px;color:var(--dim);">${v.x}|${v.y}</div>
+      </div>
+      <div style="font-size:11px;color:var(--gold);white-space:nowrap;text-align:right;">👑 ${v.availCnt}/${v._noble}<br><span style="color:#a0d0ff;">${v.availTrains}× ${trainLabel}</span></div>
+    </div>`;
+  };
 
   const cardUsed = v => `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #1a1208;opacity:.7;">
     <div style="flex:1;min-width:0;">
@@ -1367,7 +1389,7 @@ function refreshNobleSrcList() {
   listEl.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;">
     <div style="border-right:1px solid var(--border);">
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--green);padding:4px 10px;background:#0a1408;border-bottom:1px solid #1a1208;">✓ Dostupné (${available.length})</div>
-      ${available.length ? available.map(cardAvail).join('') : '<div style="padding:8px 10px;color:var(--dim);font-size:11px;">Žádné</div>'}
+      ${sendExpired ? '<div style="padding:8px 10px;color:#b87070;font-size:11px;">⚠ Čas odeslání prošel</div>' : available.length ? available.map(cardAvail).join('') : '<div style="padding:8px 10px;color:var(--dim);font-size:11px;">Žádné</div>'}
     </div>
     <div>
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:#806040;padding:4px 10px;background:#0d0a04;border-bottom:1px solid #1a1208;">⟳ Použité (${used.length})</div>
@@ -1377,7 +1399,19 @@ function refreshNobleSrcList() {
   if (wrapEl) wrapEl.style.display = 'block';
   if (infoEl) infoEl.textContent = '';
   const totalTrain = available.reduce((s,v) => s + v.availTrains, 0);
-  if (countEl) countEl.textContent = `${available.length} dostupných, ${used.length} použitých · ${totalTrain} volných ${trainLabel === 'solo' ? 'šlechticů' : trainLabel === 'ŠlechtiVlak' ? 'ŠlechtiVlaků' : 'vlaků'}`;
+  const selTxt = _nobleSrcVillage ? ` · Vybrána: ${_nobleSrcVillage.village_name||_nobleSrcVillage.x+'|'+_nobleSrcVillage.y}` : '';
+  if (countEl) countEl.textContent = `${available.length} dostupných, ${used.length} použitých · ${totalTrain} volných ${trainLabel === 'solo' ? 'šlechticů' : trainLabel === 'ŠlechtiVlak' ? 'ŠlechtiVlaků' : 'vlaků'}${selTxt}`;
+}
+
+function selectNobleSrcVillage(x, y) {
+  const v = nobleVillages.find(v => v.x === x && v.y === y);
+  if (!v) return;
+  if (_nobleSrcVillage?.x === x && _nobleSrcVillage?.y === y) {
+    _nobleSrcVillage = null;
+  } else {
+    _nobleSrcVillage = v;
+  }
+  refreshNobleSrcList();
 }
 
 // Auto-format souřadnic v noble-coords textarea: 3 čísla → "|" → 3 čísla → focus na čas příchodu
@@ -1852,7 +1886,9 @@ async function calculate() {
         // Kolik šlechticů už na tento cíl bylo reálně odesláno – train pokračuje odsud, ne od nuly.
         let placed = sentCountAtTarget(tgt.x, tgt.y, PRED_NOBLE);
         const tgtNobleRows=[];
-        const sortedPool = pool.filter(v=>v.remaining>0 && tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'noble') > _calcNow + MIN_DELAY).sort(byDistTo(tgt));
+        const sortedPool = (_nobleSrcVillage
+          ? pool.filter(v => v.x === _nobleSrcVillage.x && v.y === _nobleSrcVillage.y && v.remaining > 0 && tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'noble') > _calcNow + MIN_DELAY)
+          : pool.filter(v=>v.remaining>0 && tgt.arrivalTime - travelMs(v.x,v.y,tgt.x,tgt.y,'noble') > _calcNow + MIN_DELAY).sort(byDistTo(tgt)));
         for (const src of sortedPool) {
           if (placed >= noblePerTgt) break;
           const take = Math.min(src.remaining, noblePerTgt - placed);

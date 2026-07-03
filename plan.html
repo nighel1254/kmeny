@@ -1161,12 +1161,11 @@ function refreshNoblePlanList() {
   const allNoble = (playerVillages || []).filter(v => (v.noble || v.units?.noble || 0) >= 1);
   if (!allNoble.length) { wrapEl.style.display = 'none'; return; }
 
-  // Filtr dle času – zobraz jen vesnice, ze kterých to stihne dorazit
   const tgtRaw = (document.getElementById('noble-plan-target')?.value || '').trim();
   const tgtM = tgtRaw.match(/^(\d+)\|(\d+)/);
   const tgtX = tgtM ? +tgtM[1] : null, tgtY = tgtM ? +tgtM[2] : null;
-  const arrStr = document.getElementById('noble-plan-arrival')?.value;
-  const arrivalTime = arrStr ? new Date(arrStr).getTime() : null;
+  const sendStr = document.getElementById('noble-plan-sendtime')?.value;
+  const sendTimeFilter = sendStr ? new Date(sendStr).getTime() : null;
   const msPerDist = msPerDistForUnit('noble') || (UNIT_BASE_SPEED_S.noble * 1000);
   const now2 = Date.now();
 
@@ -1174,14 +1173,14 @@ function refreshNoblePlanList() {
     const total = v.noble || v.units?.noble || 0;
     const used  = (usedMap.get(`${v.x}|${v.y}`) || []).reduce((s, e) => s + e.nobleCount, 0);
     if (total - used < minNoble) return false;
-    // časový filtr jen pokud jsou vyplněny cíl i čas
-    if (tgtX && tgtY && arrivalTime) {
-      const dist = Math.sqrt((v.x-tgtX)**2+(v.y-tgtY)**2);
-      const travel = Math.round(dist * msPerDist / 1000) * 1000;
-      if (arrivalTime - travel < now2 + 60000) return false;
-    }
+    // zobraz jen pokud čas odeslání ještě nenastal (nebo není zadán)
+    if (sendTimeFilter && sendTimeFilter < now2 + 60000) return false;
     return true;
-  }).sort((a, b) => (b.noble||b.units?.noble||0) - (a.noble||a.units?.noble||0));
+  }).sort((a, b) => {
+    // pokud je vyplněný cíl, řaď podle vzdálenosti
+    if (tgtX && tgtY) return Math.sqrt((a.x-tgtX)**2+(a.y-tgtY)**2) - Math.sqrt((b.x-tgtX)**2+(b.y-tgtY)**2);
+    return (b.noble||b.units?.noble||0) - (a.noble||a.units?.noble||0);
+  });
 
   const usedVillages = allNoble.filter(v => usedMap.has(`${v.x}|${v.y}`))
     .sort((a, b) => (a.village_name||a.name||'').localeCompare(b.village_name||b.name||''));
@@ -1199,10 +1198,18 @@ function refreshNoblePlanList() {
     const trains = Math.floor(rem / trainSize);
     const name  = v.village_name || v.name || `${v.x}|${v.y}`;
     const sel   = _nobleSrcVillage?.x === v.x && _nobleSrcVillage?.y === v.y;
+    let arrivalInfo = '';
+    if (tgtX && tgtY && sendTimeFilter) {
+      const dist = Math.sqrt((v.x-tgtX)**2+(v.y-tgtY)**2);
+      const travel = Math.round(dist * msPerDist / 1000) * 1000;
+      const arr = new Date(sendTimeFilter + travel);
+      const hms = arr.toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      arrivalInfo = `<span style="color:#80c0ff;font-size:10px;">→ ${hms}</span>`;
+    }
     return `<div onclick="selectNobleSrcVillage(${v.x},${v.y})" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #1a1208;cursor:pointer;background:${sel?'#2e1f00':'transparent'};" onmouseover="this.style.background='${sel?'#3a2800':'#1e1608'}'" onmouseout="this.style.background='${sel?'#2e1f00':'transparent'}'">
       <div style="flex:1;min-width:0;">
         <div style="font-size:12px;font-weight:600;color:${sel?'var(--gold)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${sel?'✓ ':''}${name}</div>
-        <div style="font-size:11px;color:var(--dim);">${v.x}|${v.y}</div>
+        <div style="font-size:11px;color:var(--dim);">${v.x}|${v.y} ${arrivalInfo}</div>
       </div>
       <div style="font-size:11px;color:var(--gold);white-space:nowrap;text-align:right;">👑 ${rem}/${total}<br><span style="color:#a0d0ff;">${trains}× ${kindLabel}</span></div>
     </div>`;
@@ -1270,12 +1277,11 @@ function addNoblePlanRows() {
   if (!m) { toast('Zadej platné souřadnice cíle (X|Y)!', 'err'); return; }
   const tgtX = +m[1], tgtY = +m[2];
 
-  const arrStr = document.getElementById('noble-plan-arrival')?.value;
-  if (!arrStr) { toast('Nastav čas příchodu šlechticů!', 'err'); return; }
-  const arrivalTime = new Date(arrStr).getTime();
+  const sendStr = document.getElementById('noble-plan-sendtime')?.value;
+  if (!sendStr) { toast('Nastav čas odeslání!', 'err'); return; }
+  const sendTime = new Date(sendStr).getTime();
+  if (sendTime < Date.now() + 60000) { toast('Čas odeslání je v minulosti!', 'err'); return; }
 
-  // Pokud v plánu ještě nejsou žádné referenční útoky, použij základní rychlost šlechtice (2100 s/pole).
-  // Nebude zohledněna rychlost světa, ale je to lepší než nic.
   const msPerDist = msPerDistForUnit('noble') || (UNIT_BASE_SPEED_S.noble * 1000);
 
   const now = Date.now();
@@ -1312,15 +1318,15 @@ function addNoblePlanRows() {
       const sv = candidates[i];
       const dist = Math.sqrt((sv.x-tgtX)**2+(sv.y-tgtY)**2);
       const travel = Math.round(dist * msPerDist / 1000) * 1000;
-      let sendTime = arrivalTime - travel;
-      if (sendTime < now + 60000) { toast(`${sv.x}|${sv.y}: čas odeslání je v minulosti.`, 'err'); continue; }
-      while (usedSendTimes.has(sendTime)) sendTime += 1000;
-      usedSendTimes.add(sendTime);
+      const arrivalTime = sendTime + travel;
+      let st = sendTime;
+      while (usedSendTimes.has(st)) st += 1000;
+      usedSendTimes.add(st);
       newRows.push({ srcId:sv.id||null, srcName:sv.name||'', srcPlayer:sv.player||'',
         srcX:sv.x, srcY:sv.y, srcCategory:'noble',
         tgtX, tgtY, tgtName:`${tgtX}|${tgtY}`, tgtId:null, tgtOwner:'',
-        unit:'noble', nobleCount:1, arrivalTime, sendTime, travel,
-        night:isNight(sendTime), isFake:false, isNoble:true, isFakeNoble:false, isPast:false });
+        unit:'noble', nobleCount:1, arrivalTime, sendTime:st, travel,
+        night:isNight(st), isFake:false, isNoble:true, isFakeNoble:false, isPast:false });
     }
   } else {
     // Vlak nebo ŠlechtiVlak: použij ručně vybranou vesnici, nebo nejbližší s dostatkem šlechticů
@@ -1346,15 +1352,15 @@ function addNoblePlanRows() {
     }
     const dist = Math.sqrt((sv.x-tgtX)**2+(sv.y-tgtY)**2);
     const travel = Math.round(dist * msPerDist / 1000) * 1000;
-    let sendTime = arrivalTime - travel;
-    if (sendTime < now + 60000) { toast('Čas odeslání by byl v minulosti!', 'err'); return; }
-    while (usedSendTimes.has(sendTime)) sendTime += 1000;
-    usedSendTimes.add(sendTime);
+    const arrivalTime = sendTime + travel;
+    let st = sendTime;
+    while (usedSendTimes.has(st)) st += 1000;
+    usedSendTimes.add(st);
     newRows.push({ srcId:sv.id||null, srcName:sv.name||'', srcPlayer:sv.player||'',
       srcX:sv.x, srcY:sv.y, srcCategory:'noble',
       tgtX, tgtY, tgtName:`${tgtX}|${tgtY}`, tgtId:null, tgtOwner:'',
-      unit:'noble', nobleCount:noblePerTarget, arrivalTime, sendTime, travel,
-      night:isNight(sendTime), isFake:false, isNoble:true, isFakeNoble:false, isPast:false });
+      unit:'noble', nobleCount:noblePerTarget, arrivalTime, sendTime:st, travel,
+      night:isNight(st), isFake:false, isNoble:true, isFakeNoble:false, isPast:false });
   }
 
   if (!newRows.length) { toast('Žádné řádky nebyly přidány.', 'err'); return; }
@@ -1379,11 +1385,11 @@ function editNobleRow(rowIdx) {
   const panel = document.getElementById('noble-plan-panel');
   if (panel) panel.style.display = 'block';
   const tgtEl = document.getElementById('noble-plan-target');
-  const arrEl = document.getElementById('noble-plan-arrival');
+  const sendEl = document.getElementById('noble-plan-sendtime');
   if (tgtEl) tgtEl.value = `${r.tgtX}|${r.tgtY}`;
-  if (arrEl && r.arrivalTime) {
-    const d = new Date(r.arrivalTime - new Date().getTimezoneOffset()*60000);
-    arrEl.value = d.toISOString().slice(0,19);
+  if (sendEl && r.sendTime) {
+    const d = new Date(r.sendTime - new Date().getTimezoneOffset()*60000);
+    sendEl.value = d.toISOString().slice(0,19);
   }
   // Nastav správný typ vlaku
   const modeVal = r.nobleCount === 3 ? 'three' : r.nobleCount === 1 ? 'one_by_one' : 'train';
@@ -2012,12 +2018,13 @@ function render(data) {
           <div style="flex:0 0 auto;">
             <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">Cílová vesnice</div>
             <input type="text" id="noble-plan-target" placeholder="567|503"
-              oninput="formatCoordInput(this,'noble-plan-arrival')"
+              oninput="formatCoordInput(this,'noble-plan-sendtime');refreshNoblePlanList();"
               style="width:120px;padding:8px 10px;border-radius:5px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:14px;font-family:monospace;">
           </div>
           <div style="flex:1;min-width:180px;">
-            <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">⏰ Čas příchodu</div>
-            <input type="datetime-local" id="noble-plan-arrival" step="1"
+            <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">📤 Čas odeslání</div>
+            <input type="datetime-local" id="noble-plan-sendtime" step="1"
+              oninput="refreshNoblePlanList();"
               style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:5px;border:1px solid var(--border);background:#0d0a05;color:var(--text);font-size:13px;">
           </div>
           <button onclick="addNoblePlanRows()"
