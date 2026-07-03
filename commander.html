@@ -3872,6 +3872,7 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
   // Per-hráč souhrn tabulka
   const playerSummaryDiv = document.createElement('div');
   playerSummaryDiv.style.cssText = 'margin-bottom:14px;border:1px solid var(--border);border-radius:6px;overflow:hidden;';
+  const th = (content, title='') => `<th style="padding:5px 8px;text-align:center;font-weight:400;" title="${title}">${content}</th>`;
   let psHtml = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
     <thead><tr style="background:#140e07;color:var(--dim);">
       <th style="padding:5px 10px;text-align:left;font-weight:400;">Hráč</th>
@@ -3879,6 +3880,8 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
       <th style="padding:5px 10px;text-align:center;font-weight:400;color:#888;">Odesláno</th>
       <th style="padding:5px 10px;text-align:center;font-weight:400;color:#ff6060;">Zmeškal</th>
       <th style="padding:5px 10px;text-align:center;font-weight:400;color:#e09040;">Změny</th>
+      <th style="padding:5px 2px;border-left:1px solid #2a2010;"></th>
+      ${th(AXE_RED,'Fullky')}${th(`${AXE_RED}${AXE_RED}`,'GigaFullky')}${th(AXE_BRN,'Třičtvrtě off')}${th(AXE_YEL,'Půl off')}${th(NOBLE_NORM,'Šlechtici')}${th('<span style="color:#40cc40;font-size:11px;">F</span>','Fejky')}${th('<span style="color:#c080ff;font-size:11px;">FV</span>','Fejk vlaky')}
     </tr></thead><tbody>`;
   for (const a of assignments) {
     const rows = a.rows_data || [];
@@ -3894,13 +3897,23 @@ function renderMonitoringContent(assignments, sharesByAssign, origByPlayer) {
     const pChg = rows.filter(r=>!origKeys2.has(`${r.tgtX}|${r.tgtY}|${r.unit}`)).length
                + orig2.filter(r=>!currKeys2.has(`${r.tgtX}|${r.tgtY}|${r.unit}`)).length
                + rows.filter(r=>{ const o=orig2.find(x=>x.tgtX===r.tgtX&&x.tgtY===r.tgtY&&x.unit===r.unit); return o&&(o.srcX!==r.srcX||o.srcY!==r.srcY); }).length;
+    const cFull  = rows.filter(r=>r.srcCategory==='fullka').length;
+    const cGiga  = rows.filter(r=>r.srcCategory==='gigafullka').length;
+    const cTriq  = rows.filter(r=>r.srcCategory==='triq_off').length;
+    const cHalf  = rows.filter(r=>r.srcCategory==='half_off').length;
+    const cNoble = rows.filter(r=>!r.isFake&&(r.unit==='snob'||r.isFakeNoble===false&&r.srcCategory==='noble'||r.unit==='snob')).length || rows.filter(r=>r.noble||r.unit==='snob').length;
+    const cFejk  = rows.filter(r=>r.isFake&&!r.isFakeNoble).length;
+    const cFejkV = rows.filter(r=>r.isFake&&r.isFakeNoble).length;
+    const td = (v, color='var(--text)') => `<td style="padding:4px 8px;text-align:center;color:${color};font-weight:${v?'600':'300'};">${v||'—'}</td>`;
     const alarm = pZmesk > 0;
-    psHtml += `<tr style="border-top:1px solid #1a1208;background:${alarm?'#160404':'#1a1208'};" onclick="document.getElementById('mc-${a.id}').style.display='block';document.getElementById('mc-${a.id}').scrollIntoView({behavior:'smooth',block:'nearest'})" title="Přejít na detail" style="cursor:pointer;">
-      <td style="padding:4px 10px;color:${alarm?'#ff6060':'var(--gold2)'};font-weight:600;cursor:pointer;">${alarm?'⚠ ':''}${a.player_name||a.player_email}</td>
+    psHtml += `<tr style="border-top:1px solid #1a1208;background:${alarm?'#160404':'#1a1208'};cursor:pointer;" onclick="document.getElementById('mc-${a.id}').style.display='block';document.getElementById('mc-${a.id}').scrollIntoView({behavior:'smooth',block:'nearest'})" title="Přejít na detail">
+      <td style="padding:4px 10px;color:${alarm?'#ff6060':'var(--gold2)'};font-weight:600;">${alarm?'⚠ ':''}${a.player_name||a.player_email}</td>
       <td style="padding:4px 10px;text-align:center;color:var(--green);font-weight:${pPend?'700':'400'};">${pPend||'—'}</td>
       <td style="padding:4px 10px;text-align:center;color:#888;">${pOdesl||'—'}</td>
       <td style="padding:4px 10px;text-align:center;color:${pZmesk?'#ff4040':'#4a7a4a'};font-weight:${pZmesk?'700':'400'};">${pZmesk||'—'}</td>
       <td style="padding:4px 10px;text-align:center;color:${pChg?'#e09040':'var(--dim)'};">${pChg||'—'}</td>
+      <td style="border-left:1px solid #2a2010;"></td>
+      ${td(cFull,'#ff8080')}${td(cGiga,'#ff6060')}${td(cTriq,'#c09060')}${td(cHalf,'#c0a030')}${td(cNoble,'#ff80c0')}${td(cFejk,'#40cc40')}${td(cFejkV,'#c080ff')}
     </tr>`;
   }
   psHtml += '</tbody></table>';
