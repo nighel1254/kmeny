@@ -1758,7 +1758,9 @@ async function calculate() {
           if (placed >= noblePerTgt) break;
           const take = Math.min(src.remaining, noblePerTgt - placed);
           const travel = travelMs(src.x,src.y,tgt.x,tgt.y,'noble');
-          const sendTime = tgt.arrivalTime - travel;
+          let sendTime = tgt.arrivalTime - travel;
+          while (usedSendTimesGlobal.has(sendTime)) sendTime += 1000;
+          usedSendTimesGlobal.add(sendTime);
           for (let t=0; t<take; t++) {
             const row = {
               srcX:src.x, srcY:src.y, srcName:src.village_name||`${src.x}|${src.y}`, srcId:src.village_id||null,
@@ -2074,16 +2076,28 @@ function updateCountdowns(){
 function startAlarm(evt,rowIdx,link){
   evt.preventDefault();
   const row=attackRows[rowIdx];
-  if(row&&row.sendTime-Date.now()<300000){
-    setTimeout(()=>{
-      const key=rowKey(row);
-      playedRows.add(key);
-      try{localStorage.setItem('dk_myplan_played',JSON.stringify([...playedRows]));}catch(e){}
-      const tr=document.querySelector(`tr[data-rowidx="${rowIdx}"]`);
-      if(tr)tr.className='played-row';
-      const cd=tr?.querySelector('.countdown');
-      if(cd){cd.textContent='Odešlo';cd.className='countdown past';}
-    },10000);
+  if(row){
+    // Vždy přepočítej link z aktuálních dat – zabrání stale href
+    const srcId=row.srcId||null;
+    if(row.tgtX){
+      link=srcId
+        ?(row.tgtId
+            ?`${API_BASE}/game.php?village=${srcId}&screen=place&target=${row.tgtId}`
+            :`${API_BASE}/game.php?village=${srcId}&screen=place&x=${row.tgtX}&y=${row.tgtY}`)
+        :`${API_BASE}/game.php?screen=place&x=${row.tgtX}&y=${row.tgtY}`;
+      if(row.isFake) link+=fakeTemplateQuery();
+    }
+    if(row.sendTime-Date.now()<300000){
+      setTimeout(()=>{
+        const key=rowKey(row);
+        playedRows.add(key);
+        try{localStorage.setItem('dk_myplan_played',JSON.stringify([...playedRows]));}catch(e){}
+        const tr=document.querySelector(`tr[data-rowidx="${rowIdx}"]`);
+        if(tr)tr.className='played-row';
+        const cd=tr?.querySelector('.countdown');
+        if(cd){cd.textContent='Odešlo';cd.className='countdown past';}
+      },10000);
+    }
   }
   window.open(link,'tw_'+Date.now());
 }

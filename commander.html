@@ -1312,7 +1312,8 @@ function updateNobleTargetCount() {
   document.getElementById('noble-arrival-wrap').style.display = coords.length ? 'block' : 'none';
 }
 
-function calculateNobles(rows, extraWarnings) {
+function calculateNobles(rows, extraWarnings, usedSendTimes) {
+  if (!usedSendTimes) usedSendTimes = new Set(rows.map(r => r.sendTime).filter(Boolean));
   // Načti nastavení
   const raw = document.getElementById('noble-target-coords').value.trim();
   if (!raw) return;
@@ -1374,7 +1375,9 @@ function calculateNobles(rows, extraWarnings) {
         const sv = sorted[i];
         const arrTime = bestArrivalTime(arrFrom, arrTo, [sv], {x:tgtX, y:tgtY, unit:nobleUnit}, nobleUnit);
         const travel = travelMs(sv.x, sv.y, tgtX, tgtY, nobleUnit);
-        const sendTime = arrTime - travel;
+        let sendTime = arrTime - travel;
+        while (usedSendTimes.has(sendTime)) sendTime += 1000;
+        usedSendTimes.add(sendTime);
         const srcAv = allVillages.find(v => v.x === sv.x && v.y === sv.y);
         rows.push({
           srcId: srcAv?.id || sv.id || null,
@@ -1406,7 +1409,9 @@ function calculateNobles(rows, extraWarnings) {
     const sv = sorted[0];
     const arrTime = bestArrivalTime(arrFrom, arrTo, [sv], {x:tgtX, y:tgtY, unit:nobleUnit}, nobleUnit);
     const travel = travelMs(sv.x, sv.y, tgtX, tgtY, nobleUnit);
-    const sendTime = arrTime - travel;
+    let sendTime = arrTime - travel;
+    while (usedSendTimes.has(sendTime)) sendTime += 1000;
+    usedSendTimes.add(sendTime);
     const srcAv = allVillages.find(v => v.x === sv.x && v.y === sv.y);
     rows.push({
       srcId: srcAv?.id || sv.id || null,
@@ -2634,7 +2639,7 @@ async function calculate() {
     }
   }
   if (document.getElementById('noble-target-coords').value.trim().match(/\d+\|\d+/)) {
-    calculateNobles(rows, extraWarnings);
+    calculateNobles(rows, extraWarnings, usedSendTimesGlobal);
   }
 
   // Pokud už existují dříve uložená kola (savedActions), tento čerstvě přepočítaný
@@ -3661,8 +3666,18 @@ function startAlarm(evt, rowIdx, link) {
   evt.preventDefault();
   const row = attackRows[rowIdx];
   if (row) {
+    // Vždy přepočítej link z aktuálních dat – zabrání stale href po změně zdroje
+    const srcId = row.srcId || allVillages.find(v => v.x===row.srcX && v.y===row.srcY)?.id || null;
+    if (row.tgtX) {
+      link = srcId
+        ? (row.tgtId
+            ? `${API_BASE}/game.php?village=${srcId}&screen=place&target=${row.tgtId}`
+            : `${API_BASE}/game.php?village=${srcId}&screen=place&x=${row.tgtX}&y=${row.tgtY}`)
+        : `${API_BASE}/game.php?screen=place&x=${row.tgtX}&y=${row.tgtY}`;
+      if (row.isFake || row.isFakeNoble) link += fakeTemplateQuery();
+    }
     const diff = row.sendTime - Date.now();
-    if (diff < 300000) { // 5 minut před odesláním
+    if (diff < 300000) {
       markRowPlayed(row);
       const tr = document.querySelector(`table.attacks tbody tr[data-rowidx="${rowIdx}"]`);
       if (tr) tr.classList.add('played-row');
