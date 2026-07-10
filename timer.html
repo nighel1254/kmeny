@@ -512,7 +512,9 @@ async function loadWorldSpeed() {
     const um={spear:'spear',sword:'sword',axe:'axe',spy:'scout',light:'lk',marcher:'paladin',heavy:'tk',ram:'ram',catapult:'catapult',snob:'noble'};
     for(const[xn,k] of Object.entries(um)){const s=parseFloat(uid.querySelector(`${xn} > speed`)?.textContent);if(!isNaN(s)&&s>0)UNIT_SPEEDS_S[k]=s*60;}
     apiSpeedsLoaded=true;
-    document.getElementById('speed-info').textContent=`✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}×`;
+    console.log('Unit speeds loaded (s/field):', JSON.stringify(UNIT_SPEEDS_S));
+    console.log('worldSpeed:', worldSpeed, 'unitSpeedMult:', unitSpeedMult);
+    document.getElementById('speed-info').textContent=`✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}× | axe=${Math.round(UNIT_SPEEDS_S.axe)}s ram=${Math.round(UNIT_SPEEDS_S.ram)}s`;
   } catch {
     document.getElementById('speed-info').textContent='⚠ Výchozí rychlost';
   }
@@ -603,6 +605,7 @@ async function addRow() {
   const sendTime=arrivalTime-travel;
   const now=Date.now();
   if(arrivalTime<=now){toast('Čas dopadu je již v minulosti!','err');return;}
+  if(sendTime<now){toast(`Čas odeslání (${fmtTime(sendTime)}) vychází v minulosti – nestiháš!`,'err');return;}
 
   if(editingId!==null){
     const idx=rows.findIndex(r=>r.id===editingId);
