@@ -513,7 +513,7 @@ async function loadWorldSpeed() {
     const um={spear:'spear',sword:'sword',axe:'axe',spy:'scout',light:'lk',knight:'paladin',heavy:'tk',ram:'ram',catapult:'catapult',snob:'noble'};
     for(const[xn,k] of Object.entries(um)){const s=parseFloat(uid.querySelector(`${xn} > speed`)?.textContent);if(!isNaN(s)&&s>0)UNIT_SPEEDS_S[k]=s*60;}
     apiSpeedsLoaded=true;
-    document.getElementById('speed-info').textContent=`✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}× | axe=${Math.round(UNIT_SPEEDS_S.axe)}s ram=${Math.round(UNIT_SPEEDS_S.ram)}s paladin=${Math.round(UNIT_SPEEDS_S.paladin)}s`;
+    document.getElementById('speed-info').textContent=`✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}× | `;
     rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit,r.type);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=r.arrivalTime-t;});
     saveRows(); renderTable();
   } catch {
