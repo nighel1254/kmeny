@@ -7,83 +7,128 @@
 <style>
   :root {
     --bg:#0f0b05; --surface:#1a1205; --border:#3a2800; --gold:#c8922a;
-    --dim:#888; --text:#e8d5a0; --red:#e04040; --green:#4ea84e; --blue:#80c0ff;
+    --gold2:#d4a84b; --dim:#888; --text:#e8d5a0; --red:#e04040;
+    --green:#4ea84e; --blue:#80c0ff;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;font-size:13px;min-height:100vh;}
-  h1{font-size:18px;color:var(--gold);font-weight:600;}
-  .header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);}
+
+  /* ── Header ── */
+  .header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#1a1205;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .header h1{font-size:17px;color:var(--gold2);font-weight:700;}
   .world-badge{font-size:11px;color:var(--dim);background:#0f0b05;border:1px solid var(--border);border-radius:4px;padding:2px 7px;}
   .speed-badge{font-size:11px;color:var(--dim);}
-  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:12px 16px;background:#120e04;border-bottom:1px solid var(--border);}
+  .header-right{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+
+  /* ── Audio banner ── */
+  #audio-banner{background:#0f0c02;border-bottom:1px solid #2a1e00;padding:5px 14px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);flex-wrap:wrap;}
+  #audio-banner input[type=number]{width:42px;padding:2px 4px;font-size:11px;background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;}
+  #audio-unlock-btn{background:#2a1e00;color:var(--gold);border:1px solid #3a2800;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;white-space:nowrap;}
+
+  /* ── Toolbar ── */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:10px 14px;background:#120e04;border-bottom:1px solid var(--border);}
   .toolbar label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--dim);}
-  .toolbar input,.toolbar select{background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px 7px;font-size:13px;outline:none;}
+  .toolbar input,.toolbar select{background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:13px;outline:none;}
   .toolbar input:focus,.toolbar select:focus{border-color:var(--gold);}
-  .toolbar input[type=number]{width:60px;}
-  .coord-pair{display:flex;gap:4px;align-items:center;}
-  .coord-pair input{width:60px;}
-  .btn{padding:5px 14px;border-radius:4px;border:none;cursor:pointer;font-size:13px;font-weight:600;}
+  .coord-group{display:flex;gap:4px;align-items:center;}
+  .coord-group input{width:58px;}
+  .coord-sep{color:var(--dim);font-size:14px;line-height:1;}
+  .arrival-group{display:flex;gap:4px;align-items:center;}
+  .arrival-group input[type=datetime-local]{font-size:12px;padding:4px 5px;}
+  .ms-input{width:46px;}
+  .btn{padding:5px 13px;border-radius:4px;border:none;cursor:pointer;font-size:13px;font-weight:600;}
   .btn-add{background:var(--gold);color:#0f0b05;}
   .btn-add:hover{background:#dea030;}
-  .btn-notif{background:#1e1508;color:var(--dim);border:1px solid var(--border);}
-  .btn-notif.active{color:var(--gold);border-color:var(--gold);}
-  .btn-sound{background:#1e1508;color:var(--dim);border:1px solid var(--border);}
-  .btn-sound.active{color:#4ea84e;border-color:#4ea84e;}
-  .sep{width:1px;height:32px;background:var(--border);margin:0 4px;}
+  .btn-sm{font-size:12px;background:#1e1508;color:var(--dim);border:1px solid var(--border);padding:5px 11px;border-radius:4px;cursor:pointer;}
+  .btn-sm:hover{border-color:var(--gold);color:var(--gold);}
+
+  /* ── Paste hint ── */
+  .paste-hint{font-size:10px;color:var(--dim);padding:3px 14px 5px;background:#120e04;border-bottom:1px solid var(--border);}
+
+  /* ── Table ── */
+  .table-wrap{overflow-x:auto;}
   table{width:100%;border-collapse:collapse;}
   thead th{background:#1a1205;color:var(--dim);font-size:11px;font-weight:600;text-transform:uppercase;padding:6px 10px;border-bottom:1px solid var(--border);text-align:left;position:sticky;top:0;z-index:2;}
-  tbody tr{border-bottom:1px solid #1e1508;transition:background .15s;}
+  tbody tr{border-bottom:1px solid #1e1508;transition:background .1s;}
   tbody tr:hover{background:#1e1508;}
   td{padding:7px 10px;vertical-align:middle;}
-  .cd{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;min-width:80px;}
+  .cd{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;min-width:80px;display:inline-block;}
   .cd.urgent{color:var(--red);}
   .cd.ok{color:#ffcf60;}
   .cd.done{color:var(--dim);}
   .cd.sent{color:var(--green);}
-  .send-time{color:#ffcf60;font-size:12px;}
-  .arrival-time{color:var(--dim);font-size:11px;}
+  .send-t{color:#ffcf60;font-size:12px;font-variant-numeric:tabular-nums;}
+  .arr-t{color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums;}
   .unit-lbl{font-size:11px;color:var(--dim);}
   .del-btn{background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:3px;}
   .del-btn:hover{color:var(--red);}
   .sent-mark{cursor:pointer;font-size:16px;background:transparent;border:none;padding:2px 6px;}
   .row-sent td{opacity:.6;}
-  .row-past td{color:#e08080;opacity:.8;}
-  .alarm-bar{padding:6px 16px;font-size:11px;color:var(--dim);background:#0f0b05;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-  .alarm-bar label{display:flex;align-items:center;gap:5px;}
-  .alarm-bar input[type=number]{width:42px;background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:11px;}
-  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 18px;border-radius:6px;font-size:13px;z-index:9999;display:none;pointer-events:none;}
+  .row-past td{color:#e08080;opacity:.85;}
+  .coords{font-size:12px;font-variant-numeric:tabular-nums;}
+
+  /* ── Toast ── */
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 18px;border-radius:6px;font-size:13px;z-index:9999;display:none;pointer-events:none;max-width:90vw;text-align:center;}
   #toast.err{background:#8b1a1a;}
   #toast.ok{background:#1a5c1a;}
+
+  /* ── Empty ── */
   .empty-state{padding:32px;text-align:center;color:var(--dim);}
-  .coords{font-size:12px;}
-  .table-wrap{overflow-x:auto;}
-  @media(max-width:700px){
+
+  /* ── Alarm popup ── */
+  #alarm-popup{display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.8);}
+
+  /* ── Mobile ── */
+  @media(max-width:600px){
     .toolbar{gap:6px;}
-    td,th{padding:5px 6px;}
+    .coord-group input{width:50px;}
+    .ms-input{width:40px;}
+    thead th,td{padding:5px 6px;font-size:11px;}
+    .cd{font-size:13px;}
+    .header h1{font-size:15px;}
+    th:nth-child(5),td:nth-child(5){display:none;} /* hide unit on mobile */
   }
 </style>
 </head>
 <body>
 
+<!-- Audio banner (same pattern as myplan.html) -->
+<div id="audio-banner">
+  <span style="flex:1;">🔔 Zvukové upozornění</span>
+  <label style="display:flex;align-items:center;gap:4px;">
+    <input type="number" id="sound-lead-input" min="1" max="60" value="2" onchange="saveSoundLead(this.value)"> min před odesláním
+  </label>
+  <button id="audio-unlock-btn" onclick="toggleSound()">Zapnout</button>
+</div>
+
+<!-- Header -->
 <div class="header">
   <h1>Časovač útoků</h1>
   <div class="world-badge">cs112 – Divoké kmeny</div>
   <div class="speed-badge" id="speed-info">Načítám…</div>
+  <div class="header-right">
+    <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--dim);" title="Jak dlouho před odesláním přijde push oznámení">
+      <input type="number" id="push-lead-input" min="1" max="60" value="2" style="width:38px;padding:2px 4px;font-size:11px;background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;" onchange="savePushLead(this.value)"> min
+    </label>
+    <button id="notif-btn" onclick="toggleNotif()" class="btn-sm">🔔 Notifikace</button>
+    <a href="dashboard.html" class="btn-sm" style="text-decoration:none;">← Dashboard</a>
+  </div>
 </div>
 
+<!-- Toolbar -->
 <div class="toolbar">
-  <label>Zdroj X
-    <div class="coord-pair">
-      <input type="number" id="src-x" placeholder="500" min="1" max="999">
-      <span style="color:var(--dim);">|</span>
-      <input type="number" id="src-y" placeholder="500" min="1" max="999">
+  <label>Zdroj
+    <div class="coord-group">
+      <input type="number" id="src-x" placeholder="500" min="1" max="999" oninput="autoAdvance(this,'src-y')" onkeydown="coordKey(event,'src-y')">
+      <span class="coord-sep">|</span>
+      <input type="number" id="src-y" placeholder="500" min="1" max="999" oninput="autoAdvance(this,'tgt-x')" onkeydown="coordKey(event,'tgt-x')">
     </div>
   </label>
-  <label>Cíl X
-    <div class="coord-pair">
-      <input type="number" id="tgt-x" placeholder="500" min="1" max="999">
-      <span style="color:var(--dim);">|</span>
-      <input type="number" id="tgt-y" placeholder="500" min="1" max="999">
+  <label>Cíl
+    <div class="coord-group">
+      <input type="number" id="tgt-x" placeholder="500" min="1" max="999" oninput="autoAdvance(this,'tgt-y')" onkeydown="coordKey(event,'tgt-y')">
+      <span class="coord-sep">|</span>
+      <input type="number" id="tgt-y" placeholder="500" min="1" max="999" oninput="autoAdvance(this,'unit-sel')" onkeydown="coordKey(event,'unit-sel')">
     </div>
   </label>
   <label>Jednotka
@@ -101,29 +146,24 @@
     </select>
   </label>
   <label>Čas dopadu
-    <input type="datetime-local" id="arrival-input" step="1">
+    <div class="arrival-group">
+      <input type="datetime-local" id="arrival-input" step="1" onpaste="handleArrivalPaste(event)">
+      <span style="color:var(--dim);font-size:11px;">.</span>
+      <input type="number" id="arrival-ms" class="ms-input" placeholder="ms" min="0" max="999" value="0" title="Milisekundy (0–999)">
+    </div>
   </label>
   <label style="justify-content:flex-end;">
     <div style="height:20px;"></div>
     <button class="btn btn-add" onclick="addRow()">+ Přidat</button>
   </label>
-  <div class="sep"></div>
-  <label style="justify-content:flex-end;">
-    <div style="height:20px;"></div>
-    <button class="btn btn-sound" id="sound-btn" onclick="toggleSound()">🔊 Zvuk</button>
-  </label>
-  <label style="justify-content:flex-end;">
-    <div style="height:20px;"></div>
-    <button class="btn btn-notif" id="notif-btn" onclick="toggleNotif()">🔔 Notifikace</button>
-  </label>
 </div>
 
-<div class="alarm-bar">
-  Alarm
-  <label><input type="number" id="alarm-lead" value="60" min="5" max="300"> s před odesláním</label>
-  <span id="alarm-status" style="color:var(--dim);">–</span>
+<!-- Paste hint -->
+<div class="paste-hint">
+  Tip: do pole "Čas dopadu" lze vložit i: <code>10.07.2026 22:22:49:357</code> · <code>dnes v 19:33:06:767</code> · <code>zítra v 18:33:00:132</code>
 </div>
 
+<!-- Table -->
 <div class="table-wrap">
 <table>
   <thead>
@@ -143,6 +183,7 @@
 </table>
 </div>
 
+<div id="alarm-popup"></div>
 <div id="toast"></div>
 
 <script>
@@ -160,27 +201,30 @@ const UNIT_LABELS = {
   catapult:'Katapult', noble:'Šlechtic', paladin:'Paladin'
 };
 
-// Base speeds in seconds per field (at world speed 1, unit speed 1)
 let UNIT_SPEEDS_S = { spear:1080, sword:1320, axe:1080, scout:540, lk:600, tk:660, ram:1800, catapult:1800, noble:2100, paladin:600 };
 let worldSpeed = 1, unitSpeedMult = 1, apiSpeedsLoaded = false;
 
 // ── STATE ───────────────────────────────────────────────────
-let rows = []; // { id, srcX, srcY, tgtX, tgtY, unit, arrivalTime, sendTime, sent }
+let rows = [];
 let nextId = 1;
-
-let soundEnabled = false;
+let soundUnlocked = false;
 let notifEnabled = false;
-let audioCtx = null;
-const alreadyAlarmed = new Set();
-const alreadyNotified = new Set();
+let _audioCtx = null;
+const alarmed = new Set();
+const notified = new Set();
+let _popupTmo = null;
 
 // ── STORAGE ─────────────────────────────────────────────────
-const LS_KEY = 'dk_timer_rows';
-function saveRows() { localStorage.setItem(LS_KEY, JSON.stringify(rows)); }
+const LS_KEY = 'dk_timer_rows_v2';
+function saveRows() { try { localStorage.setItem(LS_KEY, JSON.stringify(rows)); } catch{} }
 function loadRows() {
   try { rows = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { rows = []; }
   nextId = rows.reduce((m, r) => Math.max(m, r.id + 1), 1);
 }
+function saveSoundLead(v) { localStorage.setItem('dk_timer_sound_lead', String(Math.max(1,Math.min(60,parseInt(v)||2)))); alarmed.clear(); }
+function getSoundLeadMin() { return Math.max(1, parseInt(localStorage.getItem('dk_timer_sound_lead')) || 2); }
+function savePushLead(v)  { localStorage.setItem('dk_timer_push_lead',  String(Math.max(1,Math.min(60,parseInt(v)||2)))); }
+function getPushLeadMin()  { return Math.max(1, parseInt(localStorage.getItem('dk_timer_push_lead'))  || 2); }
 
 // ── FETCH / SPEED ───────────────────────────────────────────
 async function fetchWithFallback(url) {
@@ -212,17 +256,88 @@ async function loadWorldSpeed() {
     }
     apiSpeedsLoaded = true;
     document.getElementById('speed-info').textContent = `✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}×`;
-  } catch(e) {
-    document.getElementById('speed-info').textContent = '⚠ Nelze načíst rychlost – výchozí hodnoty';
+  } catch {
+    document.getElementById('speed-info').textContent = '⚠ Výchozí rychlost (nelze načíst ze serveru)';
   }
 }
 
-// ── TRAVEL TIME ─────────────────────────────────────────────
+// ── TRAVEL TIME (stejný vzorec jako commander.html) ─────────
 function travelMs(x1, y1, x2, y2, unit) {
-  const dist = Math.sqrt((x1-x2)**2 + (y1-y2)**2);
+  const ws   = worldSpeed || 1;
+  const um   = unitSpeedMult || 1;
+  const dist = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
   const speedS = UNIT_SPEEDS_S[unit] || 1800;
-  const divisor = apiSpeedsLoaded ? 1 : (worldSpeed * unitSpeedMult);
-  return Math.round(dist * (speedS / divisor) * 1000 / 1000) * 1000;
+  if (apiSpeedsLoaded) return dist * speedS * 1000;
+  return dist * speedS / (ws * um) * 1000;
+}
+
+// ── COORD AUTO-ADVANCE ───────────────────────────────────────
+function autoAdvance(el, nextId) {
+  if (String(el.value).length >= 3) document.getElementById(nextId)?.focus();
+}
+function coordKey(e, nextId) {
+  if (e.key === 'Enter' || e.key === 'Tab') {
+    e.preventDefault();
+    document.getElementById(nextId)?.focus();
+  }
+}
+
+// ── ARRIVAL TIME PARSING ─────────────────────────────────────
+// Formats: "10.07.2026 22:22:49:357" / "dnes v 19:33:06:767" / "zítra v 18:33:00:132"
+//          also standard datetime-local paste
+function handleArrivalPaste(e) {
+  e.preventDefault();
+  const raw = (e.clipboardData || window.clipboardData).getData('text').trim();
+  const parsed = parseArrivalStr(raw);
+  if (!parsed) { toast('Nepodařilo se rozpoznat formát času!', 'err'); return; }
+  fillArrival(parsed.ts, parsed.ms);
+}
+
+function parseArrivalStr(raw) {
+  const s = raw.trim();
+
+  // "dnes v HH:MM:SS:mmm" or "dnes v HH:MM:SS"
+  let m = s.match(/^dnes\s+v\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?$/i);
+  if (m) {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+                       parseInt(m[1]), parseInt(m[2]), parseInt(m[3]));
+    return { ts: d.getTime(), ms: parseInt(m[4]||'0') };
+  }
+
+  // "zítra v HH:MM:SS:mmm"
+  m = s.match(/^z[íi]tra\s+v\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?$/i);
+  if (m) {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1,
+                       parseInt(m[1]), parseInt(m[2]), parseInt(m[3]));
+    return { ts: d.getTime(), ms: parseInt(m[4]||'0') };
+  }
+
+  // "DD.MM.YYYY HH:MM:SS:mmm" or "DD.MM.YYYY HH:MM:SS"
+  m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?$/);
+  if (m) {
+    const d = new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1]),
+                       parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
+    return { ts: d.getTime(), ms: parseInt(m[7]||'0') };
+  }
+
+  return null;
+}
+
+function fillArrival(ts, ms) {
+  const d = new Date(ts - new Date().getTimezoneOffset()*60000);
+  document.getElementById('arrival-input').value = d.toISOString().slice(0,19);
+  document.getElementById('arrival-ms').value = ms || 0;
+}
+
+function getArrivalTime() {
+  const str = document.getElementById('arrival-input').value;
+  if (!str) return null;
+  const base = new Date(str).getTime();
+  if (isNaN(base)) return null;
+  const ms = Math.max(0, Math.min(999, parseInt(document.getElementById('arrival-ms').value) || 0));
+  return base + ms;
 }
 
 // ── ADD ROW ─────────────────────────────────────────────────
@@ -232,13 +347,11 @@ function addRow() {
   const tgtX = parseInt(document.getElementById('tgt-x').value);
   const tgtY = parseInt(document.getElementById('tgt-y').value);
   const unit = document.getElementById('unit-sel').value;
-  const arrStr = document.getElementById('arrival-input').value;
 
-  if (isNaN(srcX)||isNaN(srcY)||isNaN(tgtX)||isNaN(tgtY)) { toast('Zadej souřadnice!', 'err'); return; }
-  if (!arrStr) { toast('Zadej čas dopadu!', 'err'); return; }
+  if ([srcX,srcY,tgtX,tgtY].some(isNaN)) { toast('Zadej souřadnice!', 'err'); return; }
 
-  const arrivalTime = new Date(arrStr).getTime();
-  if (isNaN(arrivalTime)) { toast('Neplatný čas dopadu!', 'err'); return; }
+  const arrivalTime = getArrivalTime();
+  if (!arrivalTime) { toast('Zadej čas dopadu!', 'err'); return; }
 
   const travel = travelMs(srcX, srcY, tgtX, tgtY, unit);
   const sendTime = arrivalTime - travel;
@@ -249,232 +362,221 @@ function addRow() {
   rows.push(row);
   saveRows();
   renderTable();
-  toast(`Přidáno – odeslat v ${fmtTime(sendTime)}`, 'ok');
+  toast(`Přidáno – odeslat v ${fmtTime(sendTime, true)}`, 'ok');
 }
 
-// ── REMOVE ROW ──────────────────────────────────────────────
 function removeRow(id) {
   rows = rows.filter(r => r.id !== id);
-  alreadyAlarmed.delete(id);
-  alreadyNotified.delete(id);
-  saveRows();
-  renderTable();
+  alarmed.delete(id); notified.delete(id);
+  saveRows(); renderTable();
 }
 
-// ── MARK SENT ───────────────────────────────────────────────
 function markSent(id) {
   const r = rows.find(r => r.id === id);
   if (r) { r.sent = !r.sent; saveRows(); renderTable(); }
 }
 
 // ── FORMAT ──────────────────────────────────────────────────
-function fmtTime(ms) {
+function pad(n,w=2){ return String(Math.floor(n)).padStart(w,'0'); }
+
+function fmtTime(ms, withMs=false) {
   const d = new Date(ms);
-  return d.toLocaleString('cs-CZ', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const base = `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  if (!withMs) return base;
+  return base + ':' + pad(ms % 1000, 3);
 }
 
 function fmtCountdown(diffMs) {
   if (diffMs <= 0) return null;
-  const s = Math.floor(diffMs / 1000);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-  return `${m}:${String(sec).padStart(2,'0')}`;
+  const totalMs = Math.floor(diffMs);
+  const ms  = totalMs % 1000;
+  const s   = Math.floor(totalMs / 1000) % 60;
+  const m   = Math.floor(totalMs / 60000) % 60;
+  const h   = Math.floor(totalMs / 3600000);
+  if (h > 0) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${pad(m)}:${pad(s)}.${pad(ms,3)}`;
 }
 
-// ── RENDER ──────────────────────────────────────────────────
+// ── RENDER TABLE ─────────────────────────────────────────────
 function renderTable() {
   const tbody = document.getElementById('rows-body');
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Zatím žádné útoky. Přidej první výše.</td></tr>';
     return;
   }
-
   const now = Date.now();
   const sorted = [...rows].sort((a,b) => a.sendTime - b.sendTime);
-
   tbody.innerHTML = sorted.map(r => {
     const isSent = r.sent;
     const isPast = r.sendTime < now && !isSent;
     const cls = isSent ? 'row-sent' : isPast ? 'row-past' : '';
-
     const diff = r.sendTime - now;
     let cdHtml;
-    if (isSent) {
-      cdHtml = `<span class="cd sent">✓ Odesláno</span>`;
-    } else if (diff <= 0) {
-      cdHtml = `<span class="cd done">Zmeškal</span>`;
-    } else {
-      const urgentClass = diff < 120000 ? 'urgent' : 'ok';
-      cdHtml = `<span class="cd ${urgentClass}" id="cd-${r.id}">${fmtCountdown(diff)}</span>`;
-    }
+    if (isSent) cdHtml = `<span class="cd sent">✓ Odesláno</span>`;
+    else if (diff <= 0) cdHtml = `<span class="cd done">Zmeškal</span>`;
+    else cdHtml = `<span class="cd ${diff<120000?'urgent':'ok'}" id="cd-${r.id}">${fmtCountdown(diff)}</span>`;
+
+    // show ms in send and arrival time
+    const sendMs = r.sendTime % 1000;
+    const arrMs  = r.arrivalTime % 1000;
 
     return `<tr class="${cls}">
       <td class="coords">${r.srcX}|${r.srcY}</td>
       <td class="coords">${r.tgtX}|${r.tgtY}</td>
       <td class="unit-lbl">${UNIT_LABELS[r.unit]||r.unit}</td>
-      <td class="send-time">${fmtTime(r.sendTime)}</td>
-      <td class="arrival-time">${fmtTime(r.arrivalTime)}</td>
+      <td class="send-t">${fmtTime(r.sendTime)}:<span style="color:#aaa;font-size:10px;">${pad(sendMs,3)}</span></td>
+      <td class="arr-t">${fmtTime(r.arrivalTime)}:<span style="font-size:10px;">${pad(arrMs,3)}</span></td>
       <td>${cdHtml}</td>
       <td style="white-space:nowrap;">
-        <button class="sent-mark" onclick="markSent(${r.id})" title="${isSent?'Označit jako neodesláno':'Označit jako odesláno'}">${isSent?'↩️':'✅'}</button>
+        <button class="sent-mark" onclick="markSent(${r.id})" title="${isSent?'Odznačit':'Označit jako odesláno'}">${isSent?'↩️':'✅'}</button>
         <button class="del-btn" onclick="removeRow(${r.id})" title="Smazat">✕</button>
       </td>
     </tr>`;
   }).join('');
 }
 
-// ── COUNTDOWNS ──────────────────────────────────────────────
+// ── LIVE COUNTDOWNS ──────────────────────────────────────────
 function updateCountdowns() {
   const now = Date.now();
-  const leadMs = (parseInt(document.getElementById('alarm-lead').value) || 60) * 1000;
+  const soundLeadMs = getSoundLeadMin() * 60000;
+  const pushLeadMs  = getPushLeadMin()  * 60000;
 
   rows.forEach(r => {
     if (r.sent) return;
     const diff = r.sendTime - now;
 
-    // Live update countdown spans (no full re-render)
     const el = document.getElementById(`cd-${r.id}`);
     if (el) {
       if (diff <= 0) {
-        el.textContent = 'Zmeškal';
-        el.className = 'cd done';
-        const tr = el.closest('tr');
-        if (tr) tr.className = 'row-past';
+        el.textContent = 'Zmeškal'; el.className = 'cd done';
+        el.closest('tr')?.classList.add('row-past');
       } else {
-        const urgentClass = diff < 120000 ? 'urgent' : 'ok';
+        el.className = `cd ${diff<120000?'urgent':'ok'}`;
         el.textContent = fmtCountdown(diff);
-        el.className = `cd ${urgentClass}`;
       }
     }
 
-    // Alarm: trigger when within lead window
-    if (!alreadyAlarmed.has(r.id) && diff > 0 && diff <= leadMs) {
-      alreadyAlarmed.add(r.id);
-      triggerAlarm(r);
+    if (!alarmed.has(r.id) && diff > 0 && diff <= soundLeadMs) {
+      alarmed.add(r.id);
+      triggerAlarm(r, diff);
     }
-
-    // Push notification
-    if (!alreadyNotified.has(r.id) && notifEnabled && diff > 0 && diff <= leadMs) {
-      alreadyNotified.add(r.id);
-      sendPushNotif(r, diff);
+    if (!notified.has(r.id) && notifEnabled && diff > 0 && diff <= pushLeadMs) {
+      notified.add(r.id);
+      sendPush(r, diff);
     }
   });
 }
 
-// ── SOUND ───────────────────────────────────────────────────
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  return audioCtx;
+// ── AUDIO ────────────────────────────────────────────────────
+function getACtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
 }
 
-function beep(freq, dur, vol=0.4) {
-  const ctx = getAudioCtx();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain); gain.connect(ctx.destination);
-  osc.frequency.value = freq;
-  osc.type = 'square';
-  gain.gain.setValueAtTime(vol, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-  osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + dur);
-}
-
-function playSiren() {
-  beep(880, 0.15, 0.5);
-  setTimeout(() => beep(660, 0.15, 0.5), 180);
-  setTimeout(() => beep(880, 0.15, 0.5), 360);
-  setTimeout(() => beep(660, 0.2, 0.4), 540);
+function playSiren(volume=0.4) {
+  if (!soundUnlocked) return;
+  try {
+    const ctx = getACtx();
+    [[880,.15],[660,.15],[880,.15],[660,.2]].forEach(([freq,dur],i) => {
+      const osc = ctx.createOscillator();
+      const g   = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.frequency.value = freq; osc.type = 'square';
+      const t = ctx.currentTime + i*0.18;
+      g.gain.setValueAtTime(volume, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+      osc.start(t); osc.stop(t+dur+0.05);
+    });
+  } catch {}
 }
 
 function toggleSound() {
-  if (!soundEnabled) {
-    // Must unlock audio context on user gesture
-    getAudioCtx();
-    beep(600, 0.05, 0.1); // silent test beep to unlock
-    soundEnabled = true;
-    document.getElementById('sound-btn').classList.add('active');
-    document.getElementById('sound-btn').textContent = '🔊 Zvuk ZAP';
-    toast('Zvuk zapnut', 'ok');
+  const btn = document.getElementById('audio-unlock-btn');
+  const banner = document.getElementById('audio-banner');
+  if (soundUnlocked) {
+    soundUnlocked = false;
+    banner.style.background='#0f0c02'; banner.style.borderColor='#2a1e00';
+    btn.textContent='Zapnout'; btn.style.background='#2a1e00'; btn.style.color='var(--gold)';
   } else {
-    soundEnabled = false;
-    document.getElementById('sound-btn').classList.remove('active');
-    document.getElementById('sound-btn').textContent = '🔊 Zvuk';
+    try { getACtx(); } catch {}
+    soundUnlocked = true;
+    banner.style.background='#0a1a0a'; banner.style.borderColor='#1a4a1a';
+    btn.textContent='✓ Zapnuto'; btn.style.background='#205020'; btn.style.color='#80d080';
+    setTimeout(() => playSiren(0.15), 100);
   }
 }
 
-function triggerAlarm(r) {
-  if (soundEnabled) {
-    playSiren();
-    setTimeout(() => playSiren(), 2000);
-  }
-  const alarmEl = document.getElementById('alarm-status');
-  const diff = r.sendTime - Date.now();
-  const secLeft = Math.max(0, Math.round(diff / 1000));
-  alarmEl.textContent = `⚠ Alarm: ${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY} za ${secLeft}s`;
-  alarmEl.style.color = '#e04040';
-  setTimeout(() => { alarmEl.textContent = '–'; alarmEl.style.color = 'var(--dim)'; }, 8000);
+function triggerAlarm(r, diffMs) {
+  playSiren();
+  setTimeout(() => playSiren(), 1500);
+  setTimeout(() => playSiren(), 3000);
+
+  const popup = document.getElementById('alarm-popup');
+  const sec = Math.round(diffMs / 1000);
+  popup.innerHTML = `⏰ Odeslat za ${sec}s!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY} · ${UNIT_LABELS[r.unit]||r.unit}</span>`;
+  popup.style.display = 'block';
+  clearTimeout(_popupTmo);
+  _popupTmo = setTimeout(() => { popup.style.display='none'; }, 8000);
 }
 
-// ── NOTIFICATIONS ───────────────────────────────────────────
+// ── NOTIFICATIONS ─────────────────────────────────────────────
 async function toggleNotif() {
+  const btn = document.getElementById('notif-btn');
   if (notifEnabled) {
     notifEnabled = false;
-    document.getElementById('notif-btn').classList.remove('active');
-    document.getElementById('notif-btn').textContent = '🔔 Notifikace';
+    btn.textContent='🔔 Notifikace'; btn.style.color=''; btn.style.borderColor='';
     return;
   }
   if (!('Notification' in window)) { toast('Prohlížeč nepodporuje notifikace.', 'err'); return; }
-  const permission = await Notification.requestPermission();
-  if (permission !== 'granted') { toast('Notifikace nebyly povoleny.', 'err'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { toast('Notifikace nebyly povoleny.', 'err'); return; }
   notifEnabled = true;
-  document.getElementById('notif-btn').classList.add('active');
-  document.getElementById('notif-btn').textContent = '🔔 Notifikace ZAP';
+  btn.textContent='🔔 Notifikace ✓'; btn.style.color='#60d060'; btn.style.borderColor='#1a4a1a';
   toast('Notifikace zapnuty', 'ok');
 }
 
-function sendPushNotif(r, diffMs) {
+function sendPush(r, diffMs) {
   if (Notification.permission !== 'granted') return;
-  const secLeft = Math.round(diffMs / 1000);
-  new Notification(`⚔ Odeslat za ${secLeft}s`, {
-    body: `${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY} · ${UNIT_LABELS[r.unit]||r.unit}\nDopad: ${fmtTime(r.arrivalTime)}`,
+  const sec = Math.round(diffMs / 1000);
+  new Notification(`⚔ Odeslat za ${sec}s`, {
+    body: `${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY} · ${UNIT_LABELS[r.unit]||r.unit}\nDopad: ${fmtTime(r.arrivalTime, true)}`,
     icon: 'icon-192.png',
     tag: `timer-${r.id}`,
     requireInteraction: true,
   });
 }
 
-// ── TOAST ───────────────────────────────────────────────────
+// ── TOAST ────────────────────────────────────────────────────
 let _toastTmo;
-function toast(msg, type='', ms=3000) {
+function toast(msg, type='', ms=3500) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = type;
-  el.style.display = 'block';
+  el.textContent = msg; el.className = type; el.style.display = 'block';
   clearTimeout(_toastTmo);
-  _toastTmo = setTimeout(() => { el.style.display = 'none'; }, ms);
+  _toastTmo = setTimeout(() => { el.style.display='none'; }, ms);
 }
 
-// ── INIT ────────────────────────────────────────────────────
+// ── INIT ─────────────────────────────────────────────────────
 loadRows();
 renderTable();
 loadWorldSpeed();
 
-// Prefill arrival time to now+1h
-const d = new Date(Date.now() + 3600000);
-d.setMilliseconds(0);
-document.getElementById('arrival-input').value = new Date(d - d.getTimezoneOffset()*60000).toISOString().slice(0,19);
+// Restore lead inputs
+document.getElementById('sound-lead-input').value = getSoundLeadMin();
+document.getElementById('push-lead-input').value  = getPushLeadMin();
 
-// Tick every second
-setInterval(updateCountdowns, 1000);
+// Default arrival = now + 1h
+const _d = new Date(Date.now() + 3600000);
+_d.setMilliseconds(0);
+document.getElementById('arrival-input').value = new Date(_d - _d.getTimezoneOffset()*60000).toISOString().slice(0,19);
+document.getElementById('arrival-ms').value = 0;
 
-// Enter key on coords adds row
-document.querySelectorAll('.toolbar input').forEach(el => {
+// Enter in toolbar → add row
+document.querySelectorAll('.toolbar input, .toolbar select').forEach(el => {
   el.addEventListener('keydown', e => { if (e.key === 'Enter') addRow(); });
 });
+
+setInterval(updateCountdowns, 100);
 </script>
 </body>
 </html>
