@@ -596,7 +596,7 @@ async function addRow() {
   const sendTime=arrivalTime-travel;
   const now=Date.now();
   if(arrivalTime<=now){toast('Čas dopadu je již v minulosti!','err');return;}
-  const alreadySent=sendTime<now;
+  if(sendTime<now){toast('Čas odeslání je v minulosti – útok/podpora již odletěla nebo jsi zmeškal!','err');return;}
 
   // ── village lookup ──
   toast('Ověřuji vesnice…','');
@@ -609,20 +609,20 @@ async function addRow() {
   if(editingId!==null){
     const idx=rows.findIndex(r=>r.id===editingId);
     if(idx>=0){
-      rows[idx]={...rows[idx],srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime,sent:alreadySent,
+      rows[idx]={...rows[idx],srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime,sent:false,
         srcName:srcV.name,srcPlayer:srcV.player,srcId:srcV.id,
         tgtName:tgtV.name,tgtPlayer:tgtV.player,tgtId:tgtV.id};
       alarmed.delete(editingId); notified.delete(editingId);
     }
     cancelEdit(false);
     saveRows(); renderTable();
-    toast(alreadySent?'Řádek uložen jako odeslaný (sendTime v minulosti).':'Řádek uložen.','ok');
+    toast('Řádek uložen.','ok');
   } else {
-    rows.push({id:nextId++,srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime,sent:alreadySent,
+    rows.push({id:nextId++,srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime,sent:false,
       srcName:srcV.name,srcPlayer:srcV.player,srcId:srcV.id,
       tgtName:tgtV.name,tgtPlayer:tgtV.player,tgtId:tgtV.id});
     saveRows(); renderTable();
-    toast(alreadySent?`Přidáno jako odesláno – dopad v ${fmtTime(arrivalTime)}`:`Přidáno – odeslat v ${fmtTime(sendTime)}`,'ok');
+    toast(`Přidáno – odeslat v ${fmtTime(sendTime)}`,'ok');
   }
 }
 
