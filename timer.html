@@ -260,6 +260,7 @@
       <th>Typ</th>
       <th>Cíl</th>
       <th>Jednotka</th>
+      <th>Trvání</th>
       <th>Čas odeslání</th>
       <th>Dopady</th>
       <th>Odpočet</th>
@@ -684,6 +685,7 @@ function cancelEdit(rerender=true){
 
 // ── FORMAT ─────────────────────────────────────────────────
 function pad(n,w=2){return String(Math.floor(n)).padStart(w,'0');}
+function fmtDur(ms){const t=Math.round(ms/1000);const h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return `${h}:${pad(m)}:${pad(s)}`;}
 function fmtTime(ms){const d=new Date(ms);return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}:${pad(ms%1000,3)}`;}
 function fmtCountdown(ms){
   if(ms<=0)return null;
@@ -742,6 +744,7 @@ function renderTable() {
       <td class="unit-cell" style="white-space:nowrap;">
         ${unitImg(UNIT_IMG[r.unit]||'axe')} ${UNIT_LABELS[r.unit]||r.unit}
       </td>
+      <td style="white-space:nowrap;color:var(--dim);">${fmtDur(r.arrivalTime-r.sendTime)}</td>
       <td class="send-t">${fmtTime(r.sendTime)}</td>
       <td class="arr-t">${fmtTime(r.arrivalTime)}</td>
       <td>${cdHtml}</td>
