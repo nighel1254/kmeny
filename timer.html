@@ -188,9 +188,9 @@
   <div class="tb-field">
     <span class="tb-label">Zdroj</span>
     <div class="coord-pair">
-      <input type="number" id="src-x" placeholder="500" min="1" max="999" oninput="autoAdv(this,'src-y')" onkeydown="coordKey(event,'src-y')">
+      <input type="number" id="src-x" placeholder="500" min="1" max="999" oninput="autoAdv(this,'src-y')" onkeydown="coordKey(event,'src-y')" onpaste="coordPaste(event,'src-x','src-y','tgt-x')">
       <span class="coord-sep">|</span>
-      <input type="number" id="src-y" placeholder="500" min="1" max="999" oninput="autoAdv(this,'tgt-x')" onkeydown="coordKey(event,'tgt-x')">
+      <input type="number" id="src-y" placeholder="500" min="1" max="999" oninput="autoAdv(this,'tgt-x')" onkeydown="coordKey(event,'tgt-x')" onpaste="coordPaste(event,'src-x','src-y','tgt-x')">
     </div>
   </div>
 
@@ -198,9 +198,9 @@
   <div class="tb-field">
     <span class="tb-label">Cíl</span>
     <div class="coord-pair">
-      <input type="number" id="tgt-x" placeholder="500" min="1" max="999" oninput="autoAdv(this,'tgt-y')" onkeydown="coordKey(event,'tgt-y')">
+      <input type="number" id="tgt-x" placeholder="500" min="1" max="999" oninput="autoAdv(this,'tgt-y')" onkeydown="coordKey(event,'tgt-y')" onpaste="coordPaste(event,'tgt-x','tgt-y','unit-sel')">
       <span class="coord-sep">|</span>
-      <input type="number" id="tgt-y" placeholder="500" min="1" max="999" oninput="autoAdv(this,'unit-sel')" onkeydown="coordKey(event,'unit-sel')">
+      <input type="number" id="tgt-y" placeholder="500" min="1" max="999" oninput="autoAdv(this,'unit-sel')" onkeydown="coordKey(event,'unit-sel')" onpaste="coordPaste(event,'tgt-x','tgt-y','unit-sel')">
     </div>
   </div>
 
@@ -481,6 +481,15 @@ function travelMs(x1,y1,x2,y2,unit) {
 // ── COORD AUTO-ADVANCE ─────────────────────────────────────
 function autoAdv(el,nId){ if(String(el.value).length>=3) document.getElementById(nId)?.focus(); }
 function coordKey(e,nId){ if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();document.getElementById(nId)?.focus();} }
+function coordPaste(e,xId,yId,nextId){
+  const raw=(e.clipboardData||window.clipboardData).getData('text').trim();
+  const m=raw.match(/^(\d{1,3})[|,;\s]+(\d{1,3})$/);
+  if(!m)return; // nechat výchozí chování
+  e.preventDefault();
+  document.getElementById(xId).value=m[1];
+  document.getElementById(yId).value=m[2];
+  if(nextId) document.getElementById(nextId)?.focus();
+}
 
 // ── ARRIVAL TIME ───────────────────────────────────────────
 function handleArrivalPaste(e) {
