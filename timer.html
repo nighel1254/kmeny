@@ -19,7 +19,7 @@
   .world-badge{font-size:11px;color:var(--dim);background:#0f0b05;border:1px solid var(--border);border-radius:4px;padding:2px 7px;}
   .speed-badge{font-size:11px;color:var(--dim);}
   .header-right{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
-  .btn-sm{font-size:12px;background:#1e1508;color:var(--dim);border:1px solid var(--border);padding:5px 11px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;}
+  .btn-sm{font-size:12px;background:#1e1508;color:var(--dim);border:1px solid var(--border);padding:5px 11px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap;}
   .btn-sm:hover{border-color:var(--gold);color:var(--gold);}
 
   /* ── Audio banner ── */
@@ -30,33 +30,40 @@
   /* ── Toolbar ── */
   .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:10px 14px;background:#120e04;border-bottom:1px solid var(--border);}
   .tb-field{display:flex;flex-direction:column;gap:4px;}
-  .tb-label{font-size:11px;color:var(--dim);font-weight:600;letter-spacing:.3px;}
-  .tb-field input,.tb-field select{background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 7px;font-size:13px;outline:none;height:32px;}
+  .tb-label{font-size:11px;color:var(--dim);font-weight:600;letter-spacing:.3px;white-space:nowrap;}
+
+  /* ── Standard inputs / native selects ── */
+  .tb-field input,.tb-field select{background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 8px;font-size:13px;outline:none;height:34px;}
   .tb-field input:focus,.tb-field select:focus{border-color:var(--gold);}
   .coord-pair{display:flex;align-items:center;gap:4px;}
-  .coord-pair input{width:58px;}
-  .coord-sep{color:var(--dim);font-size:14px;padding-bottom:1px;}
-  .arrival-pair{display:flex;align-items:center;gap:4px;}
-  .arrival-pair input[type=datetime-local]{font-size:12px;padding:5px 5px;width:170px;}
-  .ms-field{width:50px !important;}
-  .btn-add{height:32px;padding:0 16px;border-radius:4px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:var(--gold);color:#0f0b05;}
-  .btn-add:hover{background:#dea030;}
+  .coord-pair input{width:60px;}
+  .coord-sep{color:var(--dim);font-size:15px;}
+  .arrival-pair{display:flex;align-items:center;gap:6px;}
+  .arrival-pair input[type=datetime-local]{font-size:12px;width:170px;}
+  .ms-wrap{display:flex;flex-direction:column;gap:4px;}
+  .ms-wrap input{width:52px;}
 
-  /* ── Custom select with icon ── */
-  .icon-sel-wrap{position:relative;display:inline-flex;align-items:center;}
-  .icon-sel-wrap img.sel-icon{position:absolute;left:7px;top:50%;transform:translateY(-50%);pointer-events:none;z-index:1;}
-  .icon-sel-wrap select{padding-left:28px !important;}
-  .icon-sel-wrap select.has-big-icon{padding-left:34px !important;}
+  /* ── Custom image dropdown ── */
+  .img-sel{position:relative;display:inline-block;user-select:none;}
+  .img-sel-trigger{display:flex;align-items:center;gap:7px;background:#1e1508;border:1px solid var(--border);border-radius:4px;padding:4px 10px 4px 8px;height:34px;cursor:pointer;min-width:170px;white-space:nowrap;}
+  .img-sel-trigger:hover,.img-sel.open .img-sel-trigger{border-color:var(--gold);}
+  .img-sel-trigger .arrow{margin-left:auto;color:var(--dim);font-size:10px;}
+  .img-sel-menu{display:none;position:absolute;top:calc(100% + 3px);left:0;z-index:200;background:#1e1508;border:1px solid var(--gold);border-radius:5px;min-width:100%;box-shadow:0 6px 20px rgba(0,0,0,.7);overflow:hidden;}
+  .img-sel.open .img-sel-menu{display:block;}
+  .img-sel-opt{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;white-space:nowrap;}
+  .img-sel-opt:hover{background:#2a1e08;}
+  .img-sel-opt.selected{background:#2a1800;color:var(--gold);}
+  .img-sel-opt .opt-icons{display:flex;align-items:center;gap:1px;width:34px;justify-content:center;flex-shrink:0;}
+  .img-sel-opt .opt-icons img{width:18px;height:18px;object-fit:contain;}
+  .img-sel-trigger .opt-icons{display:flex;align-items:center;gap:1px;width:34px;flex-shrink:0;}
+  .img-sel-trigger .opt-icons img{width:18px;height:18px;object-fit:contain;}
 
-  /* ── Síla badges (used in table) ── */
+  /* ── Sila badges ── */
   .sila-badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;vertical-align:middle;}
   .sila-giga {background:#001a3a;color:#4090ff;border:1px solid #104a80;}
   .sila-fullka{background:#2a0000;color:#ff4040;border:1px solid #802020;}
   .sila-triq  {background:#1a0e00;color:#c07840;border:1px solid #604020;}
   .sila-half  {background:#1a1a00;color:#f0c040;border:1px solid #606010;}
-
-  /* ── Attack type badge ── */
-  .type-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;}
 
   /* ── Table ── */
   .table-wrap{overflow-x:auto;}
@@ -66,45 +73,40 @@
   tbody tr:hover{background:#1e1508;}
   td{padding:7px 10px;vertical-align:middle;}
   .cd{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;display:inline-block;}
-  .cd.urgent{color:var(--red);}
-  .cd.ok{color:#ffcf60;}
-  .cd.done{color:var(--dim);}
-  .cd.sent{color:var(--green);}
+  .cd.urgent{color:var(--red);} .cd.ok{color:#ffcf60;} .cd.done{color:var(--dim);} .cd.sent{color:var(--green);}
   .send-t{color:#ffcf60;font-size:12px;font-variant-numeric:tabular-nums;}
   .arr-t{color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums;}
-  .del-btn{background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:3px;}
+  .del-btn{background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:16px;padding:2px 6px;}
   .del-btn:hover{color:var(--red);}
   .sent-mark{cursor:pointer;font-size:16px;background:transparent;border:none;padding:2px 6px;}
-  .row-sent td{opacity:.6;}
-  .row-past td{color:#e08080;opacity:.85;}
+  .row-sent td{opacity:.6;} .row-past td{color:#e08080;opacity:.85;}
   .coords-cell{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;}
   .unit-cell{font-size:11px;color:var(--dim);}
+  .type-cell{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
 
   /* ── Toast ── */
   #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 18px;border-radius:6px;font-size:13px;z-index:9999;display:none;pointer-events:none;max-width:90vw;text-align:center;}
-  #toast.err{background:#8b1a1a;}
-  #toast.ok{background:#1a5c1a;}
+  #toast.err{background:#8b1a1a;} #toast.ok{background:#1a5c1a;}
 
   /* ── Alarm popup ── */
   #alarm-popup{display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a0a00;border:2px solid var(--gold);border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;color:var(--gold2);z-index:9999;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.8);}
 
+  /* ── Paste hint ── */
+  .paste-hint{font-size:10px;color:var(--dim);padding:3px 14px 4px;background:#120e04;border-bottom:1px solid var(--border);}
+  .paste-hint code{background:#1e1508;border:1px solid var(--border);border-radius:3px;padding:0 3px;}
+
   /* ── Empty ── */
   .empty-state{padding:32px;text-align:center;color:var(--dim);}
 
-  /* ── Paste hint ── */
-  .paste-hint{font-size:10px;color:var(--dim);padding:3px 14px 4px;background:#120e04;border-bottom:1px solid var(--border);}
-  .paste-hint code{background:#1e1508;border:1px solid var(--border);border-radius:3px;padding:0 3px;font-size:10px;}
-
   /* ── Mobile ── */
   @media(max-width:640px){
-    .toolbar{gap:8px;}
-    .coord-pair input{width:50px;}
-    .arrival-pair input[type=datetime-local]{width:150px;}
-    .ms-field{width:42px !important;}
+    .coord-pair input{width:52px;}
+    .arrival-pair input[type=datetime-local]{width:148px;}
     thead th,td{padding:5px 6px;font-size:11px;}
     .cd{font-size:13px;}
     th:nth-child(3),td:nth-child(3){display:none;}
     .header h1{font-size:15px;}
+    .img-sel-trigger{min-width:140px;}
   }
 </style>
 </head>
@@ -124,7 +126,9 @@
   <div class="speed-badge" id="speed-info">Načítám…</div>
   <div class="header-right">
     <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--dim);">
-      <input type="number" id="push-lead-input" min="1" max="60" value="2" style="width:38px;padding:2px 4px;font-size:11px;background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;" onchange="savePushLead(this.value)"> min
+      <input type="number" id="push-lead-input" min="1" max="60" value="2"
+        style="width:38px;padding:2px 4px;font-size:11px;background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;"
+        onchange="savePushLead(this.value)"> min
     </label>
     <button id="notif-btn" class="btn-sm" onclick="toggleNotif()">🔔 Notifikace</button>
     <a href="dashboard.html" class="btn-sm">← Dashboard</a>
@@ -132,48 +136,40 @@
 </div>
 
 <div class="toolbar">
-  <!-- Typ útoku -->
+
+  <!-- Typ útoku – custom image dropdown -->
   <div class="tb-field">
     <span class="tb-label">Typ útoku</span>
-    <div class="icon-sel-wrap">
-      <img id="type-icon" src="" style="width:20px;height:20px;object-fit:contain;" onerror="this.style.display='none'" onload="this.style.display='block'">
-      <select id="attack-type" class="has-big-icon" onchange="onTypeChange()" style="min-width:160px;">
-        <option value="attack">⚔️ Útok</option>
-        <option value="dobyvani">👑 Dobývání</option>
-        <option value="fake">🟢 Fake</option>
-        <option value="boureni">🏰 Bourání opevnění</option>
-        <option value="podpora">🛡️ Podpora</option>
-      </select>
+    <div class="img-sel" id="type-sel">
+      <div class="img-sel-trigger" onclick="toggleSel('type-sel')">
+        <div class="opt-icons" id="type-trigger-icons"></div>
+        <span id="type-trigger-label">Útok</span>
+        <span class="arrow">▾</span>
+      </div>
+      <div class="img-sel-menu" id="type-sel-menu"></div>
     </div>
   </div>
 
-  <!-- Síla útoku (jen pro attack / boureni) -->
+  <!-- Síla útoku – custom image dropdown (jen attack / boureni) -->
   <div class="tb-field" id="sila-wrap">
     <span class="tb-label">Síla útoku</span>
-    <div class="icon-sel-wrap">
-      <img id="sila-icon" src="" style="width:20px;height:20px;object-fit:contain;" onerror="this.style.display='none'" onload="this.style.display='block'">
-      <select id="attack-sila" class="has-big-icon" onchange="onSilaChange()" style="min-width:130px;">
-        <option value="giga">Giga full</option>
-        <option value="fullka">Fullka</option>
-        <option value="triq" id="sila-triq">3/4 off</option>
-        <option value="half" id="sila-half">1/2 off</option>
-      </select>
+    <div class="img-sel" id="sila-sel">
+      <div class="img-sel-trigger" onclick="toggleSel('sila-sel')">
+        <div class="opt-icons" id="sila-trigger-icons"></div>
+        <span id="sila-trigger-label">Giga full</span>
+        <span class="arrow">▾</span>
+      </div>
+      <div class="img-sel-menu" id="sila-sel-menu"></div>
     </div>
-  </div>
-
-  <!-- Symbol nouze (jen pro podporu) -->
-  <div class="tb-field" id="nouze-wrap" style="display:none;">
-    <span class="tb-label">Symbol nouze %</span>
-    <input type="number" id="nouze-pct" min="0" max="90" value="0" style="width:70px;" title="Podpora dorazí o X % dříve (čas cesty se zkrátí)">
   </div>
 
   <!-- Zdroj -->
   <div class="tb-field">
     <span class="tb-label">Zdroj</span>
     <div class="coord-pair">
-      <input type="number" id="src-x" placeholder="500" min="1" max="999" oninput="autoAdvance(this,'src-y')" onkeydown="coordKey(event,'src-y')">
+      <input type="number" id="src-x" placeholder="500" min="1" max="999" oninput="autoAdv(this,'src-y')" onkeydown="coordKey(event,'src-y')">
       <span class="coord-sep">|</span>
-      <input type="number" id="src-y" placeholder="500" min="1" max="999" oninput="autoAdvance(this,'tgt-x')" onkeydown="coordKey(event,'tgt-x')">
+      <input type="number" id="src-y" placeholder="500" min="1" max="999" oninput="autoAdv(this,'tgt-x')" onkeydown="coordKey(event,'tgt-x')">
     </div>
   </div>
 
@@ -181,14 +177,14 @@
   <div class="tb-field">
     <span class="tb-label">Cíl</span>
     <div class="coord-pair">
-      <input type="number" id="tgt-x" placeholder="500" min="1" max="999" oninput="autoAdvance(this,'tgt-y')" onkeydown="coordKey(event,'tgt-y')">
+      <input type="number" id="tgt-x" placeholder="500" min="1" max="999" oninput="autoAdv(this,'tgt-y')" onkeydown="coordKey(event,'tgt-y')">
       <span class="coord-sep">|</span>
-      <input type="number" id="tgt-y" placeholder="500" min="1" max="999" oninput="autoAdvance(this,'unit-sel')" onkeydown="coordKey(event,'unit-sel')">
+      <input type="number" id="tgt-y" placeholder="500" min="1" max="999" oninput="autoAdv(this,'unit-sel')" onkeydown="coordKey(event,'unit-sel')">
     </div>
   </div>
 
-  <!-- Jednotka -->
-  <div class="tb-field">
+  <!-- Jednotka (pro dobývání = jen šlechtic) -->
+  <div class="tb-field" id="unit-wrap">
     <span class="tb-label">Jednotka</span>
     <select id="unit-sel" style="min-width:130px;">
       <option value="axe">Sekerník</option>
@@ -209,14 +205,24 @@
     <span class="tb-label">Čas dopadu</span>
     <div class="arrival-pair">
       <input type="datetime-local" id="arrival-input" step="1" onpaste="handleArrivalPaste(event)">
-      <span style="color:var(--dim);font-size:11px;">.</span>
-      <input type="number" id="arrival-ms" class="ms-field" placeholder="ms" min="0" max="999" value="0" title="Milisekundy 0–999" style="width:50px;">
     </div>
   </div>
 
+  <!-- ms pole -->
+  <div class="ms-wrap">
+    <span class="tb-label">ms</span>
+    <input type="number" id="arrival-ms" placeholder="0" min="0" max="999" value="0" title="Milisekundy 0–999" style="width:52px;background:#1e1508;color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;font-size:13px;height:34px;outline:none;">
+  </div>
+
+  <!-- Symbol nouze (jen pro podporu) -->
+  <div class="tb-field" id="nouze-wrap" style="display:none;">
+    <span class="tb-label">Symbol nouze %</span>
+    <input type="number" id="nouze-pct" min="0" max="90" value="0" style="width:72px;" title="Zkrátí dobu cesty o X %">
+  </div>
+
   <div class="tb-field" style="justify-content:flex-end;">
-    <span class="tb-label" style="opacity:0;">•</span>
-    <button class="btn-add" onclick="addRow()">+ Přidat</button>
+    <span class="tb-label" style="opacity:0;">x</span>
+    <button style="height:34px;padding:0 18px;border-radius:4px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:var(--gold);color:#0f0b05;" onclick="addRow()">+ Přidat</button>
   </div>
 </div>
 
@@ -247,415 +253,368 @@
 <div id="toast"></div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────────
+// ── CONFIG ────────────────────────────────────────────────────
 const WORLD    = 'cs112';
 const API_BASE = `https://${WORLD}.divokekmeny.cz`;
 const PROXIES  = [
   u => `https://ucvgyduiyvfhxbyypyih.supabase.co/functions/v1/game-proxy?url=${encodeURIComponent(u)}`,
   u => u,
 ];
-const LARGE_ICO = 'https://help.divokekmeny.cz/images/7/71/Large.png';
+const LARGE = 'https://help.divokekmeny.cz/images/7/71/Large.png';
+
+// ── ICON HELPERS ──────────────────────────────────────────────
+function img(src, filter='', size=18) {
+  return `<img src="${src}" style="width:${size}px;height:${size}px;object-fit:contain;${filter?'filter:'+filter+';':''}" onerror="this.style.display='none'">`;
+}
+function axeImg(filter='', size=18) { return img(LARGE, filter, size); }
+function unitImg(name, size=18)     { return img(`${API_BASE}/graphic/unit/unit_${name}.png`, '', size); }
+function buildImg(name, size=18)    { return img(`${API_BASE}/graphic/buildings/${name}.png`, '', size); }
+
+// Ikony pro typ útoku (pole img tagů)
+const TYPE_ICONS_HTML = {
+  attack:  () => unitImg('ram'),
+  dobyvani:() => unitImg('snob'),
+  fake:    () => axeImg('sepia(1)saturate(4)hue-rotate(90deg)'),
+  boureni: () => buildImg('wall'),
+  podpora: () => unitImg('sword'),
+};
+
+// Ikony pro sílu útoku
+const SILA_ICONS_HTML = {
+  giga:  () => axeImg()+'<img src="'+LARGE+'" style="width:18px;height:18px;object-fit:contain;margin-left:-4px;" onerror="this.style.display=\'none\'">',
+  fullka:() => axeImg(),
+  triq:  () => axeImg('sepia(1)saturate(3)brightness(.85)'),
+  half:  () => axeImg('sepia(1)saturate(4)hue-rotate(20deg)'),
+};
+
+const TYPE_DEF = [
+  { val:'attack',   label:'Útok',              unitFilter:null,     hasSila:true,  hasNouze:false },
+  { val:'dobyvani', label:'Dobývání',           unitFilter:'noble',  hasSila:false, hasNouze:false },
+  { val:'fake',     label:'Fake',              unitFilter:null,     hasSila:false, hasNouze:false },
+  { val:'boureni',  label:'Bourání opevnění',  unitFilter:null,     hasSila:true,  hasNouze:false },
+  { val:'podpora',  label:'Podpora',           unitFilter:null,     hasSila:false, hasNouze:true  },
+];
+
+const SILA_DEF = [
+  { val:'giga',   label:'Giga full', cls:'sila-giga',   boureniOk:true  },
+  { val:'fullka', label:'Fullka',    cls:'sila-fullka',  boureniOk:true  },
+  { val:'triq',   label:'3/4 off',  cls:'sila-triq',    boureniOk:false },
+  { val:'half',   label:'1/2 off',  cls:'sila-half',    boureniOk:false },
+];
 
 const UNIT_LABELS = {
   spear:'Kopinník', sword:'Mečíř', axe:'Sekerník', scout:'Zvěd',
-  lk:'Lehká kav.', tk:'Těžká kav.', ram:'Beran',
-  catapult:'Katapult', noble:'Šlechtic', paladin:'Paladin'
+  lk:'Lehká kav.', tk:'Těžká kav.', ram:'Beran', catapult:'Katapult', noble:'Šlechtic', paladin:'Paladin'
 };
 
-const TYPE_DEF = {
-  attack:  { label:'Útok',              unit:'attack',  icon: () => `${API_BASE}/graphic/unit/unit_ram.png` },
-  dobyvani:{ label:'Dobývání',          unit:'support', icon: () => `${API_BASE}/graphic/unit/unit_snob.png` },
-  fake:    { label:'Fake',              unit:'attack',  icon: () => LARGE_ICO, iconFilter:'sepia(1)saturate(4)hue-rotate(90deg)' },
-  boureni: { label:'Bourání opevnění',  unit:'attack',  icon: () => `${API_BASE}/graphic/buildings/wall.png` },
-  podpora: { label:'Podpora',           unit:'support', icon: () => `${API_BASE}/graphic/unit/unit_sword.png` },
-};
+// ── CUSTOM DROPDOWNS STATE ────────────────────────────────────
+let selType  = 'attack';
+let selSila  = 'giga';
 
-// Inline SVG icons for cases where game server images fail
-const TYPE_FALLBACK = {
-  attack:'⚔️', dobyvani:'👑', fake:'🟢', boureni:'🏰', podpora:'🛡️'
-};
-
-const SILA_DEF = {
-  giga:  { label:'Giga full', cls:'sila-giga',  icon:'double-axe-red'  },
-  fullka:{ label:'Fullka',    cls:'sila-fullka', icon:'axe-red'         },
-  triq:  { label:'3/4 off',  cls:'sila-triq',   icon:'axe-brn'         },
-  half:  { label:'1/2 off',  cls:'sila-half',   icon:'axe-yel'         },
-};
-
-function silaIconHtml(sila, size=14) {
-  const s = `width:${size}px;height:${size}px;vertical-align:middle;`;
-  if (sila === 'giga')  return `<img src="${LARGE_ICO}" style="${s}" onerror="this.style.display='none'"><img src="${LARGE_ICO}" style="${s};margin-left:-3px;" onerror="this.style.display='none'">`;
-  if (sila === 'fullka') return `<img src="${LARGE_ICO}" style="${s}" onerror="this.style.display='none'">`;
-  if (sila === 'triq')  return `<img src="${LARGE_ICO}" style="${s};filter:sepia(1)saturate(3)brightness(.85);" onerror="this.style.display='none'">`;
-  if (sila === 'half')  return `<img src="${LARGE_ICO}" style="${s};filter:sepia(1)saturate(4)hue-rotate(20deg);" onerror="this.style.display='none'">`;
-  return '';
+function buildTypeSel() {
+  const menu = document.getElementById('type-sel-menu');
+  menu.innerHTML = TYPE_DEF.map(t =>
+    `<div class="img-sel-opt ${t.val===selType?'selected':''}" onclick="pickType('${t.val}')">
+       <div class="opt-icons">${TYPE_ICONS_HTML[t.val]()}</div>
+       <span>${t.label}</span>
+     </div>`
+  ).join('');
+  updateTypeTrigger();
 }
 
-function typeIconHtml(type, size=14) {
-  const def = TYPE_DEF[type];
-  if (!def) return '';
-  const flt = def.iconFilter ? `filter:${def.iconFilter};` : '';
-  return `<img src="${def.icon()}" style="width:${size}px;height:${size}px;vertical-align:middle;${flt}" onerror="this.textContent='${TYPE_FALLBACK[type]||''}';this.style.display='none'">`;
+function buildSilaSel(forBoureni=false) {
+  const menu = document.getElementById('sila-sel-menu');
+  const opts = SILA_DEF.filter(s => !forBoureni || s.boureniOk);
+  if(forBoureni && !opts.find(s=>s.val===selSila)) selSila='fullka';
+  menu.innerHTML = opts.map(s =>
+    `<div class="img-sel-opt ${s.val===selSila?'selected':''}" onclick="pickSila('${s.val}')">
+       <div class="opt-icons">${SILA_ICONS_HTML[s.val]()}</div>
+       <span>${s.label}</span>
+     </div>`
+  ).join('');
+  updateSilaTrigger();
 }
 
-// ── SPEED ────────────────────────────────────────────────────
-let UNIT_SPEEDS_S = { spear:1080, sword:1320, axe:1080, scout:540, lk:600, tk:660, ram:1800, catapult:1800, noble:2100, paladin:600 };
-let worldSpeed = 1, unitSpeedMult = 1, apiSpeedsLoaded = false;
-
-// ── STATE ────────────────────────────────────────────────────
-let rows = [];
-let nextId = 1;
-let soundUnlocked = false;
-let notifEnabled  = false;
-let _audioCtx = null;
-const alarmed = new Set();
-const notified = new Set();
-let _popupTmo = null;
-
-// ── STORAGE ──────────────────────────────────────────────────
-const LS_KEY = 'dk_timer_rows_v3';
-function saveRows() { try { localStorage.setItem(LS_KEY, JSON.stringify(rows)); } catch{} }
-function loadRows() {
-  try { rows = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { rows = []; }
-  nextId = rows.reduce((m,r) => Math.max(m, r.id+1), 1);
+function updateTypeTrigger() {
+  const t = TYPE_DEF.find(t=>t.val===selType)||TYPE_DEF[0];
+  document.getElementById('type-trigger-icons').innerHTML = TYPE_ICONS_HTML[t.val]();
+  document.getElementById('type-trigger-label').textContent = t.label;
 }
-function saveSoundLead(v){ localStorage.setItem('dk_timer_sl', String(Math.max(1,Math.min(60,parseInt(v)||2)))); alarmed.clear(); }
-function getSoundLeadMin(){ return Math.max(1, parseInt(localStorage.getItem('dk_timer_sl'))||2); }
-function savePushLead(v) { localStorage.setItem('dk_timer_pl', String(Math.max(1,Math.min(60,parseInt(v)||2)))); }
-function getPushLeadMin() { return Math.max(1, parseInt(localStorage.getItem('dk_timer_pl'))||2); }
 
-// ── FETCH / SPEED ─────────────────────────────────────────────
-async function fetchWithFallback(url) {
-  let lastErr;
-  for (const p of PROXIES) {
-    try { const r = await fetch(p(url), {signal:AbortSignal.timeout(5000)}); if(r.ok) return r; }
-    catch(e){ lastErr=e; }
+function updateSilaTrigger() {
+  const s = SILA_DEF.find(s=>s.val===selSila)||SILA_DEF[0];
+  document.getElementById('sila-trigger-icons').innerHTML = SILA_ICONS_HTML[s.val]();
+  document.getElementById('sila-trigger-label').textContent = s.label;
+}
+
+function toggleSel(id) {
+  const el=document.getElementById(id);
+  const isOpen=el.classList.contains('open');
+  // close all
+  document.querySelectorAll('.img-sel.open').forEach(e=>e.classList.remove('open'));
+  if(!isOpen) el.classList.add('open');
+}
+
+function pickType(val) {
+  selType=val;
+  const t=TYPE_DEF.find(t=>t.val===val);
+  buildTypeSel();
+  document.getElementById('type-sel').classList.remove('open');
+
+  // síla visible?
+  const silaWrap=document.getElementById('sila-wrap');
+  silaWrap.style.display = t.hasSila ? '' : 'none';
+  if(t.hasSila) buildSilaSel(val==='boureni');
+
+  // nouze visible?
+  document.getElementById('nouze-wrap').style.display = t.hasNouze ? '' : 'none';
+
+  // unit filter
+  const unitSel=document.getElementById('unit-sel');
+  if(t.unitFilter==='noble') {
+    // lock to noble
+    Array.from(unitSel.options).forEach(o => o.style.display = o.value==='noble'?'':'none');
+    unitSel.value='noble';
+    document.getElementById('unit-wrap').style.opacity='.5';
+    document.getElementById('unit-wrap').title='Dobývání používá vždy šlechtice';
+  } else {
+    Array.from(unitSel.options).forEach(o => o.style.display='');
+    document.getElementById('unit-wrap').style.opacity='1';
+    document.getElementById('unit-wrap').title='';
   }
-  throw lastErr || new Error('fetch failed');
+}
+
+function pickSila(val) {
+  selSila=val;
+  buildSilaSel(selType==='boureni');
+  document.getElementById('sila-sel').classList.remove('open');
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', e => {
+  if(!e.target.closest('.img-sel')) {
+    document.querySelectorAll('.img-sel.open').forEach(el=>el.classList.remove('open'));
+  }
+});
+
+// ── SPEED ──────────────────────────────────────────────────
+let UNIT_SPEEDS_S = { spear:1080, sword:1320, axe:1080, scout:540, lk:600, tk:660, ram:1800, catapult:1800, noble:2100, paladin:600 };
+let worldSpeed=1, unitSpeedMult=1, apiSpeedsLoaded=false;
+
+// ── STATE ──────────────────────────────────────────────────
+let rows=[]; let nextId=1;
+let soundUnlocked=false, notifEnabled=false, _audioCtx=null;
+const alarmed=new Set(), notified=new Set();
+let _popupTmo=null;
+
+// ── STORAGE ────────────────────────────────────────────────
+const LS_KEY='dk_timer_rows_v3';
+function saveRows(){ try{localStorage.setItem(LS_KEY,JSON.stringify(rows));}catch{} }
+function loadRows(){ try{rows=JSON.parse(localStorage.getItem(LS_KEY)||'[]');}catch{rows=[];} nextId=rows.reduce((m,r)=>Math.max(m,r.id+1),1); }
+function saveSoundLead(v){ localStorage.setItem('dk_timer_sl',String(Math.max(1,Math.min(60,parseInt(v)||2)))); alarmed.clear(); }
+function getSoundLeadMin(){ return Math.max(1,parseInt(localStorage.getItem('dk_timer_sl'))||2); }
+function savePushLead(v) { localStorage.setItem('dk_timer_pl',String(Math.max(1,Math.min(60,parseInt(v)||2)))); }
+function getPushLeadMin() { return Math.max(1,parseInt(localStorage.getItem('dk_timer_pl'))||2); }
+
+// ── FETCH ─────────────────────────────────────────────────
+async function fetchWithFallback(url) {
+  let e; for(const p of PROXIES){ try{const r=await fetch(p(url),{signal:AbortSignal.timeout(5000)});if(r.ok)return r;}catch(x){e=x;} } throw e||new Error('fail');
 }
 async function loadWorldSpeed() {
   try {
-    const rc = await fetchWithFallback(`${API_BASE}/interface.php?func=get_config`);
-    const cfg = new DOMParser().parseFromString(await rc.text(),'text/xml');
-    worldSpeed    = parseFloat(cfg.querySelector('speed')?.textContent||'1');
-    unitSpeedMult = parseFloat(cfg.querySelector('unit_speed')?.textContent||'1');
-    const ru = await fetchWithFallback(`${API_BASE}/interface.php?func=get_unit_info`);
-    const uid = new DOMParser().parseFromString(await ru.text(),'text/xml');
-    const um = {spear:'spear',sword:'sword',axe:'axe',spy:'scout',light:'lk',marcher:'paladin',heavy:'tk',ram:'ram',catapult:'catapult',snob:'noble'};
-    for(const[xn,k] of Object.entries(um)){
-      const s=parseFloat(uid.querySelector(`${xn} > speed`)?.textContent);
-      if(!isNaN(s)&&s>0) UNIT_SPEEDS_S[k]=s*60;
-    }
+    const rc=await fetchWithFallback(`${API_BASE}/interface.php?func=get_config`);
+    const cfg=new DOMParser().parseFromString(await rc.text(),'text/xml');
+    worldSpeed=parseFloat(cfg.querySelector('speed')?.textContent||'1');
+    unitSpeedMult=parseFloat(cfg.querySelector('unit_speed')?.textContent||'1');
+    const ru=await fetchWithFallback(`${API_BASE}/interface.php?func=get_unit_info`);
+    const uid=new DOMParser().parseFromString(await ru.text(),'text/xml');
+    const um={spear:'spear',sword:'sword',axe:'axe',spy:'scout',light:'lk',marcher:'paladin',heavy:'tk',ram:'ram',catapult:'catapult',snob:'noble'};
+    for(const[xn,k] of Object.entries(um)){const s=parseFloat(uid.querySelector(`${xn} > speed`)?.textContent);if(!isNaN(s)&&s>0)UNIT_SPEEDS_S[k]=s*60;}
     apiSpeedsLoaded=true;
     document.getElementById('speed-info').textContent=`✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}×`;
   } catch {
-    document.getElementById('speed-info').textContent='⚠ Výchozí rychlost (nelze načíst ze serveru)';
+    document.getElementById('speed-info').textContent='⚠ Výchozí rychlost';
   }
 }
 
-// ── TRAVEL TIME (identický vzorec s commander.html) ───────────
+// ── TRAVEL TIME ────────────────────────────────────────────
 function travelMs(x1,y1,x2,y2,unit) {
-  const dist = Math.sqrt((x2-x1)**2+(y2-y1)**2);
-  const speedS = UNIT_SPEEDS_S[unit]||1800;
-  if(apiSpeedsLoaded) return dist * speedS * 1000;
-  return dist * speedS / (worldSpeed * unitSpeedMult) * 1000;
+  const dist=Math.sqrt((x2-x1)**2+(y2-y1)**2);
+  const sp=UNIT_SPEEDS_S[unit]||1800;
+  if(apiSpeedsLoaded) return dist*sp*1000;
+  return dist*sp/(worldSpeed*unitSpeedMult)*1000;
 }
 
-// ── TYPE / SILA UI ───────────────────────────────────────────
-function onTypeChange() {
-  const type = document.getElementById('attack-type').value;
-  const def  = TYPE_DEF[type];
+// ── COORD AUTO-ADVANCE ─────────────────────────────────────
+function autoAdv(el,nId){ if(String(el.value).length>=3) document.getElementById(nId)?.focus(); }
+function coordKey(e,nId){ if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();document.getElementById(nId)?.focus();} }
 
-  // update icon preview
-  const icon = document.getElementById('type-icon');
-  icon.src = def.icon();
-  icon.style.filter = def.iconFilter||'';
-  icon.style.display = 'block';
-
-  // show/hide síla
-  const isSilaType = type==='attack'||type==='boureni';
-  document.getElementById('sila-wrap').style.display = isSilaType ? '' : 'none';
-
-  // for boureni: hide 3/4 and 1/2
-  document.getElementById('sila-triq').style.display = type==='boureni'?'none':'';
-  document.getElementById('sila-half').style.display = type==='boureni'?'none':'';
-  if(type==='boureni'){
-    const sel=document.getElementById('attack-sila');
-    if(sel.value==='triq'||sel.value==='half') sel.value='fullka';
-  }
-
-  // show/hide nouze
-  document.getElementById('nouze-wrap').style.display = type==='podpora' ? '' : 'none';
-
-  onSilaChange();
-}
-
-function onSilaChange() {
-  const sila = document.getElementById('attack-sila').value;
-  const icon = document.getElementById('sila-icon');
-  const s = `width:20px;height:20px;object-fit:contain;vertical-align:middle;`;
-  if(sila==='giga') {
-    icon.src=LARGE_ICO; icon.style.filter=''; icon.style.display='block';
-  } else if(sila==='fullka') {
-    icon.src=LARGE_ICO; icon.style.filter=''; icon.style.display='block';
-  } else if(sila==='triq') {
-    icon.src=LARGE_ICO; icon.style.filter='sepia(1)saturate(3)brightness(.85)'; icon.style.display='block';
-  } else if(sila==='half') {
-    icon.src=LARGE_ICO; icon.style.filter='sepia(1)saturate(4)hue-rotate(20deg)'; icon.style.display='block';
-  }
-}
-
-// ── AUTO-ADVANCE COORDS ───────────────────────────────────────
-function autoAdvance(el, nextId) {
-  if(String(el.value).length>=3) document.getElementById(nextId)?.focus();
-}
-function coordKey(e, nextId) {
-  if(e.key==='Enter'||e.key==='Tab'){ e.preventDefault(); document.getElementById(nextId)?.focus(); }
-}
-
-// ── ARRIVAL TIME PARSING ──────────────────────────────────────
+// ── ARRIVAL TIME ───────────────────────────────────────────
 function handleArrivalPaste(e) {
   e.preventDefault();
-  const raw = (e.clipboardData||window.clipboardData).getData('text').trim();
-  const p = parseArrivalStr(raw);
-  if(!p){ toast('Nepodařilo se rozpoznat formát času!','err'); return; }
-  fillArrival(p.ts, p.ms);
+  const raw=(e.clipboardData||window.clipboardData).getData('text').trim();
+  const p=parseArrivalStr(raw);
+  if(!p){toast('Nepodařilo se rozpoznat formát času!','err');return;}
+  fillArrival(p.ts,p.ms);
 }
 function parseArrivalStr(s) {
-  s = s.trim();
   let m;
-  // "dnes v HH:MM:SS:mmm"
-  m = s.match(/^dnes\s+v\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?$/i);
-  if(m){ const n=new Date(); const d=new Date(n.getFullYear(),n.getMonth(),n.getDate(),+m[1],+m[2],+m[3]); return{ts:d.getTime(),ms:+(m[4]||0)}; }
-  // "zítra v HH:MM:SS:mmm"
-  m = s.match(/^z[íi]tra\s+v\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?$/i);
-  if(m){ const n=new Date(); const d=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1,+m[1],+m[2],+m[3]); return{ts:d.getTime(),ms:+(m[4]||0)}; }
-  // "DD.MM.YYYY HH:MM:SS:mmm"
-  m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?$/);
-  if(m){ const d=new Date(+m[3],+m[2]-1,+m[1],+m[4],+m[5],+m[6]); return{ts:d.getTime(),ms:+(m[7]||0)}; }
+  m=s.match(/^dnes\s+v\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?$/i);
+  if(m){const n=new Date(),d=new Date(n.getFullYear(),n.getMonth(),n.getDate(),+m[1],+m[2],+m[3]);return{ts:d.getTime(),ms:+(m[4]||0)};}
+  m=s.match(/^z[íi]tra\s+v\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?$/i);
+  if(m){const n=new Date(),d=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1,+m[1],+m[2],+m[3]);return{ts:d.getTime(),ms:+(m[4]||0)};}
+  m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})(?::(\d{1,3}))?$/);
+  if(m){const d=new Date(+m[3],+m[2]-1,+m[1],+m[4],+m[5],+m[6]);return{ts:d.getTime(),ms:+(m[7]||0)};}
   return null;
 }
-function fillArrival(ts, ms) {
-  const d = new Date(ts - new Date().getTimezoneOffset()*60000);
-  document.getElementById('arrival-input').value = d.toISOString().slice(0,19);
-  document.getElementById('arrival-ms').value = ms||0;
+function fillArrival(ts,ms) {
+  const d=new Date(ts-new Date().getTimezoneOffset()*60000);
+  document.getElementById('arrival-input').value=d.toISOString().slice(0,19);
+  document.getElementById('arrival-ms').value=ms||0;
 }
 function getArrivalTime() {
-  const str = document.getElementById('arrival-input').value;
-  if(!str) return null;
-  const base = new Date(str).getTime();
-  if(isNaN(base)) return null;
-  const ms = Math.max(0,Math.min(999,parseInt(document.getElementById('arrival-ms').value)||0));
-  return base+ms;
+  const str=document.getElementById('arrival-input').value; if(!str)return null;
+  const base=new Date(str).getTime(); if(isNaN(base))return null;
+  return base+Math.max(0,Math.min(999,parseInt(document.getElementById('arrival-ms').value)||0));
 }
 
-// ── ADD ROW ──────────────────────────────────────────────────
+// ── ADD ROW ────────────────────────────────────────────────
 function addRow() {
-  const srcX = parseInt(document.getElementById('src-x').value);
-  const srcY = parseInt(document.getElementById('src-y').value);
-  const tgtX = parseInt(document.getElementById('tgt-x').value);
-  const tgtY = parseInt(document.getElementById('tgt-y').value);
-  const unit = document.getElementById('unit-sel').value;
-  const type = document.getElementById('attack-type').value;
-  const isSilaType = type==='attack'||type==='boureni';
-  const sila = isSilaType ? document.getElementById('attack-sila').value : null;
-  const nouze = type==='podpora' ? Math.max(0,Math.min(90,parseInt(document.getElementById('nouze-pct').value)||0)) : 0;
+  const srcX=parseInt(document.getElementById('src-x').value);
+  const srcY=parseInt(document.getElementById('src-y').value);
+  const tgtX=parseInt(document.getElementById('tgt-x').value);
+  const tgtY=parseInt(document.getElementById('tgt-y').value);
+  const unit=document.getElementById('unit-sel').value;
+  const type=selType;
+  const tDef=TYPE_DEF.find(t=>t.val===type);
+  const sila=tDef?.hasSila ? selSila : null;
+  const nouze=tDef?.hasNouze ? Math.max(0,Math.min(90,parseInt(document.getElementById('nouze-pct').value)||0)) : 0;
 
-  if([srcX,srcY,tgtX,tgtY].some(isNaN)){ toast('Zadej souřadnice!','err'); return; }
-  const arrivalTime = getArrivalTime();
-  if(!arrivalTime){ toast('Zadej čas dopadu!','err'); return; }
+  if([srcX,srcY,tgtX,tgtY].some(isNaN)){toast('Zadej souřadnice!','err');return;}
+  const arrivalTime=getArrivalTime();
+  if(!arrivalTime){toast('Zadej čas dopadu!','err');return;}
 
-  let travel = travelMs(srcX,srcY,tgtX,tgtY,unit);
-  if(nouze>0) travel = travel*(1 - nouze/100);
+  let travel=travelMs(srcX,srcY,tgtX,tgtY,unit);
+  if(nouze>0) travel=travel*(1-nouze/100);
+  const sendTime=arrivalTime-travel;
+  if(sendTime<Date.now()+30000){toast('Čas odeslání je příliš blízko nebo v minulosti!','err');return;}
 
-  const sendTime = arrivalTime - travel;
-  if(sendTime < Date.now()+30000){ toast('Čas odeslání je příliš blízko nebo v minulosti!','err'); return; }
-
-  const row = {id:nextId++,srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime,sent:false};
-  rows.push(row);
-  saveRows();
-  renderTable();
+  rows.push({id:nextId++,srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime,sent:false});
+  saveRows(); renderTable();
   toast(`Přidáno – odeslat v ${fmtTime(sendTime)}`,'ok');
 }
 
-function removeRow(id) {
-  rows=rows.filter(r=>r.id!==id); alarmed.delete(id); notified.delete(id);
-  saveRows(); renderTable();
-}
-function markSent(id) {
-  const r=rows.find(r=>r.id===id); if(r){r.sent=!r.sent;saveRows();renderTable();}
+function removeRow(id){ rows=rows.filter(r=>r.id!==id);alarmed.delete(id);notified.delete(id);saveRows();renderTable(); }
+function markSent(id){ const r=rows.find(r=>r.id===id);if(r){r.sent=!r.sent;saveRows();renderTable();} }
+
+// ── FORMAT ─────────────────────────────────────────────────
+function pad(n,w=2){return String(Math.floor(n)).padStart(w,'0');}
+function fmtTime(ms){const d=new Date(ms);return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}:${pad(ms%1000,3)}`;}
+function fmtCountdown(ms){
+  if(ms<=0)return null;
+  const s=Math.floor(ms/1000)%60,m=Math.floor(ms/60000)%60,h=Math.floor(ms/3600000),f=ms%1000;
+  if(h>0)return `${h}:${pad(m)}:${pad(s)}`;
+  return `${pad(m)}:${pad(s)}.${pad(f,3)}`;
 }
 
-// ── FORMAT ───────────────────────────────────────────────────
-function pad(n,w=2){ return String(Math.floor(n)).padStart(w,'0'); }
-function fmtTime(ms) {
-  const d=new Date(ms);
-  return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-function fmtTimeMs(ms) {
-  return fmtTime(ms)+':<span style="color:#aaa;font-size:10px;">'+pad(ms%1000,3)+'</span>';
-}
-function fmtCountdown(diffMs) {
-  if(diffMs<=0) return null;
-  const ms=diffMs%1000, s=Math.floor(diffMs/1000)%60, m=Math.floor(diffMs/60000)%60, h=Math.floor(diffMs/3600000);
-  if(h>0) return `${h}:${pad(m)}:${pad(s)}`;
-  return `${pad(m)}:${pad(s)}.${pad(ms,3)}`;
-}
-
-// ── RENDER ───────────────────────────────────────────────────
+// ── RENDER ─────────────────────────────────────────────────
 function renderTable() {
   const tbody=document.getElementById('rows-body');
-  if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="7" class="empty-state">Zatím žádné útoky. Přidej první výše.</td></tr>';
-    return;
-  }
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Zatím žádné útoky. Přidej první výše.</td></tr>';return;}
   const now=Date.now();
   tbody.innerHTML=[...rows].sort((a,b)=>a.sendTime-b.sendTime).map(r=>{
-    const isSent=r.sent, isPast=r.sendTime<now&&!isSent;
+    const isSent=r.sent,isPast=r.sendTime<now&&!isSent;
     const cls=isSent?'row-sent':isPast?'row-past':'';
     const diff=r.sendTime-now;
-    let cdHtml;
-    if(isSent)    cdHtml=`<span class="cd sent">✓ Odesláno</span>`;
-    else if(diff<=0) cdHtml=`<span class="cd done">Zmeškal</span>`;
-    else          cdHtml=`<span class="cd ${diff<120000?'urgent':'ok'}" id="cd-${r.id}">${fmtCountdown(diff)}</span>`;
-
-    // type badge
-    const typeDef=TYPE_DEF[r.type]||TYPE_DEF.attack;
-    const flt=typeDef.iconFilter?`filter:${typeDef.iconFilter};`:'';
-    const typeHtml=`<span class="type-badge">
-      <img src="${typeDef.icon()}" style="width:16px;height:16px;vertical-align:middle;${flt}" onerror="this.style.display='none'">
-      ${typeDef.label}
-      ${r.sila?`<span class="sila-badge ${SILA_DEF[r.sila].cls}">${silaIconHtml(r.sila,12)} ${SILA_DEF[r.sila].label}</span>`:''}
-      ${r.nouze?`<span style="color:#80c0ff;font-size:10px;">(nouze ${r.nouze}%)</span>`:''}
-    </span>`;
-
+    let cdHtml=isSent?`<span class="cd sent">✓ Odesláno</span>`:diff<=0?`<span class="cd done">Zmeškal</span>`:`<span class="cd ${diff<120000?'urgent':'ok'}" id="cd-${r.id}">${fmtCountdown(diff)}</span>`;
+    const tDef=TYPE_DEF.find(t=>t.val===r.type)||TYPE_DEF[0];
+    const sDef=r.sila?SILA_DEF.find(s=>s.val===r.sila):null;
     return `<tr class="${cls}">
-      <td>${typeHtml}</td>
+      <td><div class="type-cell">
+        ${TYPE_ICONS_HTML[r.type]?.()}
+        <span style="font-size:12px;">${tDef.label}</span>
+        ${sDef?`<span class="sila-badge ${sDef.cls}">${SILA_ICONS_HTML[r.sila]?.()??''} ${sDef.label}</span>`:''}
+        ${r.nouze?`<span style="color:var(--blue);font-size:10px;">(nouze ${r.nouze}%)</span>`:''}
+      </div></td>
       <td class="coords-cell">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</td>
       <td class="unit-cell">${UNIT_LABELS[r.unit]||r.unit}</td>
-      <td class="send-t">${fmtTimeMs(r.sendTime)}</td>
-      <td class="arr-t">${fmtTimeMs(r.arrivalTime)}</td>
+      <td class="send-t">${fmtTime(r.sendTime)}</td>
+      <td class="arr-t">${fmtTime(r.arrivalTime)}</td>
       <td>${cdHtml}</td>
       <td style="white-space:nowrap;">
-        <button class="sent-mark" onclick="markSent(${r.id})" title="${isSent?'Odznačit':'Označit jako odesláno'}">${isSent?'↩️':'✅'}</button>
-        <button class="del-btn" onclick="removeRow(${r.id})" title="Smazat">✕</button>
+        <button class="sent-mark" onclick="markSent(${r.id})">${r.sent?'↩️':'✅'}</button>
+        <button class="del-btn" onclick="removeRow(${r.id})">✕</button>
       </td>
     </tr>`;
   }).join('');
 }
 
-// ── COUNTDOWNS ────────────────────────────────────────────────
+// ── COUNTDOWNS ─────────────────────────────────────────────
 function updateCountdowns() {
-  const now=Date.now();
-  const sLead=getSoundLeadMin()*60000, pLead=getPushLeadMin()*60000;
+  const now=Date.now(),sLead=getSoundLeadMin()*60000,pLead=getPushLeadMin()*60000;
   rows.forEach(r=>{
-    if(r.sent) return;
+    if(r.sent)return;
     const diff=r.sendTime-now;
     const el=document.getElementById(`cd-${r.id}`);
     if(el){
-      if(diff<=0){ el.textContent='Zmeškal'; el.className='cd done'; el.closest('tr')?.classList.add('row-past'); }
-      else{ el.className=`cd ${diff<120000?'urgent':'ok'}`; el.textContent=fmtCountdown(diff); }
+      if(diff<=0){el.textContent='Zmeškal';el.className='cd done';el.closest('tr')?.classList.add('row-past');}
+      else{el.className=`cd ${diff<120000?'urgent':'ok'}`;el.textContent=fmtCountdown(diff);}
     }
-    if(!alarmed.has(r.id)&&diff>0&&diff<=sLead){ alarmed.add(r.id); triggerAlarm(r,diff); }
-    if(!notified.has(r.id)&&notifEnabled&&diff>0&&diff<=pLead){ notified.add(r.id); sendPush(r,diff); }
+    if(!alarmed.has(r.id)&&diff>0&&diff<=sLead){alarmed.add(r.id);triggerAlarm(r,diff);}
+    if(!notified.has(r.id)&&notifEnabled&&diff>0&&diff<=pLead){notified.add(r.id);sendPush(r,diff);}
   });
 }
 
-// ── AUDIO ────────────────────────────────────────────────────
-function getACtx(){
-  if(!_audioCtx) _audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  if(_audioCtx.state==='suspended') _audioCtx.resume();
-  return _audioCtx;
-}
+// ── AUDIO ──────────────────────────────────────────────────
+function getACtx(){if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(_audioCtx.state==='suspended')_audioCtx.resume();return _audioCtx;}
 function playSiren(vol=0.4){
-  if(!soundUnlocked) return;
-  try{
-    const ctx=getACtx();
-    [[880,.15],[660,.15],[880,.15],[660,.2]].forEach(([f,d],i)=>{
-      const o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.frequency.value=f; o.type='square';
-      const t=ctx.currentTime+i*.18;
-      g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+d);
-      o.start(t); o.stop(t+d+.05);
-    });
-  }catch{}
+  if(!soundUnlocked)return;
+  try{const ctx=getACtx();[[880,.15],[660,.15],[880,.15],[660,.2]].forEach(([f,d],i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=f;o.type='square';const t=ctx.currentTime+i*.18;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d+.05);});}catch{}
 }
 function triggerAlarm(r,diffMs){
-  playSiren(); setTimeout(()=>playSiren(),1500); setTimeout(()=>playSiren(),3000);
+  playSiren();setTimeout(()=>playSiren(),1500);setTimeout(()=>playSiren(),3000);
   const popup=document.getElementById('alarm-popup');
-  const sec=Math.round(diffMs/1000);
-  popup.innerHTML=`⏰ Odeslat za ${sec}s!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY} · ${TYPE_DEF[r.type]?.label||''}</span>`;
-  popup.style.display='block';
-  clearTimeout(_popupTmo);
-  _popupTmo=setTimeout(()=>{popup.style.display='none';},8000);
+  popup.innerHTML=`⏰ Odeslat za ${Math.round(diffMs/1000)}s!<br><span style="font-size:12px;font-weight:normal;">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</span>`;
+  popup.style.display='block';clearTimeout(_popupTmo);_popupTmo=setTimeout(()=>popup.style.display='none',8000);
 }
 function toggleSound(){
-  const btn=document.getElementById('audio-unlock-btn');
-  const banner=document.getElementById('audio-banner');
-  if(soundUnlocked){
-    soundUnlocked=false;
-    banner.style.background='#0f0c02'; banner.style.borderColor='#2a1e00';
-    btn.textContent='Zapnout'; btn.style.background='#2a1e00'; btn.style.color='var(--gold)';
-  } else {
-    try{getACtx();}catch{}
-    soundUnlocked=true;
-    banner.style.background='#0a1a0a'; banner.style.borderColor='#1a4a1a';
-    btn.textContent='✓ Zapnuto'; btn.style.background='#205020'; btn.style.color='#80d080';
-    setTimeout(()=>playSiren(.15),100);
-  }
+  const btn=document.getElementById('audio-unlock-btn'),banner=document.getElementById('audio-banner');
+  if(soundUnlocked){soundUnlocked=false;banner.style.background='#0f0c02';banner.style.borderColor='#2a1e00';btn.textContent='Zapnout';btn.style.background='#2a1e00';btn.style.color='var(--gold)';}
+  else{try{getACtx();}catch{}soundUnlocked=true;banner.style.background='#0a1a0a';banner.style.borderColor='#1a4a1a';btn.textContent='✓ Zapnuto';btn.style.background='#205020';btn.style.color='#80d080';setTimeout(()=>playSiren(.15),100);}
 }
 
-// ── NOTIFICATIONS ─────────────────────────────────────────────
+// ── NOTIFICATIONS ──────────────────────────────────────────
 async function toggleNotif(){
   const btn=document.getElementById('notif-btn');
-  if(notifEnabled){
-    notifEnabled=false; btn.textContent='🔔 Notifikace'; btn.style.color=''; btn.style.borderColor=''; return;
-  }
+  if(notifEnabled){notifEnabled=false;btn.textContent='🔔 Notifikace';btn.style.color='';btn.style.borderColor='';return;}
   if(!('Notification' in window)){toast('Prohlížeč nepodporuje notifikace.','err');return;}
-  const perm=await Notification.requestPermission();
-  if(perm!=='granted'){toast('Notifikace nebyly povoleny.','err');return;}
-  notifEnabled=true;
-  btn.textContent='🔔 Notifikace ✓'; btn.style.color='#60d060'; btn.style.borderColor='#1a4a1a';
-  toast('Notifikace zapnuty','ok');
+  if(await Notification.requestPermission()!=='granted'){toast('Notifikace nebyly povoleny.','err');return;}
+  notifEnabled=true;btn.textContent='🔔 Notifikace ✓';btn.style.color='#60d060';btn.style.borderColor='#1a4a1a';toast('Notifikace zapnuty','ok');
 }
 function sendPush(r,diffMs){
-  if(Notification.permission!=='granted') return;
-  const sec=Math.round(diffMs/1000);
-  new Notification(`⚔ Odeslat za ${sec}s`,{
-    body:`${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY} · ${TYPE_DEF[r.type]?.label||''}\nDopad: ${fmtTime(r.arrivalTime)}`,
-    icon:'icon-192.png', tag:`timer-${r.id}`, requireInteraction:true,
-  });
+  if(Notification.permission!=='granted')return;
+  new Notification(`⚔ Odeslat za ${Math.round(diffMs/1000)}s`,{body:`${r.srcX}|${r.srcY}→${r.tgtX}|${r.tgtY}\n${fmtTime(r.arrivalTime)}`,icon:'icon-192.png',tag:`timer-${r.id}`,requireInteraction:true});
 }
 
-// ── TOAST ────────────────────────────────────────────────────
+// ── TOAST ──────────────────────────────────────────────────
 let _tt;
-function toast(msg,type='',ms=3500){
-  const el=document.getElementById('toast');
-  el.textContent=msg; el.className=type; el.style.display='block';
-  clearTimeout(_tt); _tt=setTimeout(()=>{el.style.display='none';},ms);
-}
+function toast(msg,type='',ms=3500){const el=document.getElementById('toast');el.textContent=msg;el.className=type;el.style.display='block';clearTimeout(_tt);_tt=setTimeout(()=>el.style.display='none',ms);}
 
-// ── INIT ─────────────────────────────────────────────────────
-loadRows();
-renderTable();
-loadWorldSpeed();
-
+// ── INIT ───────────────────────────────────────────────────
+loadRows(); renderTable(); loadWorldSpeed();
 document.getElementById('sound-lead-input').value=getSoundLeadMin();
-document.getElementById('push-lead-input').value =getPushLeadMin();
+document.getElementById('push-lead-input').value=getPushLeadMin();
 
-// Default arrival = now+1h
-const _da=new Date(Date.now()+3600000); _da.setMilliseconds(0);
+// Default arrival +1h
+const _da=new Date(Date.now()+3600000);_da.setMilliseconds(0);
 document.getElementById('arrival-input').value=new Date(_da-_da.getTimezoneOffset()*60000).toISOString().slice(0,19);
-document.getElementById('arrival-ms').value=0;
 
-// Init type icons
-onTypeChange();
+// Build dropdowns
+buildTypeSel();
+buildSilaSel(false);
 
 // Enter = add
-document.querySelectorAll('.toolbar input,.toolbar select').forEach(el=>{
-  el.addEventListener('keydown',e=>{ if(e.key==='Enter') addRow(); });
-});
+document.querySelectorAll('.toolbar input').forEach(el=>el.addEventListener('keydown',e=>{if(e.key==='Enter')addRow();}));
 
 setInterval(updateCountdowns,100);
 </script>
