@@ -225,11 +225,12 @@
   <thead>
     <tr>
       <th>Typ</th>
-      <th>Zdroj → Cíl</th>
+      <th>Zdroj</th>
+      <th>Cíl</th>
       <th>Jednotka</th>
-      <th>Odeslat v</th>
-      <th>Dopad v</th>
-      <th>Odpočet</th>
+      <th>Čas odeslání</th>
+      <th>Čas dopadu</th>
+      <th>Odpočítávání</th>
       <th></th>
     </tr>
   </thead>
@@ -533,7 +534,8 @@ function renderTable() {
         ${sDef?`<span class="sila-badge ${sDef.cls}">${SILA_ICONS_HTML[r.sila]?.()??''} ${sDef.label}</span>`:''}
         ${r.nouze?`<span style="color:var(--blue);font-size:10px;">(nouze ${r.nouze}%)</span>`:''}
       </div></td>
-      <td class="coords-cell">${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}</td>
+      <td class="coords-cell">${r.srcX}|${r.srcY}</td>
+      <td class="coords-cell">${r.tgtX}|${r.tgtY}</td>
       <td class="unit-cell">${UNIT_LABELS[r.unit]||r.unit}</td>
       <td class="send-t">${fmtTime(r.sendTime)}</td>
       <td class="arr-t">${fmtTime(r.arrivalTime)}</td>
