@@ -336,9 +336,9 @@ const UNIT_LABELS = {
 };
 const UNIT_ORDER = ['spear','sword','axe','scout','lk','tk','ram','catapult','paladin','noble'];
 const UNIT_IMG   = {
-  spear:'unit_spear', sword:'unit_sword', axe:'unit_axe', scout:'unit_spy',
-  lk:'unit_light', tk:'unit_heavy', ram:'unit_ram', catapult:'unit_catapult',
-  paladin:'unit_marcher', noble:'unit_snob'
+  spear:'spear', sword:'sword', axe:'axe', scout:'spy',
+  lk:'light', tk:'heavy', ram:'ram', catapult:'catapult',
+  paladin:'marcher', noble:'snob'
 };
 
 // ── CUSTOM DROPDOWNS STATE ────────────────────────────────────
@@ -736,7 +736,7 @@ function renderTable() {
         ${r.tgtPlayer?`<div style="font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;max-width:130px;text-overflow:ellipsis;" title="${r.tgtPlayer}">${r.tgtPlayer}</div>`:''}
       </td>
       <td class="unit-cell" style="white-space:nowrap;">
-        ${unitImg(UNIT_IMG[r.unit]||'unit_axe')} ${UNIT_LABELS[r.unit]||r.unit}
+        ${unitImg(UNIT_IMG[r.unit]||'axe')} ${UNIT_LABELS[r.unit]||r.unit}
       </td>
       <td class="send-t">${fmtTime(r.sendTime)}</td>
       <td class="arr-t">${fmtTime(r.arrivalTime)}</td>
