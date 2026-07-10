@@ -145,6 +145,7 @@
   <h1>Časovač útoků</h1>
   <div class="world-badge">cs112 – Divoké kmeny</div>
   <div class="speed-badge" id="speed-info">Načítám…</div>
+  <pre id="config-debug" style="font-size:10px;max-height:200px;overflow:auto;background:#111;color:#0f0;padding:4px;margin:4px 0;white-space:pre-wrap;word-break:break-all;display:none"></pre>
   <div class="header-right">
     <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--dim);">
       <input type="number" id="push-lead-input" min="1" max="60" value="2"
@@ -514,6 +515,7 @@ async function loadWorldSpeed() {
     apiSpeedsLoaded=true;
     console.log('Unit speeds loaded (s/field):', JSON.stringify(UNIT_SPEEDS_S));
     console.log('worldSpeed:', worldSpeed, 'unitSpeedMult:', unitSpeedMult);
+    const dbg=document.getElementById('config-debug');dbg.textContent=cfg.documentElement.outerHTML;dbg.style.display='block';
     document.getElementById('speed-info').textContent=`✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}× | axe=${Math.round(UNIT_SPEEDS_S.axe)}s ram=${Math.round(UNIT_SPEEDS_S.ram)}s`;
   } catch {
     document.getElementById('speed-info').textContent='⚠ Výchozí rychlost';
