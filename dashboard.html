@@ -219,16 +219,28 @@
 
 <div class="page-body">
 
-  <!-- Plánovač hero -->
-  <div class="hero-card">
-    <div class="hero-info">
-      <h2>⚔️ Plánovač útoků</h2>
-      <p>Nahraj JSON svých jednotek, zadej cíle a vygeneruj přesný časový plán.</p>
+  <!-- Hero karty -->
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div class="hero-card" style="flex:1;min-width:260px;">
+      <div class="hero-info">
+        <h2>⚔️ Plánovač útoků</h2>
+        <p>Nahraj JSON svých jednotek, zadej cíle a vygeneruj přesný časový plán.</p>
+      </div>
+      <a href="myplan.html" class="btn-hero">
+        <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:18px;height:18px;filter:sepia(1)saturate(4)hue-rotate(330deg);">
+        Otevřít plánovač
+      </a>
     </div>
-    <a href="myplan.html" class="btn-hero">
-      <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:18px;height:18px;filter:sepia(1)saturate(4)hue-rotate(330deg);">
-      Otevřít plánovač
-    </a>
+    <div class="hero-card" style="flex:1;min-width:260px;">
+      <div class="hero-info">
+        <h2>⏱️ Časovač útoků</h2>
+        <p>Zadej zdroj, cíl a čas dopadu – automaticky vypočítá kdy odeslat. Alarm a notifikace.</p>
+      </div>
+      <a href="timer.html" class="btn-hero">
+        <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:18px;height:18px;filter:sepia(1)saturate(4)hue-rotate(200deg);">
+        Otevřít časovač
+      </a>
+    </div>
   </div>
 
   <div id="donate-panel" style="display:none;">
