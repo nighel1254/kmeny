@@ -73,10 +73,19 @@
   .cd.urgent{color:var(--red);} .cd.ok{color:#ffcf60;} .cd.done{color:var(--dim);} .cd.sent{color:var(--green);}
   .send-t{color:#ffcf60;font-size:12px;font-variant-numeric:tabular-nums;}
   .arr-t{color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums;}
-  .del-btn{background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:16px;padding:2px 6px;}
-  .del-btn:hover{color:var(--red);}
-  .sent-mark{cursor:pointer;font-size:16px;background:transparent;border:none;padding:2px 6px;}
-  .row-sent td{opacity:.6;} .row-past td{color:#e08080;opacity:.85;}
+  .del-btn{background:none;border:1px solid var(--border);border-radius:4px;color:var(--red);cursor:pointer;font-size:13px;padding:3px 6px;}
+  .del-btn:hover{border-color:var(--red);}
+  .edit-btn{background:none;border:1px solid var(--border);border-radius:4px;color:var(--gold2);cursor:pointer;font-size:13px;padding:3px 6px;margin-right:3px;}
+  .edit-btn:hover{border-color:var(--gold);}
+  .play-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:linear-gradient(180deg,#38a838,#185018);border:1px solid #5abb5a;cursor:pointer;color:#d0ffd0;margin-right:3px;vertical-align:middle;}
+  .play-btn svg{width:12px;height:12px;fill:currentColor;}
+  .play-btn:hover{background:linear-gradient(180deg,#4abb4a,#287028);transform:scale(1.1);}
+  .play-btn.played{background:linear-gradient(180deg,#205020,#0a1a0a);border-color:#2a5a2a;color:#4a8a4a;}
+  .row-played td{opacity:.4;text-decoration:line-through;text-decoration-color:rgba(80,200,80,.3);}
+  .row-played{background:#040a04!important;border-left:3px solid var(--green)!important;}
+  .row-past td{color:#e08080;opacity:.85;}
+  .row-past{background:#070503!important;}
+  .row-editing{background:#1a1500!important;border-left:3px solid var(--gold)!important;}
   .coords-cell{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;}
   .unit-cell{font-size:11px;color:var(--dim);}
   .type-cell{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
@@ -397,6 +406,7 @@ let rows=[]; let nextId=1;
 let soundUnlocked=false, notifEnabled=false, _audioCtx=null;
 const alarmed=new Set(), notified=new Set();
 let _popupTmo=null;
+let editingId=null; // id řádku právě editovaného
 
 // ── STORAGE ────────────────────────────────────────────────
 const LS_KEY='dk_timer_rows_v3';
@@ -497,13 +507,71 @@ function addRow() {
   const sendTime=arrivalTime-travel;
   if(sendTime<Date.now()+30000){toast('Čas odeslání je příliš blízko nebo v minulosti!','err');return;}
 
-  rows.push({id:nextId++,srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime,sent:false});
-  saveRows(); renderTable();
-  toast(`Přidáno – odeslat v ${fmtTime(sendTime)}`,'ok');
+  if(editingId!==null){
+    // update existing row
+    const idx=rows.findIndex(r=>r.id===editingId);
+    if(idx>=0){
+      rows[idx]={...rows[idx],srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime};
+      alarmed.delete(editingId); notified.delete(editingId);
+    }
+    cancelEdit();
+    saveRows(); renderTable();
+    toast('Řádek uložen.','ok');
+  } else {
+    rows.push({id:nextId++,srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime,sent:false});
+    saveRows(); renderTable();
+    toast(`Přidáno – odeslat v ${fmtTime(sendTime)}`,'ok');
+  }
 }
 
-function removeRow(id){ rows=rows.filter(r=>r.id!==id);alarmed.delete(id);notified.delete(id);saveRows();renderTable(); }
-function markSent(id){ const r=rows.find(r=>r.id===id);if(r){r.sent=!r.sent;saveRows();renderTable();} }
+function removeRow(id){
+  if(editingId===id){cancelEdit();}
+  rows=rows.filter(r=>r.id!==id);alarmed.delete(id);notified.delete(id);saveRows();renderTable();
+}
+function togglePlayed(id){
+  const r=rows.find(r=>r.id===id); if(!r)return;
+  r.sent=!r.sent; saveRows(); renderTable();
+}
+function editRow(id){
+  const r=rows.find(r=>r.id===id); if(!r)return;
+  editingId=id;
+  // fill type
+  selType=r.type||'attack'; buildTypeSel();
+  // trigger type change to show/hide sila/nouze and filter units
+  const tDef=TYPE_DEF.find(t=>t.val===selType);
+  document.getElementById('sila-wrap').style.display=(tDef?.hasSila)?'':'none';
+  document.getElementById('nouze-wrap').style.display=(tDef?.hasNouze)?'':'none';
+  if(tDef?.hasSila){ selSila=r.sila||'giga'; buildSilaSel(selType==='boureni'); }
+  if(tDef?.unitFilter==='noble'){
+    Array.from(document.getElementById('unit-sel').options).forEach(o=>o.style.display=o.value==='noble'?'':'none');
+    document.getElementById('unit-sel').value='noble';
+    document.getElementById('unit-wrap').style.opacity='.5';
+  } else {
+    Array.from(document.getElementById('unit-sel').options).forEach(o=>o.style.display='');
+    document.getElementById('unit-wrap').style.opacity='1';
+  }
+  // fill coords
+  document.getElementById('src-x').value=r.srcX;
+  document.getElementById('src-y').value=r.srcY;
+  document.getElementById('tgt-x').value=r.tgtX;
+  document.getElementById('tgt-y').value=r.tgtY;
+  document.getElementById('unit-sel').value=r.unit;
+  // fill arrival time
+  fillArrival(r.arrivalTime, r.arrivalTime%1000);
+  // fill nouze
+  if(r.nouze) document.getElementById('nouze-pct').value=r.nouze;
+  // update add button
+  const btn=document.querySelector('.toolbar .btn-add');
+  btn.textContent='💾 Uložit'; btn.style.background='#3a7a3a';
+  // scroll to toolbar
+  document.querySelector('.toolbar').scrollIntoView({behavior:'smooth',block:'nearest'});
+  renderTable();
+}
+function cancelEdit(){
+  editingId=null;
+  const btn=document.querySelector('.toolbar .btn-add');
+  btn.textContent='+ Přidat'; btn.style.background='var(--gold)';
+}
 
 // ── FORMAT ─────────────────────────────────────────────────
 function pad(n,w=2){return String(Math.floor(n)).padStart(w,'0');}
@@ -521,12 +589,16 @@ function renderTable() {
   if(!rows.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">Zatím žádné útoky. Přidej první výše.</td></tr>';return;}
   const now=Date.now();
   tbody.innerHTML=[...rows].sort((a,b)=>a.sendTime-b.sendTime).map(r=>{
-    const isSent=r.sent,isPast=r.sendTime<now&&!isSent;
-    const cls=isSent?'row-sent':isPast?'row-past':'';
+    const isPlayed=r.sent, isPast=r.sendTime<now&&!isPlayed, isEditing=editingId===r.id;
+    const cls=isEditing?'row-editing':isPlayed?'row-played':isPast?'row-past':'';
     const diff=r.sendTime-now;
-    let cdHtml=isSent?`<span class="cd sent">✓ Odesláno</span>`:diff<=0?`<span class="cd done">Zmeškal</span>`:`<span class="cd ${diff<120000?'urgent':'ok'}" id="cd-${r.id}">${fmtCountdown(diff)}</span>`;
+    let cdHtml;
+    if(isPlayed) cdHtml=`<span class="cd sent" style="cursor:pointer;font-size:13px;" onclick="togglePlayed(${r.id})" title="Klikni pro odznačení">✓ Odešlo</span>`;
+    else if(diff<=0) cdHtml=`<span class="cd done" style="cursor:pointer;" onclick="togglePlayed(${r.id})" title="Klikni pro označení jako Odešlo">Zmeškal</span>`;
+    else cdHtml=`<span class="cd ${diff<120000?'urgent':'ok'}" id="cd-${r.id}">${fmtCountdown(diff)}</span>`;
     const tDef=TYPE_DEF.find(t=>t.val===r.type)||TYPE_DEF[0];
     const sDef=r.sila?SILA_DEF.find(s=>s.val===r.sila):null;
+    const playSvg=`<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>`;
     return `<tr class="${cls}">
       <td><div class="type-cell">
         ${TYPE_ICONS_HTML[r.type]?.()}
@@ -540,9 +612,10 @@ function renderTable() {
       <td class="send-t">${fmtTime(r.sendTime)}</td>
       <td class="arr-t">${fmtTime(r.arrivalTime)}</td>
       <td>${cdHtml}</td>
-      <td style="white-space:nowrap;">
-        <button class="sent-mark" onclick="markSent(${r.id})">${r.sent?'↩️':'✅'}</button>
-        <button class="del-btn" onclick="removeRow(${r.id})">✕</button>
+      <td style="white-space:nowrap;display:flex;align-items:center;gap:3px;padding:5px 8px;">
+        <button class="play-btn ${isPlayed?'played':''}" onclick="togglePlayed(${r.id})" title="${isPlayed?'Odznačit jako odesláno':'Označit jako odesláno'}">${playSvg}</button>
+        <button class="edit-btn" onclick="editRow(${r.id})" title="Upravit">✎</button>
+        <button class="del-btn" onclick="removeRow(${r.id})" title="Smazat">✕</button>
       </td>
     </tr>`;
   }).join('');
@@ -552,12 +625,21 @@ function renderTable() {
 function updateCountdowns() {
   const now=Date.now(),sLead=getSoundLeadMin()*60000,pLead=getPushLeadMin()*60000;
   rows.forEach(r=>{
-    if(r.sent)return;
+    if(r.sent) return;
     const diff=r.sendTime-now;
     const el=document.getElementById(`cd-${r.id}`);
     if(el){
-      if(diff<=0){el.textContent='Zmeškal';el.className='cd done';el.closest('tr')?.classList.add('row-past');}
-      else{el.className=`cd ${diff<120000?'urgent':'ok'}`;el.textContent=fmtCountdown(diff);}
+      if(diff<=0){
+        el.textContent='Zmeškal'; el.className='cd done';
+        el.style.cursor='pointer'; el.title='Klikni pro označení jako Odešlo';
+        el.onclick=()=>togglePlayed(r.id);
+        const tr=el.closest('tr');
+        if(tr&&!tr.classList.contains('row-past')&&!tr.classList.contains('row-played')) tr.classList.add('row-past');
+      } else {
+        el.className=`cd ${diff<120000?'urgent':'ok'}`;
+        el.textContent=fmtCountdown(diff);
+        el.style.cursor=''; el.onclick=null;
+      }
     }
     if(!alarmed.has(r.id)&&diff>0&&diff<=sLead){alarmed.add(r.id);triggerAlarm(r,diff);}
     if(!notified.has(r.id)&&notifEnabled&&diff>0&&diff<=pLead){notified.add(r.id);sendPush(r,diff);}
