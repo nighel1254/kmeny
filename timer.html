@@ -591,20 +591,20 @@ async function addRow() {
   const arrivalTime=getArrivalTime();
   if(!arrivalTime){toast('Zadej čas dopadu!','err');return;}
 
-  let travel=travelMs(srcX,srcY,tgtX,tgtY,unit);
-  if(nouze>0) travel=travel*(1-nouze/100);
-  const sendTime=arrivalTime-travel;
-  const now=Date.now();
-  if(arrivalTime<=now){toast('Čas dopadu je již v minulosti!','err');return;}
-  if(sendTime<now){toast('Čas odeslání je v minulosti – útok/podpora již odletěla nebo jsi zmeškal!','err');return;}
-
-  // ── village lookup ──
+  // ── village lookup (první – špatné koordináty = srozumitelná chyba) ──
   toast('Ověřuji vesnice…','');
   try { await ensureVillages(); } catch { toast('Nepodařilo se načíst data vesnic.','err'); return; }
   const srcV=lookupVillage(srcX,srcY);
   const tgtV=lookupVillage(tgtX,tgtY);
   if(!srcV){toast(`Zdrojová vesnice ${srcX}|${srcY} neexistuje!`,'err');return;}
   if(!tgtV){toast(`Cílová vesnice ${tgtX}|${tgtY} neexistuje!`,'err');return;}
+
+  let travel=travelMs(srcX,srcY,tgtX,tgtY,unit);
+  if(nouze>0) travel=travel*(1-nouze/100);
+  const sendTime=arrivalTime-travel;
+  const now=Date.now();
+  if(arrivalTime<=now){toast('Čas dopadu je již v minulosti!','err');return;}
+  if(sendTime<now){toast(`Čas odeslání (${fmtTime(sendTime)}) je v minulosti!`,'err');return;}
 
   if(editingId!==null){
     const idx=rows.findIndex(r=>r.id===editingId);
