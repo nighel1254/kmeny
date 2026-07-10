@@ -510,7 +510,7 @@ async function loadWorldSpeed() {
     unitSpeedMult=parseFloat(cfg.querySelector('unit_speed')?.textContent||'1');
     const ru=await fetchWithFallback(`${API_BASE}/interface.php?func=get_unit_info`);
     const uid=new DOMParser().parseFromString(await ru.text(),'text/xml');
-    const um={spear:'spear',sword:'sword',axe:'axe',spy:'scout',light:'lk',paladin:'paladin',heavy:'tk',ram:'ram',catapult:'catapult',snob:'noble'};
+    const um={spear:'spear',sword:'sword',axe:'axe',spy:'scout',light:'lk',knight:'paladin',heavy:'tk',ram:'ram',catapult:'catapult',snob:'noble'};
     for(const[xn,k] of Object.entries(um)){const s=parseFloat(uid.querySelector(`${xn} > speed`)?.textContent);if(!isNaN(s)&&s>0)UNIT_SPEEDS_S[k]=s*60;}
     apiSpeedsLoaded=true;
     document.getElementById('speed-info').textContent=`✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}× | axe=${Math.round(UNIT_SPEEDS_S.axe)}s ram=${Math.round(UNIT_SPEEDS_S.ram)}s paladin=${Math.round(UNIT_SPEEDS_S.paladin)}s`;
