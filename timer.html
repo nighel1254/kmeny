@@ -459,7 +459,7 @@ async function ensureVillages() {
         fetchWithFallback(`${API_BASE}/map/player.txt`)
       ]);
       (await pr.text()).trim().split('\n').forEach(line=>{
-        const [id,,name]=line.split(',');
+        const [id,name]=line.split(',');
         _players.set(id, decodeURIComponent((name||'').replace(/\+/g,' ')));
       });
       _villages = (await vr.text()).trim().split('\n').map(line=>{
