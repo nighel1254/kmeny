@@ -492,8 +492,29 @@ let editingId=null;
 
 // ── STORAGE ────────────────────────────────────────────────
 const LS_KEY='dk_timer_rows_v3';
-function saveRows(){ try{localStorage.setItem(LS_KEY,JSON.stringify(rows));}catch{} }
+function saveRows(){
+  try{localStorage.setItem(LS_KEY,JSON.stringify(rows));}catch{}
+  syncRowsToCloud().catch(()=>{});
+}
 function loadRows(){ try{rows=JSON.parse(localStorage.getItem(LS_KEY)||'[]');}catch{rows=[];} nextId=rows.reduce((m,r)=>Math.max(m,r.id+1),1); }
+
+async function syncRowsToCloud(){
+  const sb=getSb();if(!sb)return;
+  const{data:{session}}=await sb.auth.getSession();if(!session)return;
+  await sb.from('timer_rows').upsert({user_id:session.user.id,rows:rows,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+}
+async function loadRowsFromCloud(){
+  const sb=getSb();if(!sb)return false;
+  try{
+    const{data:{session}}=await sb.auth.getSession();if(!session)return false;
+    const{data,error}=await sb.from('timer_rows').select('rows,updated_at').eq('user_id',session.user.id).maybeSingle();
+    if(error||!data)return false;
+    rows=data.rows||[];
+    nextId=rows.reduce((m,r)=>Math.max(m,r.id+1),1);
+    localStorage.setItem(LS_KEY,JSON.stringify(rows));
+    return true;
+  }catch{return false;}
+}
 function saveSoundLead(v){ localStorage.setItem('dk_timer_sl',String(Math.max(1,Math.min(60,parseInt(v)||2)))); alarmed.clear(); }
 function getSoundLeadMin(){ return Math.max(1,parseInt(localStorage.getItem('dk_timer_sl'))||2); }
 function savePushLead(v) { localStorage.setItem('dk_timer_pl',String(Math.max(1,Math.min(60,parseInt(v)||2)))); }
@@ -911,6 +932,8 @@ function toast(msg,type='',ms=3500){const el=document.getElementById('toast');el
 loadRows(); renderTable(); loadWorldSpeed();
 document.getElementById('sound-lead-input').value=getSoundLeadMin();
 document.getElementById('push-lead-input').value=getPushLeadMin();
+// load from cloud (overwrites localStorage if logged in)
+loadRowsFromCloud().then(ok=>{if(ok){renderTable();toast('✓ Plány načteny z účtu','ok',2500);}});
 
 // Default arrival +1h
 const _da=new Date(Date.now()+3600000);_da.setMilliseconds(0);
