@@ -508,8 +508,13 @@ async function loadRowsFromCloud(){
   try{
     const{data:{session}}=await sb.auth.getSession();if(!session)return false;
     const{data,error}=await sb.from('timer_rows').select('rows,updated_at').eq('user_id',session.user.id).maybeSingle();
-    if(error||!data)return false;
-    rows=data.rows||[];
+    if(error)return false;
+    if(!data||!data.rows||data.rows.length===0){
+      // cloud empty — migrate localStorage to cloud
+      if(rows.length>0) await sb.from('timer_rows').upsert({user_id:session.user.id,rows:rows,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+      return rows.length>0;
+    }
+    rows=data.rows;
     nextId=rows.reduce((m,r)=>Math.max(m,r.id+1),1);
     localStorage.setItem(LS_KEY,JSON.stringify(rows));
     return true;
