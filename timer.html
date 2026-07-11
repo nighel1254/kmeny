@@ -125,7 +125,7 @@
     .arrival-text{width:168px;}
     thead th,td{padding:5px 6px;font-size:11px;}
     .cd{font-size:13px;}
-    th:nth-child(7),td:nth-child(7),th:nth-child(1),td:nth-child(1){display:none;}
+    th:nth-child(2),td:nth-child(2),th:nth-child(6),td:nth-child(6),th:nth-child(7),td:nth-child(7){display:none;}
     .header h1{font-size:15px;}
     .img-sel-trigger{min-width:140px;}
   }
@@ -516,6 +516,8 @@ async function loadRowsFromCloud(){
     }
     rows=data.rows;
     nextId=rows.reduce((m,r)=>Math.max(m,r.id+1),1);
+    // if API speeds already loaded, recalculate sendTimes with correct speeds
+    if(apiSpeedsLoaded){rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=r.arrivalTime-t;});}
     localStorage.setItem(LS_KEY,JSON.stringify(rows));
     return true;
   }catch{return false;}
