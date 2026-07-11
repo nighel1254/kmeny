@@ -125,7 +125,7 @@
     .arrival-text{width:168px;}
     thead th,td{padding:5px 6px;font-size:11px;}
     .cd{font-size:13px;}
-    th:nth-child(3),td:nth-child(3){display:none;}
+    th:nth-child(7),td:nth-child(7),th:nth-child(1),td:nth-child(1){display:none;}
     .header h1{font-size:15px;}
     .img-sel-trigger{min-width:140px;}
   }
@@ -260,9 +260,9 @@
       <th>Typ</th>
       <th>Cíl</th>
       <th>Jednotka</th>
-      <th>Trvání</th>
       <th>Čas odeslání</th>
       <th>Dopady</th>
+      <th>Trvání</th>
       <th>Odpočet</th>
       <th>▶</th>
     </tr>
@@ -276,6 +276,7 @@
 <div id="alarm-popup"></div>
 <div id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ── CONFIG ────────────────────────────────────────────────────
 const WORLD    = 'cs112';
@@ -514,7 +515,7 @@ async function loadWorldSpeed() {
     for(const[xn,k] of Object.entries(um)){const s=parseFloat(uid.querySelector(`${xn} > speed`)?.textContent);if(!isNaN(s)&&s>0)UNIT_SPEEDS_S[k]=s*60;}
     apiSpeedsLoaded=true;
     document.getElementById('speed-info').textContent=`✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}× | `;
-    rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit,r.type);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=r.arrivalTime-t;});
+    rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=r.arrivalTime-t;});
     saveRows(); renderTable();
   } catch {
     document.getElementById('speed-info').textContent='⚠ Výchozí rychlost';
@@ -617,24 +618,24 @@ async function addRow() {
       alarmed.delete(editingId); notified.delete(editingId);
     }
     cancelEdit(false);
-    saveRows(); renderTable();
+    saveRows(); renderTable(); pushUpdateAlarms();
     toast('Řádek uložen.','ok');
   } else {
     rows.push({id:nextId++,srcX,srcY,tgtX,tgtY,unit,type,sila,nouze,arrivalTime,sendTime,sent:false,
       srcName:srcV.name,srcPlayer:srcV.player,srcId:srcV.id,
       tgtName:tgtV.name,tgtPlayer:tgtV.player,tgtId:tgtV.id});
-    saveRows(); renderTable();
+    saveRows(); renderTable(); pushUpdateAlarms();
     toast(`Přidáno – odeslat v ${fmtTime(sendTime)}`,'ok');
   }
 }
 
 function removeRow(id){
   if(editingId===id){cancelEdit();}
-  rows=rows.filter(r=>r.id!==id);alarmed.delete(id);notified.delete(id);playing.delete(id);saveRows();renderTable();
+  rows=rows.filter(r=>r.id!==id);alarmed.delete(id);notified.delete(id);playing.delete(id);saveRows();renderTable();pushUpdateAlarms();
 }
 function togglePlayed(id){
   const r=rows.find(r=>r.id===id); if(!r)return;
-  r.sent=!r.sent; playing.delete(id); saveRows(); renderTable();
+  r.sent=!r.sent; playing.delete(id); saveRows(); renderTable();pushUpdateAlarms();
 }
 function startPlay(id){
   const r=rows.find(r=>r.id===id); if(!r)return;
@@ -684,6 +685,7 @@ function cancelEdit(rerender=true){
 
 // ── FORMAT ─────────────────────────────────────────────────
 function pad(n,w=2){return String(Math.floor(n)).padStart(w,'0');}
+function fmtArr(ms){const d=new Date(ms);return `${pad(d.getDate())}.${pad(d.getMonth()+1)}. ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}:${pad(ms%1000,3)}`;}
 function fmtDur(ms){const t=Math.round(ms/1000);const h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return `${h}:${pad(m)}:${pad(s)}`;}
 function fmtTime(ms){const d=new Date(ms);return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}:${pad(ms%1000,3)}`;}
 function fmtCountdown(ms){
@@ -743,9 +745,9 @@ function renderTable() {
       <td class="unit-cell" style="white-space:nowrap;">
         ${unitImg(UNIT_IMG[r.unit]||'axe')} ${UNIT_LABELS[r.unit]||r.unit}
       </td>
-      <td style="white-space:nowrap;color:var(--dim);">${fmtDur(r.arrivalTime-r.sendTime)}</td>
       <td class="send-t">${fmtTime(r.sendTime)}</td>
-      <td class="arr-t">${fmtTime(r.arrivalTime)}</td>
+      <td class="arr-t">${fmtArr(r.arrivalTime)}</td>
+      <td style="white-space:nowrap;color:var(--dim);">${fmtDur(r.arrivalTime-r.sendTime)}</td>
       <td>${cdHtml}</td>
       <td style="white-space:nowrap;display:flex;align-items:center;gap:3px;padding:5px 8px;">
         <button class="play-btn ${playCls}" onclick="startPlay(${r.id})" title="${playTitle}">${playSvg}</button>
@@ -823,24 +825,82 @@ function toggleSound(){
   else{soundUnlocked=true;banner.style.background='#0a1a0a';banner.style.borderColor='#1a4a1a';btn.textContent='✓ Zapnuto';btn.style.background='#205020';btn.style.color='#80d080';setTimeout(()=>playSiren(.15),100);}
 }
 
-// ── NOTIFICATIONS ──────────────────────────────────────────
+// ── PUSH NOTIFICATIONS (background) ───────────────────────
+const SUPABASE_URL='https://ucvgyduiyvfhxbyypyih.supabase.co';
+const SUPABASE_KEY='sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
+const VAPID_PUBLIC='BHrpp7MbdTooRg22UB1ePAGUfmJR2oHhH_BTqhzDKxGnrsJLpprM9vJdz914Nqcy5NCBJsjtAUvJoN5NUo4OzOY';
+const TIMER_PLAN_ID='timer-v1';
+let swRegistration=null,_sb=null;
+function getSb(){if(!_sb&&typeof supabase!=='undefined')_sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);return _sb;}
+async function initServiceWorker(){
+  if(!('serviceWorker' in navigator))return null;
+  try{swRegistration=await navigator.serviceWorker.register('/kmeny/sw.js');await navigator.serviceWorker.ready;return swRegistration;}
+  catch(e){console.warn('SW failed:',e);return null;}
+}
+function urlBase64ToUint8Array(b64){const p='='.repeat((4-b64.length%4)%4);const b=(b64+p).replace(/-/g,'+').replace(/_/g,'/');const r=atob(b);return new Uint8Array([...r].map(c=>c.charCodeAt(0)));}
+
+function buildAlarms(){
+  const leadMs=getPushLeadMin()*60000;
+  const now=Date.now();
+  return rows.filter(r=>!r.sent&&r.sendTime-now>60000).map(r=>({
+    send_time:Math.round(r.sendTime),notify_at:Math.round(r.sendTime)-leadMs,lead_ms:leadMs,
+    src:`${r.srcX}|${r.srcY}`,tgt:`${r.tgtX}|${r.tgtY}`,row_key:String(r.id),
+    plan_id:TIMER_PLAN_ID,plan_label:'Časovač útoků'
+  }));
+}
+
+async function pushUpdateAlarms(){
+  const sb=getSb();if(!sb)return;
+  try{
+    const{data:{session}}=await sb.auth.getSession();if(!session)return;
+    const reg=await initServiceWorker();if(!reg)return;
+    const sub=await reg.pushManager.getSubscription();if(!sub)return;
+    let deviceId=localStorage.getItem('dk_device_id');
+    if(!deviceId){deviceId=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('dk_device_id',deviceId);}
+    const fresh=buildAlarms();
+    const{data:existing}=await sb.from('push_subscriptions').select('alarms').eq('user_id',session.user.id).eq('device_id',deviceId).maybeSingle();
+    const merged=[...(existing?.alarms||[]).filter(a=>a.plan_id!==TIMER_PLAN_ID),...fresh];
+    await sb.from('push_subscriptions').upsert({user_id:session.user.id,device_id:deviceId,subscription:JSON.stringify(sub.toJSON()),alarms:merged,updated_at:new Date().toISOString()},{onConflict:'user_id,device_id'});
+  }catch(e){console.warn('pushUpdateAlarms:',e);}
+}
+
 async function toggleNotif(){
   const btn=document.getElementById('notif-btn');
   if(notifEnabled){
     notifEnabled=false;btn.textContent='🔔 Notifikace';btn.style.color='';btn.style.borderColor='';
+    // remove alarms from Supabase
+    try{const sb=getSb();if(sb){const{data:{session}}=await sb.auth.getSession();if(session){const dId=localStorage.getItem('dk_device_id')||'default';const{data:row}=await sb.from('push_subscriptions').select('alarms').eq('user_id',session.user.id).eq('device_id',dId).maybeSingle();if(row){const rem=(row.alarms||[]).filter(a=>a.plan_id!==TIMER_PLAN_ID);await sb.from('push_subscriptions').update({alarms:rem,updated_at:new Date().toISOString()}).eq('user_id',session.user.id).eq('device_id',dId);}}}}catch(e){}
     toast('Notifikace vypnuty','');return;
   }
   if(!('Notification' in window)){toast('Prohlížeč nepodporuje notifikace.','err');return;}
   const perm=await Notification.requestPermission();
   if(perm!=='granted'){toast('Notifikace nebyly povoleny prohlížečem.','err');return;}
+  const reg=await initServiceWorker();
+  const sb=getSb();
+  const session=sb?(await sb.auth.getSession()).data.session:null;
+  if(reg&&sb&&session){
+    try{
+      let sub=await reg.pushManager.getSubscription();
+      if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC)});
+      let deviceId=localStorage.getItem('dk_device_id');
+      if(!deviceId){deviceId=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('dk_device_id',deviceId);}
+      const fresh=buildAlarms();
+      const{data:existing}=await sb.from('push_subscriptions').select('alarms').eq('user_id',session.user.id).eq('device_id',deviceId).maybeSingle();
+      const merged=[...(existing?.alarms||[]).filter(a=>a.plan_id!==TIMER_PLAN_ID),...fresh];
+      await sb.from('push_subscriptions').upsert({user_id:session.user.id,device_id:deviceId,subscription:JSON.stringify(sub.toJSON()),alarms:merged,updated_at:new Date().toISOString()},{onConflict:'user_id,device_id'});
+      notifEnabled=true;btn.textContent='🔔 Notifikace ✓';btn.style.color='#60d060';btn.style.borderColor='#1a4a1a';
+      toast(`✓ Background notifikace zapnuty (${fresh.length} alarmů)`, 'ok',5000);
+      return;
+    }catch(e){console.warn('Push setup failed:',e);}
+  }
+  // fallback: in-page only
   notifEnabled=true;btn.textContent='🔔 Notifikace ✓';btn.style.color='#60d060';btn.style.borderColor='#1a4a1a';
-  // test notification
-  new Notification('⚔ Časovač útoků',{body:'Notifikace jsou zapnuty.',tag:'timer-test'});
-  toast('Notifikace zapnuty – testovací notifikace odeslána','ok');
+  new Notification('⚔ Časovač útoků',{body:'Notifikace zapnuty (jen při otevřené stránce).',tag:'timer-test'});
+  toast('Notifikace zapnuty – fungují jen při otevřené stránce (přihlas se pro background notifikace)','ok',6000);
 }
 function sendPush(r,diffMs){
   if(!notifEnabled||Notification.permission!=='granted')return;
-  new Notification(`⚔ Odeslat za ${Math.round(diffMs/1000)}s`,{body:`${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}\nDopad: ${fmtTime(r.arrivalTime)}`,tag:`timer-${r.id}`,requireInteraction:true});
+  new Notification(`⚔ Odeslat za ${Math.round(diffMs/1000)}s`,{body:`${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}\nDopad: ${fmtArr(r.arrivalTime)}`,tag:`timer-${r.id}`,requireInteraction:true});
 }
 
 // ── TOAST ──────────────────────────────────────────────────
