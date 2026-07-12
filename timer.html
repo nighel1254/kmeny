@@ -881,14 +881,13 @@ async function pushUpdateAlarms(){
   const sb=getSb();if(!sb)return;
   try{
     const{data:{session}}=await sb.auth.getSession();if(!session)return;
-    const reg=await initServiceWorker();if(!reg)return;
-    const sub=await reg.pushManager.getSubscription();if(!sub)return;
-    let deviceId=localStorage.getItem('dk_device_id');
-    if(!deviceId){deviceId=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('dk_device_id',deviceId);}
     const fresh=buildAlarms();
-    const{data:existing}=await sb.from('push_subscriptions').select('alarms').eq('user_id',session.user.id).eq('device_id',deviceId).maybeSingle();
-    const merged=[...(existing?.alarms||[]).filter(a=>a.plan_id!==TIMER_PLAN_ID),...fresh];
-    await sb.from('push_subscriptions').upsert({user_id:session.user.id,device_id:deviceId,subscription:JSON.stringify(sub.toJSON()),alarms:merged,updated_at:new Date().toISOString()},{onConflict:'user_id,device_id'});
+    // update alarms on ALL devices (like myplan.html) so cron fires on every device
+    const{data:allRows}=await sb.from('push_subscriptions').select('device_id,alarms').eq('user_id',session.user.id);
+    for(const row of allRows||[]){
+      const merged=[...(row.alarms||[]).filter(a=>a.plan_id!==TIMER_PLAN_ID),...fresh];
+      await sb.from('push_subscriptions').update({alarms:merged,updated_at:new Date().toISOString()}).eq('user_id',session.user.id).eq('device_id',row.device_id);
+    }
   }catch(e){console.warn('pushUpdateAlarms:',e);}
 }
 
@@ -945,8 +944,11 @@ if(Notification.permission==='granted'&&localStorage.getItem('dk_timer_notif')==
   const _nb=document.getElementById('notif-btn');
   _nb.textContent='🔔 Notifikace ✓';_nb.style.color='#60d060';_nb.style.borderColor='#1a4a1a';
 }
-// load from cloud (overwrites localStorage if logged in)
-loadRowsFromCloud().then(ok=>{if(ok){renderTable();toast('✓ Plány načteny z účtu','ok',2500);}});
+// load from cloud (overwrites localStorage if logged in), then refresh alarms in Supabase
+loadRowsFromCloud().then(ok=>{
+  if(ok){renderTable();toast('✓ Plány načteny z účtu','ok',2500);}
+  if(notifEnabled)pushUpdateAlarms().catch(()=>{});
+});
 
 // Default arrival +1h
 const _da=new Date(Date.now()+3600000);_da.setMilliseconds(0);
