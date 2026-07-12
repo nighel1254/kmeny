@@ -125,7 +125,7 @@
     .arrival-text{width:168px;}
     thead th,td{padding:5px 6px;font-size:11px;}
     .cd{font-size:13px;}
-    th:nth-child(2),td:nth-child(2),th:nth-child(6),td:nth-child(6),th:nth-child(7),td:nth-child(7){display:none;}
+    th:nth-child(7),td:nth-child(7){display:none;}
     .header h1{font-size:15px;}
     .img-sel-trigger{min-width:140px;}
   }
@@ -895,7 +895,7 @@ async function pushUpdateAlarms(){
 async function toggleNotif(){
   const btn=document.getElementById('notif-btn');
   if(notifEnabled){
-    notifEnabled=false;btn.textContent='🔔 Notifikace';btn.style.color='';btn.style.borderColor='';
+    notifEnabled=false;localStorage.setItem('dk_timer_notif','0');btn.textContent='🔔 Notifikace';btn.style.color='';btn.style.borderColor='';
     // remove alarms from Supabase
     try{const sb=getSb();if(sb){const{data:{session}}=await sb.auth.getSession();if(session){const dId=localStorage.getItem('dk_device_id')||'default';const{data:row}=await sb.from('push_subscriptions').select('alarms').eq('user_id',session.user.id).eq('device_id',dId).maybeSingle();if(row){const rem=(row.alarms||[]).filter(a=>a.plan_id!==TIMER_PLAN_ID);await sb.from('push_subscriptions').update({alarms:rem,updated_at:new Date().toISOString()}).eq('user_id',session.user.id).eq('device_id',dId);}}}}catch(e){}
     toast('Notifikace vypnuty','');return;
@@ -916,13 +916,13 @@ async function toggleNotif(){
       const{data:existing}=await sb.from('push_subscriptions').select('alarms').eq('user_id',session.user.id).eq('device_id',deviceId).maybeSingle();
       const merged=[...(existing?.alarms||[]).filter(a=>a.plan_id!==TIMER_PLAN_ID),...fresh];
       await sb.from('push_subscriptions').upsert({user_id:session.user.id,device_id:deviceId,subscription:JSON.stringify(sub.toJSON()),alarms:merged,updated_at:new Date().toISOString()},{onConflict:'user_id,device_id'});
-      notifEnabled=true;btn.textContent='🔔 Notifikace ✓';btn.style.color='#60d060';btn.style.borderColor='#1a4a1a';
+      notifEnabled=true;localStorage.setItem('dk_timer_notif','1');btn.textContent='🔔 Notifikace ✓';btn.style.color='#60d060';btn.style.borderColor='#1a4a1a';
       toast(`✓ Background notifikace zapnuty (${fresh.length} alarmů)`, 'ok',5000);
       return;
     }catch(e){console.warn('Push setup failed:',e);}
   }
   // fallback: in-page only
-  notifEnabled=true;btn.textContent='🔔 Notifikace ✓';btn.style.color='#60d060';btn.style.borderColor='#1a4a1a';
+  notifEnabled=true;localStorage.setItem('dk_timer_notif','1');btn.textContent='🔔 Notifikace ✓';btn.style.color='#60d060';btn.style.borderColor='#1a4a1a';
   new Notification('⚔ Časovač útoků',{body:'Notifikace zapnuty (jen při otevřené stránce).',tag:'timer-test'});
   toast('Notifikace zapnuty – fungují jen při otevřené stránce (přihlas se pro background notifikace)','ok',6000);
 }
@@ -939,6 +939,12 @@ function toast(msg,type='',ms=3500){const el=document.getElementById('toast');el
 loadRows(); renderTable(); loadWorldSpeed();
 document.getElementById('sound-lead-input').value=getSoundLeadMin();
 document.getElementById('push-lead-input').value=getPushLeadMin();
+// restore notification button state
+if(Notification.permission==='granted'&&localStorage.getItem('dk_timer_notif')==='1'){
+  notifEnabled=true;
+  const _nb=document.getElementById('notif-btn');
+  _nb.textContent='🔔 Notifikace ✓';_nb.style.color='#60d060';_nb.style.borderColor='#1a4a1a';
+}
 // load from cloud (overwrites localStorage if logged in)
 loadRowsFromCloud().then(ok=>{if(ok){renderTable();toast('✓ Plány načteny z účtu','ok',2500);}});
 
