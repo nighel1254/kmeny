@@ -718,7 +718,7 @@ function cancelEdit(rerender=true){
 function pad(n,w=2){return String(Math.floor(n)).padStart(w,'0');}
 function fmtArr(ms){const d=new Date(ms);return `${pad(d.getDate())}.${pad(d.getMonth()+1)}. ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}:${pad(ms%1000,3)}`;}
 function fmtDur(ms){const t=Math.round(ms/1000);const h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return `${h}:${pad(m)}:${pad(s)}`;}
-function fmtTime(ms){const d=new Date(ms);return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}:${pad(ms%1000,3)}`;}
+function fmtTime(ms){const d=new Date(ms);return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;}
 function fmtCountdown(ms){
   if(ms<=0)return null;
   const s=Math.floor(ms/1000)%60,m=Math.floor(ms/60000)%60,h=Math.floor(ms/3600000),f=ms%1000;
