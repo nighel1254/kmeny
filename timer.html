@@ -517,9 +517,9 @@ async function loadRowsFromCloud(){
       if(rows.length>0) await sb.from('timer_rows').upsert({user_id:session.user.id,rows:rows,updated_at:new Date().toISOString()},{onConflict:'user_id'});
       return rows.length>0;
     }
-    // deduplicate by id (cloud can accumulate duplicates on race conditions)
+    // deduplicate by content key (same src+tgt+unit+arrival = duplicate)
     const seen=new Set();
-    rows=data.rows.filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+    rows=data.rows.filter(r=>{const k=`${r.srcX},${r.srcY},${r.tgtX},${r.tgtY},${r.unit},${Math.floor(r.arrivalTime/1000)}`;if(seen.has(k))return false;seen.add(k);return true;});
     nextId=rows.reduce((m,r)=>Math.max(m,r.id+1),1);
     // if API speeds already loaded, recalculate sendTimes with correct speeds
     if(apiSpeedsLoaded){rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=Math.floor(r.arrivalTime/1000)*1000-t;});}
@@ -643,6 +643,7 @@ async function addRow() {
   const now=Date.now();
   if(arrivalTime<=now){toast('Čas dopadu je již v minulosti!','err');return;}
   if(sendTime<now){toast(`Čas odeslání (${fmtTime(sendTime)}) vychází v minulosti – nestiháš!`,'err');return;}
+  if(editingId===null){const dup=rows.find(r=>r.srcX===srcX&&r.srcY===srcY&&r.tgtX===tgtX&&r.tgtY===tgtY&&r.unit===unit&&Math.floor(r.arrivalTime/1000)===Math.floor(arrivalTime/1000));if(dup){toast('Tento útok již v plánu existuje!','err');return;}}
 
   if(editingId!==null){
     const idx=rows.findIndex(r=>r.id===editingId);
