@@ -489,7 +489,11 @@ let worldSpeed=1, unitSpeedMult=1, apiSpeedsLoaded=false;
 // ── STATE ──────────────────────────────────────────────────
 let rows=[]; let nextId=1;
 let soundUnlocked=false, notifEnabled=false, _audioCtx=null;
-const alarmed=new Set(), notified=new Set(), playing=new Set();
+const alarmed=new Set(), playing=new Set();
+// notified persists across reloads so in-page notification doesn't re-fire
+function _loadNotified(){try{const d=JSON.parse(localStorage.getItem('dk_timer_notified')||'{}');const now=Date.now();return new Set(Object.entries(d).filter(([,t])=>t>now-3600000).map(([k])=>parseInt(k)));}catch{return new Set();}}
+function _saveNotified(){const o={};notified.forEach(id=>{o[id]=Date.now();});try{localStorage.setItem('dk_timer_notified',JSON.stringify(o));}catch{}}
+const notified=_loadNotified();
 let _popupTmo=null;
 let editingId=null;
 
@@ -820,7 +824,7 @@ function updateCountdowns() {
       }
     }
     if(!alarmed.has(r.id)&&diff>0&&diff<=sLead){alarmed.add(r.id);triggerAlarm(r,diff);}
-    if(!notified.has(r.id)&&notifEnabled&&diff>0&&diff<=pLead){notified.add(r.id);sendPush(r,diff);}
+    if(!notified.has(r.id)&&notifEnabled&&diff>0&&diff<=pLead){notified.add(r.id);_saveNotified();sendPush(r,diff);}
   });
   if(needRender) renderTable();
 }
@@ -889,13 +893,14 @@ async function pushUpdateAlarms(){
   const sb=getSb();if(!sb)return;
   try{
     const{data:{session}}=await sb.auth.getSession();if(!session)return;
+    const reg=await initServiceWorker();if(!reg)return;
+    const sub=await reg.pushManager.getSubscription();if(!sub)return;
+    let deviceId=localStorage.getItem('dk_device_id');
+    if(!deviceId){deviceId=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('dk_device_id',deviceId);}
     const fresh=buildAlarms();
-    // update alarms on ALL devices (like myplan.html) so cron fires on every device
-    const{data:allRows}=await sb.from('push_subscriptions').select('device_id,alarms').eq('user_id',session.user.id);
-    for(const row of allRows||[]){
-      const merged=[...(row.alarms||[]).filter(a=>a.plan_id!==TIMER_PLAN_ID),...fresh];
-      await sb.from('push_subscriptions').update({alarms:merged,updated_at:new Date().toISOString()}).eq('user_id',session.user.id).eq('device_id',row.device_id);
-    }
+    const{data:existing}=await sb.from('push_subscriptions').select('alarms').eq('user_id',session.user.id).eq('device_id',deviceId).maybeSingle();
+    const merged=[...(existing?.alarms||[]).filter(a=>a.plan_id!==TIMER_PLAN_ID),...fresh];
+    await sb.from('push_subscriptions').upsert({user_id:session.user.id,device_id:deviceId,subscription:JSON.stringify(sub.toJSON()),alarms:merged,updated_at:new Date().toISOString()},{onConflict:'user_id,device_id'});
   }catch(e){console.warn('pushUpdateAlarms:',e);}
 }
 
