@@ -517,11 +517,15 @@ async function loadRowsFromCloud(){
       if(rows.length>0) await sb.from('timer_rows').upsert({user_id:session.user.id,rows:rows,updated_at:new Date().toISOString()},{onConflict:'user_id'});
       return rows.length>0;
     }
-    rows=data.rows;
+    // deduplicate by id (cloud can accumulate duplicates on race conditions)
+    const seen=new Set();
+    rows=data.rows.filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
     nextId=rows.reduce((m,r)=>Math.max(m,r.id+1),1);
     // if API speeds already loaded, recalculate sendTimes with correct speeds
     if(apiSpeedsLoaded){rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=Math.floor(r.arrivalTime/1000)*1000-t;});}
     localStorage.setItem(LS_KEY,JSON.stringify(rows));
+    // push deduplicated rows back to cloud if we removed any
+    if(rows.length<data.rows.length) await sb.from('timer_rows').upsert({user_id:session.user.id,rows:rows,updated_at:new Date().toISOString()},{onConflict:'user_id'});
     return true;
   }catch{return false;}
 }
