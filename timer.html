@@ -517,7 +517,7 @@ async function loadRowsFromCloud(){
     rows=data.rows;
     nextId=rows.reduce((m,r)=>Math.max(m,r.id+1),1);
     // if API speeds already loaded, recalculate sendTimes with correct speeds
-    if(apiSpeedsLoaded){rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=r.arrivalTime-t;});}
+    if(apiSpeedsLoaded){rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=Math.floor(r.arrivalTime/1000)*1000-t;});}
     localStorage.setItem(LS_KEY,JSON.stringify(rows));
     return true;
   }catch{return false;}
@@ -543,7 +543,7 @@ async function loadWorldSpeed() {
     for(const[xn,k] of Object.entries(um)){const s=parseFloat(uid.querySelector(`${xn} > speed`)?.textContent);if(!isNaN(s)&&s>0)UNIT_SPEEDS_S[k]=s*60;}
     apiSpeedsLoaded=true;
     document.getElementById('speed-info').textContent=`✓ Rychlost světa: ${worldSpeed}× | jednotky: ${unitSpeedMult}× | `;
-    rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=r.arrivalTime-t;});
+    rows.forEach(r=>{let t=travelMs(r.srcX,r.srcY,r.tgtX,r.tgtY,r.unit);if(r.nouze>0)t*=(1-r.nouze/100);r.sendTime=Math.floor(r.arrivalTime/1000)*1000-t;});
     saveRows(); renderTable();
   } catch {
     document.getElementById('speed-info').textContent='⚠ Výchozí rychlost';
@@ -632,7 +632,7 @@ async function addRow() {
 
   let travel=travelMs(srcX,srcY,tgtX,tgtY,unit);
   if(nouze>0) travel=travel*(1-nouze/100);
-  const sendTime=arrivalTime-travel;
+  const sendTime=Math.floor(arrivalTime/1000)*1000-travel;
   const now=Date.now();
   if(arrivalTime<=now){toast('Čas dopadu je již v minulosti!','err');return;}
   if(sendTime<now){toast(`Čas odeslání (${fmtTime(sendTime)}) vychází v minulosti – nestiháš!`,'err');return;}
