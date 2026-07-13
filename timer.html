@@ -597,6 +597,9 @@ function parseArrivalStr(s) {
   // "DD.MM.YYYY HH:MM:SS.mmm" or ":mmm"
   m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})(?:[.:](\d{1,3}))?$/);
   if(m){const d=new Date(+m[3],+m[2]-1,+m[1],+m[4],+m[5],+m[6]);return{ts:d.getTime(),ms:msFromFrag(m[7])};}
+  // "DD.MM.YY HH:MM:SS:mmm" (2-digit year)
+  m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})\s+(\d{1,2}):(\d{2}):(\d{2})(?:[.:](\d{1,3}))?$/);
+  if(m){const yr=2000+ +m[3];const d=new Date(yr,+m[2]-1,+m[1],+m[4],+m[5],+m[6]);return{ts:d.getTime(),ms:msFromFrag(m[7])};}
   return null;
 }
 function fillArrival(ts,ms) {
@@ -722,6 +725,24 @@ function cancelEdit(rerender=true){
 // ── FORMAT ─────────────────────────────────────────────────
 function pad(n,w=2){return String(Math.floor(n)).padStart(w,'0');}
 function fmtArr(ms){const d=new Date(ms);return `${pad(d.getDate())}.${pad(d.getMonth()+1)}. ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}:${pad(ms%1000,3)}`;}
+function icsDate(ms){const d=new Date(ms);const p2=n=>String(n).padStart(2,'0');return `${d.getUTCFullYear()}${p2(d.getUTCMonth()+1)}${p2(d.getUTCDate())}T${p2(d.getUTCHours())}${p2(d.getUTCMinutes())}${p2(d.getUTCSeconds())}Z`;}
+function downloadIcs(id){
+  const r=rows.find(r=>r.id===id);if(!r)return;
+  const leadMs=getPushLeadMin()*60000;
+  const alarmMins=Math.round(leadMs/60000);
+  const ics=[
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//DK Plánovač//CS',
+    'BEGIN:VEVENT',
+    `UID:dk-timer-${r.id}@kmeny`,
+    `DTSTART:${icsDate(r.sendTime)}`,
+    `DTEND:${icsDate(r.sendTime+60000)}`,
+    `SUMMARY:⚔ Odeslat útok ${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}`,
+    `DESCRIPTION:Jednotka: ${UNIT_LABELS[r.unit]||r.unit}\\nDopad: ${fmtArr(r.arrivalTime)}`,
+    'BEGIN:VALARM',`TRIGGER:-PT${alarmMins}M`,'ACTION:DISPLAY',`DESCRIPTION:⚔ Za ${alarmMins} min odešli útok ${r.srcX}|${r.srcY} → ${r.tgtX}|${r.tgtY}`,'END:VALARM',
+    'END:VEVENT','END:VCALENDAR'
+  ].join('\r\n');
+  const a=document.createElement('a');a.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);a.download=`utok-${r.srcX}-${r.srcY}.ics`;a.click();
+}
 function fmtDur(ms){const t=Math.round(ms/1000);const h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return `${h}:${pad(m)}:${pad(s)}`;}
 function fmtTime(ms){const d=new Date(ms);return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;}
 function fmtCountdown(ms){
@@ -788,6 +809,7 @@ function renderTable() {
       <td style="white-space:nowrap;display:flex;align-items:center;gap:3px;padding:5px 8px;">
         <button class="play-btn ${playCls}" onclick="startPlay(${r.id})" title="${playTitle}">${playSvg}</button>
         <button class="edit-btn" onclick="editRow(${r.id})" title="Upravit">✎</button>
+        <button class="edit-btn" onclick="downloadIcs(${r.id})" title="Přidat do Kalendáře">📅</button>
         <button class="del-btn" onclick="removeRow(${r.id})" title="Smazat">✕</button>
       </td>
     </tr>`;
