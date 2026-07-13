@@ -489,11 +489,7 @@ let worldSpeed=1, unitSpeedMult=1, apiSpeedsLoaded=false;
 // ── STATE ──────────────────────────────────────────────────
 let rows=[]; let nextId=1;
 let soundUnlocked=false, notifEnabled=false, _audioCtx=null;
-const alarmed=new Set(), playing=new Set();
-// notified persists across reloads so in-page notification doesn't re-fire
-function _loadNotified(){try{const d=JSON.parse(localStorage.getItem('dk_timer_notified')||'{}');const now=Date.now();return new Set(Object.entries(d).filter(([,t])=>t>now-3600000).map(([k])=>parseInt(k)));}catch{return new Set();}}
-function _saveNotified(){const o={};notified.forEach(id=>{o[id]=Date.now();});try{localStorage.setItem('dk_timer_notified',JSON.stringify(o));}catch{}}
-const notified=_loadNotified();
+const alarmed=new Set(), notified=new Set(), playing=new Set();
 let _popupTmo=null;
 let editingId=null;
 
@@ -824,7 +820,7 @@ function updateCountdowns() {
       }
     }
     if(!alarmed.has(r.id)&&diff>0&&diff<=sLead){alarmed.add(r.id);triggerAlarm(r,diff);}
-    if(!notified.has(r.id)&&notifEnabled&&diff>0&&diff<=pLead){notified.add(r.id);_saveNotified();sendPush(r,diff);}
+    if(!notified.has(r.id)&&notifEnabled&&diff>0&&diff<=pLead){notified.add(r.id);sendPush(r,diff);}
   });
   if(needRender) renderTable();
 }
