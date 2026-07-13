@@ -894,7 +894,10 @@ async function pushUpdateAlarms(){
   try{
     const{data:{session}}=await sb.auth.getSession();if(!session)return;
     const reg=await initServiceWorker();if(!reg)return;
-    const sub=await reg.pushManager.getSubscription();if(!sub)return;
+    // re-subscribe if subscription expired/cleared
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC)});
+    if(!sub)return;
     let deviceId=localStorage.getItem('dk_device_id');
     if(!deviceId){deviceId=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem('dk_device_id',deviceId);}
     const fresh=buildAlarms();
