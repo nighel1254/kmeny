@@ -131,12 +131,8 @@
 
 <div class="help-overlay" id="nb-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="help-modal">
-    <h3>🌙 Noční bonus hráčů</h3>
-    <p style="font-size:12px;margin-bottom:12px;">Přetáhni záložku níže do záložkové lišty prohlížeče. Pak na ni klikni, když máš otevřenou hru cs112 – script automaticky načte NB všech cílových hráčů z tohoto plánu a uloží ho.</p>
-    <div style="background:#0a0820;border:1px solid #3a2a6a;border-radius:8px;padding:14px;text-align:center;margin-bottom:14px;">
-      <a id="nb-bookmarklet-a" href="javascript:void 0" style="display:inline-block;background:#2a0a3a;color:#c0a0ff;border:1px solid #6a3a9a;padding:9px 20px;border-radius:6px;font-weight:700;text-decoration:none;cursor:grab;font-size:13px;">🌙 Načíst NB hráčů</a>
-      <div style="font-size:10px;color:var(--dim);margin-top:8px;">← přetáhni do záložkové lišty, pak klikni v okně cs112</div>
-    </div>
+    <h3>🌙 Noční bonus – kontrola</h3>
+    <p style="font-size:12px;margin-bottom:14px;color:var(--dim);">NB načteš v plánovači (myplan.html) přes tlačítko 🌙 NB hráčů. Tady je jen přehled pro kontrolu.</p>
     <div id="nb-targets-list" style="font-size:12px;color:var(--text);line-height:1.9;"></div>
     <button class="btn-ghost" onclick="document.getElementById('nb-modal').classList.remove('open')" style="margin-top:16px;">Zavřít</button>
   </div>
@@ -777,52 +773,23 @@ function fmtNb(playerName) {
 }
 
 function showNbModal() {
-  const coords = [...new Set(attackRows.filter(r => r.tgtX && r.tgtY).map(r => `${r.tgtX}|${r.tgtY}`))];
   const owners = [...new Set(attackRows.map(r => r.tgtOwner).filter(Boolean))];
-
-  // Zobraz stav NB pro hráče
   const listEl = document.getElementById('nb-targets-list');
-  if (owners.length) {
-    listEl.innerHTML = '<strong style="color:var(--gold2);">Cíloví hráči v plánu:</strong><br>' +
-      owners.map(n => {
-        const nb = fmtNb(n);
-        return `• ${n} ${nb ? `<span style="color:#9a6aaa;">🌙 ${nb}</span>` : '<span style="color:#555;">– NB neznámo</span>'}`;
-      }).join('<br>');
+  if (!owners.length) {
+    listEl.innerHTML = '<span style="color:var(--dim);">V plánu nejsou vyplněná jména hráčů u cílů.</span>';
   } else {
-    listEl.innerHTML = '<span style="color:#ff8080;">V plánu nejsou vyplněná jména cílových hráčů (sloupec Cíl – hráč). NB bookmarklet bude hledat podle souřadnic.</span>';
+    const nbRows = owners.map(n => {
+      const nb = fmtNb(n);
+      const attacks = attackRows.filter(r => r.tgtOwner === n);
+      const inNbCount = attacks.filter(r => isInNb(n, r.arrivalTime)).length;
+      return `<div style="padding:5px 0;border-bottom:1px solid #2a1e0a;">
+        <span style="color:var(--text);">${n}</span>
+        ${nb ? `<span style="color:#9a6aaa;margin-left:8px;">🌙 ${nb}</span>` : '<span style="color:#555;margin-left:8px;">– NB neznámo</span>'}
+        ${inNbCount ? `<span style="color:#ff6060;margin-left:8px;font-size:11px;">⚠ ${inNbCount} útok${inNbCount>1?'ů':''} v NB</span>` : (nb ? '<span style="color:#60c060;margin-left:8px;font-size:11px;">✓ žádný útok v NB</span>' : '')}
+      </div>`;
+    }).join('');
+    listEl.innerHTML = `<div style="margin-bottom:8px;color:var(--dim);font-size:11px;">Načteno z plánovače (myplan.html → 🌙 NB hráčů)</div>${nbRows}`;
   }
-
-  // Vygeneruj bookmarklet
-  const SU = SUPABASE_URL_P, SK = SUPABASE_KEY_P;
-  const lines = [
-    '(async function(){',
-    'var cc=' + JSON.stringify(coords) + ';',
-    'var SU="' + SU + '",SK="' + SK + '";',
-    'try{',
-    'var vt=await fetch("/map/village.txt").then(function(r){return r.text();});',
-    'var vm={};vt.split("\\n").forEach(function(l){var p=l.split(";");if(p.length>=5&&p[2]&&p[3])vm[p[2]+"|"+p[3]]={v:+p[0],p:+p[4]};});',
-    'var pt=await fetch("/map/player.txt").then(function(r){return r.text();});',
-    'var pm={};pt.split("\\n").forEach(function(l){var p=l.split(";");if(p[0]&&p[1])pm[+p[0]]=decodeURIComponent(p[1].replace(/\\+/g," "));});',
-    'var mid=(location.search.match(/village=(\\d+)/)||[])[1];',
-    'if(!mid){alert("Otev\\u0159i n\\u011bjakou str\\u00e1nku cs112 (s vesnic\\u00ed v URL)!");return;}',
-    'var seen={},res=[];',
-    'for(var i=0;i<cc.length;i++){',
-    'var c=cc[i],vi=vm[c];if(!vi||!vi.p||seen[vi.p])continue;seen[vi.p]=1;',
-    'var nm=pm[vi.p]||c;',
-    'var h=await fetch("/game.php?village="+mid+"&screen=info_player&id="+vi.p).then(function(r){return r.text();});',
-    'var idx=h.indexOf("No\\u010dn");',
-    'var nb=idx>=0?h.slice(idx,idx+200).match(/(\\d{1,2}):(\\d{2})-(\\d{1,2}):(\\d{2})/):null;',
-    'if(!nb){res.push(nm+": NB nenalezeno");continue;}',
-    'var s=+nb[1]*60+ +nb[2],e=+nb[3]*60+ +nb[4];',
-    'await fetch(SU+"/rest/v1/player_nb",{method:"POST",headers:{"Content-Type":"application/json","apikey":SK,"Authorization":"Bearer "+SK,"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({player_id:vi.p,player_name:nm,nb_start:s,nb_end:e,updated_at:new Date().toISOString()})});',
-    'res.push(nm+": "+nb[1]+":"+nb[2]+"\\u2013"+nb[3]+":"+nb[4]+" \\u2713");',
-    '}',
-    'alert(res.length?"NB ulo\\u017eeno:\\n"+res.join("\\n"):"\\u017d\\u00e1dn\\u00e9 sou\\u0159adnice nebyly nalezeny v map\\u011b vesnic.");',
-    '}catch(err){alert("Chyba: "+err.message);}',
-    '})()'
-  ];
-  document.getElementById('nb-bookmarklet-a').href = 'javascript:void ' + encodeURIComponent(lines.join('\n'));
-
   document.getElementById('nb-modal').classList.add('open');
 }
 // ── / NOČNÍ BONUS ──────────────────────────────────────────
