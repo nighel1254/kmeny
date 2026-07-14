@@ -187,10 +187,10 @@
 <div class="help-overlay" id="nb-modal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="help-modal">
     <h3>🌙 Noční bonus hráčů</h3>
-    <p style="font-size:12px;margin-bottom:12px;">Přetáhni záložku níže do záložkové lišty prohlížeče. Pak na ni klikni, když máš otevřenou hru cs112 – script automaticky načte NB všech cílových hráčů a uloží ho.</p>
+    <p style="font-size:12px;margin-bottom:12px;">V cs112 otevři konzoli (<strong>F12 → Console</strong>), klikni na tlačítko níže a zkopírovaný kód tam vlož (<strong>Ctrl+V → Enter</strong>). Script načte NB všech cílových hráčů a uloží ho.</p>
     <div style="background:#0a0820;border:1px solid #3a2a6a;border-radius:8px;padding:14px;text-align:center;margin-bottom:14px;">
-      <a id="nb-bookmarklet-a" href="javascript:void 0" style="display:inline-block;background:#2a0a3a;color:#c0a0ff;border:1px solid #6a3a9a;padding:9px 20px;border-radius:6px;font-weight:700;text-decoration:none;cursor:grab;font-size:13px;">🌙 Načíst NB hráčů</a>
-      <div style="font-size:10px;color:var(--dim);margin-top:8px;">← přetáhni do záložkové lišty, pak klikni v okně cs112</div>
+      <button id="nb-copy-btn" onclick="copyNbScript()" style="background:#2a0a3a;color:#c0a0ff;border:1px solid #6a3a9a;padding:9px 20px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">📋 Kopírovat JS do schránky</button>
+      <div style="font-size:10px;color:var(--dim);margin-top:8px;">pak vlož do konzole cs112 (F12 → Console → Ctrl+V → Enter)</div>
     </div>
     <div id="nb-targets-list" style="font-size:12px;color:var(--text);line-height:1.9;"></div>
     <button class="btn-ghost" onclick="document.getElementById('nb-modal').classList.remove('open')" style="margin-top:16px;background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:5px;padding:8px 14px;font-size:13px;cursor:pointer;">Zavřít</button>
@@ -694,8 +694,27 @@ function showNbModal() {
     '}catch(err){alert("Chyba: "+err.message);}',
     '})()'
   ];
-  document.getElementById('nb-bookmarklet-a').href = 'javascript:void ' + encodeURIComponent(lines.join('\n'));
+  window._nbScript = lines.join('\n');
   document.getElementById('nb-modal').classList.add('open');
+}
+
+function copyNbScript() {
+  if (!window._nbScript) return;
+  navigator.clipboard.writeText(window._nbScript).then(() => {
+    const btn = document.getElementById('nb-copy-btn');
+    btn.textContent = '✓ Zkopírováno!';
+    btn.style.background = '#0a2a0a';
+    btn.style.borderColor = '#3a8a3a';
+    btn.style.color = '#80d080';
+    setTimeout(() => {
+      btn.textContent = '📋 Kopírovat JS do schránky';
+      btn.style.background = '#2a0a3a';
+      btn.style.borderColor = '#6a3a9a';
+      btn.style.color = '#c0a0ff';
+    }, 2500);
+  }).catch(() => {
+    prompt('Zkopíruj ručně (Ctrl+A, Ctrl+C):', window._nbScript);
+  });
 }
 // ── / NOČNÍ BONUS ──────────────────────────────────────────
 
