@@ -1,5 +1,6 @@
-// DK Plánovač – Service Worker v2
-const CACHE_VERSION = 'v2';
+// DK Plánovač – Service Worker v3
+const CACHE_VERSION = 'v3';
+const MAX_STALE_MS = 5 * 60 * 1000; // 5 minut – starší notifikace zahazujeme
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -19,6 +20,13 @@ self.addEventListener('push', e => {
       try { data.body = e.data.text() } catch(e2) {}
     }
   }
+
+  // Zahodit staré notifikace (prohlížeč může buffrem doručit push s dlouhým zpožděním)
+  if (data.send_time && Date.now() - data.send_time > MAX_STALE_MS) {
+    console.log('[SW] Zahozena stará notifikace, stáří:', Math.round((Date.now()-data.send_time)/1000), 's');
+    return;
+  }
+
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
