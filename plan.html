@@ -1998,7 +1998,7 @@ async function reloadFromServer() {
     const { data: a, error } = await sbP.from('plan_assignments').select('rows_data, plan_input').eq('id', assignmentId).single();
     if (error || !a) { toast('⚠ Obnovení ze serveru se nepodařilo.', 'err'); return; }
     attackRows = (a.rows_data || []).sort((x,y)=>(x.sendTime||0)-(y.sendTime||0));
-    playerVillages = a.plan_input?.villages || playerVillages;
+    playerVillages = (a.plan_input?.jsonVillages || a.plan_input?.villages || []).map(v => ({...v, id: v.id ?? v.village_id ?? null})).filter(v=>v.x&&v.y) || playerVillages;
     renderTable();
     renderMyVillagesSummary();
     toast('✓ Plán obnoven ze serveru.', 'ok', 3000);
@@ -2213,7 +2213,7 @@ function init() {
         const { data: fresh, error: freshErr } = await sbP.from('plan_assignments').select('rows_data, plan_input, played_rows').eq('id', assignmentId).single();
         if (!freshErr && fresh) {
           attackRows = (fresh.rows_data || []).sort((x,y)=>(x.sendTime||0)-(y.sendTime||0));
-          playerVillages = fresh.plan_input?.villages || playerVillages;
+          playerVillages = (fresh.plan_input?.jsonVillages || fresh.plan_input?.villages || []).map(v => ({...v, id: v.id ?? v.village_id ?? null})).filter(v=>v.x&&v.y) || playerVillages;
           const rows = Array.isArray(fresh.played_rows) ? fresh.played_rows : [];
           playedRows.clear(); rows.forEach(k => playedRows.add(k));
           renderTable();
