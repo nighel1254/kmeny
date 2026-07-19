@@ -1998,7 +1998,7 @@ async function reloadFromServer() {
     const { data: a, error } = await sbP.from('plan_assignments').select('rows_data, plan_input').eq('id', assignmentId).single();
     if (error || !a) { toast('⚠ Obnovení ze serveru se nepodařilo.', 'err'); return; }
     attackRows = (a.rows_data || []).sort((x,y)=>(x.sendTime||0)-(y.sendTime||0));
-    playerVillages = (a.plan_input?.importedJsonVillages || a.plan_input?.jsonVillages || a.plan_input?.villages || []).map(v => ({...v, id: v.id ?? v.village_id ?? null})).filter(v=>v.x&&v.y) || playerVillages;
+    // playerVillages záměrně nepřepisujeme – správná data přijdou z hashe přes render(data)
     renderTable();
     renderMyVillagesSummary();
     toast('✓ Plán obnoven ze serveru.', 'ok', 3000);
