@@ -831,7 +831,7 @@ function startAlarm(evt, rowIdx, link) {
   const row = attackRows[rowIdx];
   if (row) {
     // Vždy přepočítej link z aktuálních dat – zabrání stale href po změně zdrojové vesnice
-    const srcId = row.srcId || playerVillages.find(v => v.x===row.srcX && v.y===row.srcY)?.id || null;
+    const srcId = playerVillages.find(v => v.x===row.srcX && v.y===row.srcY)?.id || row.srcId || null;
     if (row.tgtX) {
       link = srcId
         ? (row.tgtId
@@ -1779,8 +1779,8 @@ function renderTable() {
     const played   = playedRows.has(rowKey(r));
     const rowClass = played ? 'played-row' : past ? 'past-row' : r.night ? 'night-row' : '';
     const sendCls  = r.night ? 'send-time night' : 'send-time';
-    const resolvedSrcId = r.srcId
-      || playerVillages.find(v => v.x===r.srcX && v.y===r.srcY)?.id
+    const resolvedSrcId = playerVillages.find(v => v.x===r.srcX && v.y===r.srcY)?.id
+      || r.srcId
       || null;
     let gameLink = resolvedSrcId
       ? (r.tgtId
