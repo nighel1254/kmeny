@@ -184,7 +184,7 @@
 <div class="modal-overlay" id="devils-modal" onclick="if(event.target===this)closeDevilsModal()">
   <div class="modal" style="max-width:560px;width:100%;">
     <h3>🏹 Importovat z Devils</h3>
-    <p style="font-size:12px;color:var(--dim);margin-bottom:10px;">Vlož data z <a href="https://devilicious.dev/" target="_blank" rel="noopener" style="color:var(--gold2)">devilicious.dev</a> – každý útok na vlastním řádku.</p>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:10px;">Vlož data z <a href="https://devilicious.dev/" target="_blank" rel="noopener" style="color:var(--gold2)">devilicious.dev</a> a vyber import pro TWstats.</p>
     <label>Data z Devils</label>
     <textarea id="devils-textarea" rows="10" placeholder="13829&13620&ram&1784984400000&8&false&true&spear=/sword=/...&#10;10561&14206&ram&1784984400000&8&false&true&..." style="font-family:monospace;font-size:11px;width:100%;resize:vertical;background:#0f0b05;color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px;margin-bottom:8px;"></textarea>
     <div class="modal-msg" id="devils-msg"></div>
@@ -879,8 +879,10 @@ async function importFromDevils() {
   }
 
   const label = `Devils ${new Date().toLocaleDateString('cs-CZ')}`;
+  const nick = document.getElementById('user-name').textContent || '';
   const { data: inserted, error } = await sb.from('plan_assignments').insert({
     player_email: currentUserEmail,
+    player_name: nick,
     plan_label: label,
     rows_data: rows,
     plan_input: { importedFromDevils: true, updatedAt: Date.now() }
