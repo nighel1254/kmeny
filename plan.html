@@ -745,6 +745,31 @@ const SUPABASE_URL_P = 'https://ucvgyduiyvfhxbyypyih.supabase.co';
 const SUPABASE_KEY_P = 'sb_publishable_BGBJ40g-OUsLs-PaJVvnog_dj7DaRQZ';
 const sbP = supabase.createClient(SUPABASE_URL_P, SUPABASE_KEY_P);
 
+// ── MAPA VESNIC (coords → id) ──────────────────────────────
+const GAME_PROXY = u => `${SUPABASE_URL_P}/functions/v1/game-proxy?url=${encodeURIComponent(u)}`;
+const WORLD = 'cs112';
+let villageMap = {}; // "x|y" → village_id (string)
+
+async function loadVillageMap() {
+  try {
+    const r = await fetch(GAME_PROXY(`https://${WORLD}.divokekmeny.cz/map/village.txt`), { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return;
+    const txt = await r.text();
+    txt.split('\n').forEach(line => {
+      const p = line.split(',');
+      if (p.length >= 4 && p[0] && p[2] && p[3]) villageMap[`${p[2]}|${p[3]}`] = p[0];
+    });
+  } catch(e) { console.warn('loadVillageMap:', e); }
+}
+
+function resolveVillageId(x, y, fallbackSrcId) {
+  return villageMap[`${x}|${y}`]
+    || playerVillages.find(v => v.x === x && v.y === y)?.id
+    || fallbackSrcId
+    || null;
+}
+// ── / MAPA VESNIC ───────────────────────────────────────────
+
 // ── NOČNÍ BONUS ────────────────────────────────────────────
 let playerNbMap = {}; // player_name.toLowerCase() → {s: min_od_pulnoci, e: min_od_pulnoci}
 
@@ -831,7 +856,7 @@ function startAlarm(evt, rowIdx, link) {
   const row = attackRows[rowIdx];
   if (row) {
     // Vždy přepočítej link z aktuálních dat – zabrání stale href po změně zdrojové vesnice
-    const srcId = playerVillages.find(v => v.x===row.srcX && v.y===row.srcY)?.id || row.srcId || null;
+    const srcId = resolveVillageId(row.srcX, row.srcY, row.srcId);
     if (row.tgtX) {
       link = srcId
         ? (row.tgtId
@@ -1779,9 +1804,7 @@ function renderTable() {
     const played   = playedRows.has(rowKey(r));
     const rowClass = played ? 'played-row' : past ? 'past-row' : r.night ? 'night-row' : '';
     const sendCls  = r.night ? 'send-time night' : 'send-time';
-    const resolvedSrcId = playerVillages.find(v => v.x===r.srcX && v.y===r.srcY)?.id
-      || r.srcId
-      || null;
+    const resolvedSrcId = resolveVillageId(r.srcX, r.srcY, r.srcId);
     let gameLink = resolvedSrcId
       ? (r.tgtId
           ? `${API_BASE}/game.php?village=${resolvedSrcId}&screen=place&target=${r.tgtId}`
@@ -2199,6 +2222,7 @@ function init() {
     if (!data || !data.rows) throw new Error('Chybí data rows');
     render(data);
     loadPlayerNb().then(() => renderTable());
+    loadVillageMap();
     // push-lead-input existuje až po render() (je součástí top-bar HTML, kterou render()
     // teprve vykresluje) – dřív se sem hodnota z localStorage nedostala, takže input po
     // refreshi vždycky ukazoval natvrdo zapečený "2" bez ohledu na to, co si hráč nastavil.
