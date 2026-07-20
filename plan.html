@@ -1176,6 +1176,33 @@ const MANUAL_TYPE_DEFS = {
   noble_one:    { label:'Šlechtic po jednom', unit:'noble', isFake:false, isNoble:true,  isFakeNoble:false, nobleCount:1 },
 };
 const UNIT_BASE_SPEED_S = { ram:1800, noble:2100 };
+let UNIT_SPEEDS_PLAN = null; // null = ještě nenačteno z interface.php
+
+async function loadPlanUnitSpeeds() {
+  if (!attackRows.some(r => r._manual && r.srcX && r.tgtX && r.arrivalTime)) return;
+  try {
+    const r = await fetch(GAME_PROXY('https://cs112.divokekmeny.cz/interface.php?func=get_unit_info'), { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return;
+    const uid = new DOMParser().parseFromString(await r.text(), 'text/xml');
+    const speeds = {};
+    const um = { spear:'spear', sword:'sword', axe:'axe', spy:'scout', light:'lk', knight:'paladin', heavy:'tk', ram:'ram', catapult:'catapult', snob:'noble' };
+    for (const [xn, k] of Object.entries(um)) {
+      const s = parseFloat(uid.querySelector(`${xn} > speed`)?.textContent);
+      if (!isNaN(s) && s > 0) speeds[k] = s * 60;
+    }
+    if (!speeds.ram) return;
+    UNIT_SPEEDS_PLAN = speeds;
+    let changed = false;
+    attackRows.forEach(row => {
+      if (!row._manual || !row.srcX || !row.tgtX || !row.arrivalTime) return;
+      const sp = UNIT_SPEEDS_PLAN[row.unit] || UNIT_SPEEDS_PLAN.ram;
+      const dist = Math.sqrt((row.srcX - row.tgtX) ** 2 + (row.srcY - row.tgtY) ** 2);
+      const newTravel = Math.round(dist * sp);
+      if (newTravel !== row.travel) { row.travel = newTravel; row.sendTime = row.arrivalTime - newTravel; row.night = isNight(row.sendTime); changed = true; }
+    });
+    if (changed) { renderTable(); persistRows(); }
+  } catch(e) { console.warn('loadPlanUnitSpeeds:', e); }
+}
 
 function findVillageByCoords(x, y) {
   return playerVillages.find(v => v.x === x && v.y === y);
@@ -1526,15 +1553,19 @@ function recalcManualRow(rowIdx) {
   const row = attackRows[rowIdx];
   if (!row) return;
   if (!row.srcX || !row.tgtX || !row.arrivalTime) { row.sendTime = null; row.travel = 0; return; }
-  const msPerDist = msPerDistForUnit(row.unit);
+  const dist = Math.sqrt((row.srcX-row.tgtX)**2 + (row.srcY-row.tgtY)**2);
+  let msPerDist;
+  if (UNIT_SPEEDS_PLAN) {
+    const sp = UNIT_SPEEDS_PLAN[row.unit] || UNIT_SPEEDS_PLAN.ram;
+    msPerDist = sp * 1000;
+  } else {
+    msPerDist = msPerDistForUnit(row.unit);
+  }
   if (!msPerDist) {
     toast('⚠ Nelze spočítat čas odeslání – v plánu chybí jiný útok, ze kterého by se odhadla rychlost světa.', 'err', 7000);
     row.sendTime = null; row.travel = 0;
     return;
   }
-  const dist = Math.sqrt((row.srcX-row.tgtX)**2 + (row.srcY-row.tgtY)**2);
-  // Cesta se zaokrouhlí na celé vteřiny, ať čas odeslání drží stejné tisíciny jako čas příchodu
-  // (jinak by tam díky desetinné vzdálenosti vycházely "náhodné" tisíciny).
   row.travel = Math.round(dist * msPerDist / 1000) * 1000;
   row.sendTime = row.arrivalTime - row.travel;
   row.night = isNight(row.sendTime);
@@ -2279,6 +2310,7 @@ function init() {
     render(data);
     loadPlayerNb().then(() => renderTable());
     loadVillageMap();
+    loadPlanUnitSpeeds();
     // push-lead-input existuje až po render() (je součástí top-bar HTML, kterou render()
     // teprve vykresluje) – dřív se sem hodnota z localStorage nedostala, takže input po
     // refreshi vždycky ukazoval natvrdo zapečený "2" bez ohledu na to, co si hráč nastavil.
