@@ -1074,7 +1074,8 @@ function renderMyVillagesSummary() {
   const wrap = document.getElementById('my-villages-wrap');
   if (!wrap) return;
   const addManualWrap = document.getElementById('add-manual-wrap');
-  if (addManualWrap) addManualWrap.style.display = playerVillages.length ? 'block' : 'none';
+  const hasManualRows = attackRows.some(r => r._manual);
+  if (addManualWrap) addManualWrap.style.display = (playerVillages.length || hasManualRows) ? 'block' : 'none';
   const noblePlanPanel = document.getElementById('noble-plan-panel');
   const hasNobles = playerVillages.some(v => (v.noble || 0) > 0);
   if (noblePlanPanel) noblePlanPanel.style.display = hasNobles ? 'block' : 'none';
