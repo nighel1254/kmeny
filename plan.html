@@ -1181,7 +1181,8 @@ function findVillageByCoords(x, y) {
 // "ms na pole" k základní rychlosti jednotky libovolného existujícího řádku v plánu,
 // a tím poměrem přepočítáme rychlost pro jednotku, kterou potřebujeme (ram/noble).
 function msPerDistForUnit(unit) {
-  const ref = attackRows.find(r => !r._manual && r.travel && r.srcX && r.tgtX);
+  const ref = attackRows.find(r => !r._manual && r.travel && r.srcX && r.tgtX)
+           || attackRows.find(r => r.travel && r.srcX && r.tgtX);
   if (!ref) return null;
   const d = Math.sqrt((ref.srcX-ref.tgtX)**2 + (ref.srcY-ref.tgtY)**2);
   if (!d) return null;
@@ -1611,6 +1612,34 @@ function onManualTgtOwnerChange(rowIdx, value) {
   persistRows();
 }
 
+function onManualSrcCoordChange(rowIdx, value) {
+  const row = attackRows[rowIdx];
+  if (!row) return;
+  const m = value.trim().match(/^(\d{1,3})\s*\|\s*(\d{1,3})$/);
+  if (!m) { if (value.trim()) toast('Zadej souřadnice zdroje ve formátu X|Y.', 'err', 3000); return; }
+  row.srcX = +m[1]; row.srcY = +m[2];
+  row.srcName = `${row.srcX}|${row.srcY}`;
+  row.srcId = resolveVillageId(row.srcX, row.srcY, null);
+  recalcManualRow(rowIdx);
+  renderTable();
+  persistRows();
+}
+
+// Změna typu pro Devils-importované řádky – nesmaže src koordináty
+function onDevilsTypeChange(rowIdx, typeKey) {
+  const row = attackRows[rowIdx];
+  const def = MANUAL_TYPE_DEFS[typeKey];
+  if (!row) return;
+  if (!def) { row.manualType = null; row.srcCategory = null; renderTable(); persistRows(); return; }
+  row.manualType = typeKey;
+  row.unit = def.unit;
+  row.isFake = def.isFake; row.isNoble = def.isNoble; row.isFakeNoble = def.isFakeNoble;
+  row.srcCategory = def.isNoble ? 'noble' : typeKey;
+  recalcManualRow(rowIdx);
+  renderTable();
+  persistRows();
+}
+
 // Čas příchodu se uloží až po opuštění pole (blur), ne při každém zásahu do políčka –
 // jinak by re-render za běhu vyhodil hráče z editace (datetime-local umí "change" vystřelit i uprostřed psaní).
 function onManualArrivalChange(rowIdx, value) {
@@ -1654,12 +1683,23 @@ function buildManualRowHtml(r, rowIdx) {
         : `${API_BASE}/game.php?screen=place&x=${r.tgtX}&y=${r.tgtY}`)
     : null;
 
-  const typeOpts = `<option value="">– vyber typ –</option>` + Object.entries(MANUAL_TYPE_DEFS)
+  const isDevilsRow = !playerVillages.length && r.srcX;
+  const typeOptsEdit = `<option value="">– vyber typ –</option>` + Object.entries(MANUAL_TYPE_DEFS)
     .map(([k,def]) => `<option value="${k}" ${r.manualType===k?'selected':''}>${def.label}</option>`).join('');
+  const typeChangeHandler = isDevilsRow ? `onDevilsTypeChange` : `onManualTypeChange`;
 
   let srcCell;
   if (!r.manualType) {
-    srcCell = `<span style="color:var(--dim);font-size:11px;">nejdřív vyber typ</span>`;
+    if (playerVillages.length === 0 && r.srcX) {
+      // Devils import – nemáme playerVillages, ale máme souřadnice → textový vstup
+      srcCell = `<input type="text" id="manual-src-${rowIdx}" value="${r.srcX}|${r.srcY}" placeholder="X|Y" style="width:80px;" oninput="formatCoordInput(this,null)" onchange="onManualSrcCoordChange(${rowIdx},this.value)">`;
+    } else {
+      srcCell = `<span style="color:var(--dim);font-size:11px;">nejdřív vyber typ</span>`;
+    }
+  } else if (!playerVillages.length) {
+    // Bez playerVillages (Devils import) – textový vstup pro souřadnice zdroje
+    const srcVal = r.srcX ? `${r.srcX}|${r.srcY}` : '';
+    srcCell = `<input type="text" id="manual-src-${rowIdx}" value="${srcVal}" placeholder="X|Y" style="width:80px;" oninput="formatCoordInput(this,null)" onchange="onManualSrcCoordChange(${rowIdx},this.value)">`;
   } else if (!r.tgtX || !r.arrivalTime) {
     srcCell = `<span style="color:var(--dim);font-size:11px;">zadej cíl a čas dopadu</span>`;
   } else {
@@ -1683,12 +1723,15 @@ function buildManualRowHtml(r, rowIdx) {
   const _mPast = r.sendTime && r.sendTime < Date.now();
   const _mRowCls = _mPlayed ? 'played-row' : _mPast ? 'past-row' : '';
 
+  const typeOptsSel = `<option value="">– Neznámý –</option>` + Object.entries(MANUAL_TYPE_DEFS)
+    .map(([k,def]) => `<option value="${k}" ${r.manualType===k?'selected':''}>${def.label}</option>`).join('');
+
   if (r._confirmed && complete) {
     // Uložený manuální řádek – jen náhled, ne otevřená editace. Klikni ✎ pro úpravu.
     return `<tr data-rowidx="${rowIdx}" class="${_mRowCls}" style="background:#1e1508;border-left:2px solid var(--gold);">
       <td data-label="#" style="color:var(--dim);font-size:11px;">★</td>
-      <td data-label="Zdroj"><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName||''}</span>${computeSrcOrderLabel(rowIdx)}</td>
-      <td data-label="Typ">${typeChip(r)}</td>
+      <td data-label="Zdroj"><span class="coords">${r.srcX}|${r.srcY}</span> <span style="color:var(--dim)">${r.srcName&&r.srcName!==`${r.srcX}|${r.srcY}`?r.srcName:''}</span>${computeSrcOrderLabel(rowIdx)}</td>
+      <td data-label="Typ"><select style="max-width:120px;font-size:11px;padding:2px 4px;" onchange="onDevilsTypeChange(${rowIdx},this.value)">${typeOptsSel}</select></td>
       <td data-label="Cíl"><a href="${mapLink(r.tgtX,r.tgtY,r.srcId)}" target="_blank" rel="noopener" class="coords" style="text-decoration:none;" title="Otevřít mapu na této vesnici">${r.tgtX}|${r.tgtY}</a>${r.tgtOwner?` <span style="color:#8a6aaa;font-size:11px;">(${r.tgtOwner})</span>`:''}</td>
       <td data-label="Jednotka"><span class="chip">${UNIT_LABELS[r.unit]||r.unit}</span></td>
       <td data-label="Odeslání" class="send-time" style="font-size:11px;">${r.sendTime ? fmtDT(new Date(r.sendTime)) : '—'}</td>
@@ -1697,7 +1740,7 @@ function buildManualRowHtml(r, rowIdx) {
       <td data-label="Odpočet">${r.sendTime ? `<span class="countdown" data-send="${r.sendTime}"></span>` : '<span style="color:var(--dim);">—</span>'}</td>
       <td style="white-space:nowrap;">
         ${gameLink ? `<a class="play-btn" href="#" onclick="startAlarm(event,${rowIdx},'${gameLink.replace(/'/g,"\\'")}')"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></a>` : ''}
-        <button onclick="editManualRow(${rowIdx})" title="Upravit tento řádek" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--gold2);font-size:13px;padding:3px 5px;margin-left:3px;">✎</button>
+        <button onclick="editManualRow(${rowIdx})" title="Upravit souřadnice a čas dopadu" style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--gold2);font-size:13px;padding:3px 5px;margin-left:3px;">✎</button>
         ${delBtn}
       </td>
     </tr>`;
@@ -1706,7 +1749,7 @@ function buildManualRowHtml(r, rowIdx) {
   return `<tr data-rowidx="${rowIdx}" class="${_mRowCls}" style="background:#1e1508;border-left:2px solid var(--gold);">
     <td data-label="#" style="color:var(--dim);font-size:11px;">★</td>
     <td data-label="Zdroj">${srcCell}${computeSrcOrderLabel(rowIdx)}</td>
-    <td data-label="Typ"><select style="max-width:140px;" onchange="onManualTypeChange(${rowIdx},this.value)">${typeOpts}</select></td>
+    <td data-label="Typ"><select style="max-width:140px;" onchange="${typeChangeHandler}(${rowIdx},this.value)">${typeOptsEdit}</select></td>
     <td data-label="Cíl">
       <input type="text" id="manual-tgt-${rowIdx}" value="${tgtVal}" placeholder="X|Y" style="width:90px;" oninput="formatCoordInput(this,'manual-arrival-${rowIdx}')" onchange="onManualTgtChange(${rowIdx},this.value)">
       <input type="text" id="manual-tgt-owner-${rowIdx}" value="${r.tgtOwner||''}" placeholder="hráč (cíl)" style="width:90px;margin-top:3px;display:block;font-size:11px;" onchange="onManualTgtOwnerChange(${rowIdx},this.value)">

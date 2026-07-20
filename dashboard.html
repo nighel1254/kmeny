@@ -867,7 +867,9 @@ async function importFromDevils() {
       srcX: src.x, srcY: src.y, srcName: src.name, srcId: srcId,
       tgtX: tgt.x, tgtY: tgt.y, tgtName: tgt.name, tgtId: tgtId,
       unit, sendTime: Math.round(sendTime), arrivalTime: arrivalMs,
-      isFake: false, isNoble: unit === 'noble', isFakeNoble: false, night: false
+      travel: Math.round(travelTime),
+      isFake: false, isNoble: unit === 'noble', isFakeNoble: false, night: false,
+      _manual: true, _confirmed: true, manualType: null, srcCategory: null
     });
   }
 
