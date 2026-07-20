@@ -1200,7 +1200,7 @@ async function loadPlanUnitSpeeds() {
       const newTravel = Math.round(dist * sp) * 1000;
       if (newTravel !== row.travel) { row.travel = newTravel; row.sendTime = row.arrivalTime - newTravel; row.night = isNight(row.sendTime); changed = true; }
     });
-    if (changed) { renderTable(); }
+    if (changed) { renderTable(); persistRows(); }
   } catch(e) { console.warn('loadPlanUnitSpeeds:', e); }
 }
 
@@ -1218,6 +1218,9 @@ function msPerDistForUnit(unit) {
   const d = Math.sqrt((ref.srcX-ref.tgtX)**2 + (ref.srcY-ref.tgtY)**2);
   if (!d) return null;
   const msPerDistRef = ref.travel / d;
+  // Sanity check: < 100 000 ms/pole (< 100 s/pole) je nesmysl – travel byl zřejmě uložen
+  // v sekundách místo milisekundách (stará chyba). Raději vrátíme null než špatnou rychlost.
+  if (msPerDistRef < 100000) return null;
   const baseRef = UNIT_BASE_SPEED_S[ref.unit] || UNIT_BASE_SPEED_S.ram;
   const k = msPerDistRef / baseRef;
   return k * (UNIT_BASE_SPEED_S[unit] || UNIT_BASE_SPEED_S.ram);
