@@ -1617,9 +1617,17 @@ function onManualSrcCoordChange(rowIdx, value) {
   if (!row) return;
   const m = value.trim().match(/^(\d{1,3})\s*\|\s*(\d{1,3})$/);
   if (!m) { if (value.trim()) toast('Zadej souřadnice zdroje ve formátu X|Y.', 'err', 3000); return; }
-  row.srcX = +m[1]; row.srcY = +m[2];
-  row.srcName = `${row.srcX}|${row.srcY}`;
-  row.srcId = resolveVillageId(row.srcX, row.srcY, null);
+  const x = +m[1], y = +m[2];
+  const key = `${x}|${y}`;
+  const inMap = !!villageMap[key];
+  const inVillages = playerVillages.some(v => v.x === x && v.y === y);
+  if (!inMap && !inVillages) {
+    toast(`Vesnice ${key} neexistuje na mapě světa.`, 'err', 4000);
+    return;
+  }
+  row.srcX = x; row.srcY = y;
+  row.srcName = key;
+  row.srcId = resolveVillageId(x, y, null);
   recalcManualRow(rowIdx);
   renderTable();
   persistRows();
