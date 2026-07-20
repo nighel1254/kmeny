@@ -180,6 +180,21 @@
   </div>
 </div>
 
+<!-- Devils Import Modal -->
+<div class="modal-overlay" id="devils-modal" onclick="if(event.target===this)closeDevilsModal()">
+  <div class="modal" style="max-width:560px;width:100%;">
+    <h3>🏹 Importovat z Devils</h3>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:10px;">Vlož data z <a href="https://devilicious.dev/" target="_blank" rel="noopener" style="color:var(--gold2)">devilicious.dev</a> – každý útok na vlastním řádku.</p>
+    <label>Data z Devils</label>
+    <textarea id="devils-textarea" rows="10" placeholder="13829&13620&ram&1784984400000&8&false&true&spear=/sword=/...&#10;10561&14206&ram&1784984400000&8&false&true&..." style="font-family:monospace;font-size:11px;width:100%;resize:vertical;background:#0f0b05;color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px;margin-bottom:8px;"></textarea>
+    <div class="modal-msg" id="devils-msg"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="devils-import-btn" onclick="importFromDevils()">Importovat</button>
+      <button class="btn-ghost" onclick="closeDevilsModal()">Zrušit</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="share-modal" onclick="if(event.target===this)closeShareModal()">
   <div class="modal">
     <h3>🌴 Sdílet plán – zástup v dovolené</h3>
@@ -240,6 +255,16 @@
         <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_axe.png" style="width:18px;height:18px;filter:sepia(1)saturate(4)hue-rotate(200deg);">
         Otevřít časovač
       </a>
+    </div>
+    <div class="hero-card" style="flex:1;min-width:260px;">
+      <div class="hero-info">
+        <h2>🏹 Import z Devils</h2>
+        <p>Vlož útoky z <strong>devilicious.dev</strong> a otevři je rovnou jako plán v plánovači.</p>
+      </div>
+      <button class="btn-hero" onclick="openDevilsModal()">
+        <img src="https://cs112.divokekmeny.cz/graphic/unit/unit_ram.png" style="width:18px;height:18px;" onerror="this.style.display='none'">
+        Importovat z Devils
+      </button>
     </div>
   </div>
 
@@ -724,6 +749,160 @@ function updateQR() {
   const spd = `SPD*1.0*ACC:${IBAN_NO_SPACES}*AM:${qrAmount}.00*CC:CZK*MSG:Donate DK Planner*`;
   document.getElementById('qr-img').src =
     `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(spd)}&size=200x200&margin=8&bgcolor=ffffff`;
+}
+
+// ── IMPORT Z DEVILS ─────────────────────────────────────────
+const GAME_PROXY_D = u => `${SUPABASE_URL}/functions/v1/game-proxy?url=${encodeURIComponent(u)}`;
+const WORLD_BASE_D = 'https://cs112.divokekmeny.cz';
+
+const DEVILS_UNIT_MAP = {
+  spear:'spear', sword:'sword', axe:'axe', archer:'archer',
+  spy:'scout', light:'lk', marcher:'archer2', heavy:'tk',
+  ram:'ram', catapult:'catapult', knight:'paladin', snob:'noble'
+};
+const UNIT_SPEEDS_D = { spear:1080, sword:1320, axe:1080, archer:1080, scout:540, lk:600, archer2:900, tk:660, ram:1800, catapult:1800, noble:2100, paladin:600 };
+
+let _devilsWorldSpeed = 1;
+let _devilsVillageMap = null;
+
+async function _loadDevilsVillageMap() {
+  if (_devilsVillageMap) return _devilsVillageMap;
+  const r = await fetch(GAME_PROXY_D(`${WORLD_BASE_D}/map/village.txt`), { signal: AbortSignal.timeout(12000) });
+  if (!r.ok) throw new Error('Nelze načíst village.txt');
+  const txt = await r.text();
+  _devilsVillageMap = {};
+  txt.trim().split('\n').forEach(line => {
+    const p = line.split(',');
+    if (p.length >= 4 && p[0]) {
+      _devilsVillageMap[p[0].trim()] = {
+        x: parseInt(p[2]), y: parseInt(p[3]),
+        name: decodeURIComponent((p[1] || '').replace(/\+/g, ' '))
+      };
+    }
+  });
+  return _devilsVillageMap;
+}
+
+async function _loadDevilsWorldSpeed() {
+  try {
+    const r = await fetch(GAME_PROXY_D(`${WORLD_BASE_D}/interface.php?func=get_config`), { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return;
+    const xml = new DOMParser().parseFromString(await r.text(), 'text/xml');
+    const ws = parseFloat(xml.querySelector('speed')?.textContent || '1');
+    if (!isNaN(ws) && ws > 0) _devilsWorldSpeed = ws;
+    const ru = await fetch(GAME_PROXY_D(`${WORLD_BASE_D}/interface.php?func=get_unit_info`), { signal: AbortSignal.timeout(8000) });
+    if (ru.ok) {
+      const uid = new DOMParser().parseFromString(await ru.text(), 'text/xml');
+      const um = { spear:'spear', sword:'sword', axe:'axe', spy:'scout', light:'lk', knight:'paladin', heavy:'tk', ram:'ram', catapult:'catapult', snob:'noble' };
+      for (const [xn, k] of Object.entries(um)) {
+        const s = parseFloat(uid.querySelector(`${xn} > speed`)?.textContent);
+        if (!isNaN(s) && s > 0) UNIT_SPEEDS_D[k] = s * 60;
+      }
+    }
+  } catch(e) { console.warn('_loadDevilsWorldSpeed:', e); }
+}
+
+function openDevilsModal() {
+  document.getElementById('devils-textarea').value = '';
+  document.getElementById('devils-msg').className = 'modal-msg';
+  document.getElementById('devils-msg').textContent = '';
+  document.getElementById('devils-import-btn').disabled = false;
+  document.getElementById('devils-modal').classList.add('open');
+}
+
+function closeDevilsModal() {
+  document.getElementById('devils-modal').classList.remove('open');
+}
+
+async function importFromDevils() {
+  const msg = document.getElementById('devils-msg');
+  const btn = document.getElementById('devils-import-btn');
+  msg.className = 'modal-msg';
+
+  const text = document.getElementById('devils-textarea').value.trim();
+  if (!text) { msg.className = 'modal-msg err'; msg.textContent = 'Vlož data z Devils.'; return; }
+
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l && l.includes('&'));
+  if (!lines.length) { msg.className = 'modal-msg err'; msg.textContent = 'Žádná platná data.'; return; }
+
+  btn.disabled = true;
+  msg.textContent = '⏳ Načítám mapu vesnic a rychlosti světa...';
+
+  let villageMap;
+  try {
+    [villageMap] = await Promise.all([_loadDevilsVillageMap(), _loadDevilsWorldSpeed()]);
+  } catch(e) {
+    btn.disabled = false;
+    msg.className = 'modal-msg err';
+    msg.textContent = 'Chyba při načítání mapy vesnic: ' + e.message;
+    return;
+  }
+
+  msg.textContent = '⏳ Zpracovávám útoky...';
+
+  const rows = [];
+  const notFound = new Set();
+
+  for (const line of lines) {
+    const parts = line.split('&');
+    if (parts.length < 4) continue;
+    const srcId = parts[0].trim();
+    const tgtId = parts[1].trim();
+    const devilsUnit = parts[2].trim().toLowerCase();
+    const arrivalMs = parseInt(parts[3].trim());
+    if (!srcId || !tgtId || isNaN(arrivalMs)) continue;
+
+    const src = villageMap[srcId];
+    const tgt = villageMap[tgtId];
+    if (!src) { notFound.add(srcId); continue; }
+    if (!tgt) { notFound.add(tgtId); continue; }
+
+    const unit = DEVILS_UNIT_MAP[devilsUnit] || devilsUnit;
+    const dist = Math.sqrt((tgt.x - src.x) ** 2 + (tgt.y - src.y) ** 2);
+    const sp = UNIT_SPEEDS_D[unit] || 1800;
+    const travelTime = dist * sp * 1000 / _devilsWorldSpeed;
+    const sendTime = arrivalMs - travelTime;
+
+    rows.push({
+      srcX: src.x, srcY: src.y, srcName: src.name, srcId: srcId,
+      tgtX: tgt.x, tgtY: tgt.y, tgtName: tgt.name, tgtId: tgtId,
+      unit, sendTime: Math.round(sendTime), arrivalTime: arrivalMs,
+      isFake: false, isNoble: unit === 'noble', isFakeNoble: false, night: false
+    });
+  }
+
+  if (!rows.length) {
+    btn.disabled = false;
+    msg.className = 'modal-msg err';
+    msg.textContent = 'Žádné útoky. ' + (notFound.size ? `ID vesnic nenalezeno: ${[...notFound].slice(0,3).join(', ')}` : '');
+    return;
+  }
+
+  const label = `Devils ${new Date().toLocaleDateString('cs-CZ')}`;
+  const { data: inserted, error } = await sb.from('plan_assignments').insert({
+    player_email: currentUserEmail,
+    plan_label: label,
+    rows_data: rows,
+    plan_input: { importedFromDevils: true, updatedAt: Date.now() }
+  }).select('id').single();
+
+  btn.disabled = false;
+
+  if (error) {
+    msg.className = 'modal-msg err';
+    msg.textContent = 'Chyba při ukládání: ' + error.message;
+    return;
+  }
+
+  if (notFound.size) {
+    msg.className = 'modal-msg';
+    msg.textContent = `⚠ ${notFound.size} vesnic nenalezeno (přeskočeno).`;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+
+  closeDevilsModal();
+  toast(`✓ Importováno ${rows.length} útoků`);
+  openPlan(inserted.id);
 }
 
 window.addEventListener('DOMContentLoaded', () => { init(); updateQR(); });
