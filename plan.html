@@ -1197,7 +1197,7 @@ async function loadPlanUnitSpeeds() {
       if (!row._manual || !row.srcX || !row.tgtX || !row.arrivalTime) return;
       const sp = UNIT_SPEEDS_PLAN[row.unit] || UNIT_SPEEDS_PLAN.ram;
       const dist = Math.sqrt((row.srcX - row.tgtX) ** 2 + (row.srcY - row.tgtY) ** 2);
-      const newTravel = Math.round(dist * sp);
+      const newTravel = Math.round(dist * sp) * 1000;
       if (newTravel !== row.travel) { row.travel = newTravel; row.sendTime = row.arrivalTime - newTravel; row.night = isNight(row.sendTime); changed = true; }
     });
     if (changed) { renderTable(); persistRows(); }
