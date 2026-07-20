@@ -860,7 +860,7 @@ async function importFromDevils() {
     const unit = DEVILS_UNIT_MAP[devilsUnit] || devilsUnit;
     const dist = Math.sqrt((tgt.x - src.x) ** 2 + (tgt.y - src.y) ** 2);
     const sp = UNIT_SPEEDS_D[unit] || 1800;
-    const travelTime = dist * sp * 1000 / _devilsWorldSpeed;
+    const travelTime = dist * sp * 1000; // get_unit_info vrací rychlosti už s world speed
     const sendTime = arrivalMs - travelTime;
 
     rows.push({
