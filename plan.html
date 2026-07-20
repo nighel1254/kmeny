@@ -1165,12 +1165,15 @@ function toggleUnusedList() {
 
 // ── PŘIDAT VLASTNÍ ÚTOK (libovolný typ – hráč si vybere typ, pak zdroj, cíl, čas) ───
 const MANUAL_TYPE_DEFS = {
-  gigafullka: { label:'GigaFull',        unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
-  fullka:     { label:'Fullka',          unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
-  triq_off:   { label:'3/4 off',         unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
-  half_off:   { label:'1/2 off',         unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
-  fake:       { label:'Fejk',            unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:false },
-  fakeNoble:  { label:'Fejk vlak',       unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:true  },
+  gigafullka:   { label:'GigaFull',           unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
+  fullka:       { label:'Fullka',             unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
+  triq_off:     { label:'3/4 off',            unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
+  half_off:     { label:'1/2 off',            unit:'ram',   isFake:false, isNoble:false, isFakeNoble:false },
+  fake:         { label:'Fejk',               unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:false },
+  fakeNoble:    { label:'Fejk vlak',          unit:'ram',   isFake:true,  isNoble:false, isFakeNoble:true  },
+  noble_train:  { label:'Vlak (4 šlechtici)', unit:'noble', isFake:false, isNoble:true,  isFakeNoble:false, nobleCount:4 },
+  noble_three:  { label:'ŠlechtiVlak (3)',    unit:'noble', isFake:false, isNoble:true,  isFakeNoble:false, nobleCount:3 },
+  noble_one:    { label:'Šlechtic po jednom', unit:'noble', isFake:false, isNoble:true,  isFakeNoble:false, nobleCount:1 },
 };
 const UNIT_BASE_SPEED_S = { ram:1800, noble:2100 };
 
@@ -1644,6 +1647,7 @@ function onDevilsTypeChange(rowIdx, typeKey) {
   row.unit = def.unit;
   row.isFake = def.isFake; row.isNoble = def.isNoble; row.isFakeNoble = def.isFakeNoble;
   row.srcCategory = def.isNoble ? 'noble' : typeKey;
+  if (def.nobleCount) row.nobleCount = def.nobleCount;
   recalcManualRow(rowIdx);
   renderTable();
   persistRows();
