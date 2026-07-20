@@ -1200,7 +1200,7 @@ async function loadPlanUnitSpeeds() {
       const newTravel = Math.round(dist * sp) * 1000;
       if (newTravel !== row.travel) { row.travel = newTravel; row.sendTime = row.arrivalTime - newTravel; row.night = isNight(row.sendTime); changed = true; }
     });
-    if (changed) { renderTable(); persistRows(); }
+    if (changed) { renderTable(); }
   } catch(e) { console.warn('loadPlanUnitSpeeds:', e); }
 }
 
